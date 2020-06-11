@@ -8,6 +8,7 @@ import mindustry.entities.type.Player;
 import mindustry.net.Administration;
 import org.mongojack.MongoCollection;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -204,8 +205,7 @@ public class PlayerD {
                 "[gray]deaths:[] " + (deaths+oldMeta.deaths);
     }
 
-    // I wish for better way then this, if you find one pleas commit it
-    public PlayerD(long buildingsBuilt,
+    @PersistenceConstructor public PlayerD(long buildingsBuilt,
                    long buildingsBroken,
                    long enemiesKilled,
                    long deaths,

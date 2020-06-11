@@ -346,9 +346,9 @@ public class Tools {
     public static boolean wrongArgAmount(Player player, String[] args, int req){
         if(args.length!=req){
             if(player != null){
-                sendErrMessage(player,"args-wrong-amount",String.valueOf(args.length),String.valueOf(req));
+                sendErrMessage(player,"args-wrong-amount",String.valueOf(req),String.valueOf(args.length));
             } else {
-                logInfo("args-wrong-amount",String.valueOf(args.length),String.valueOf(req));
+                logInfo("args-wrong-amount",String.valueOf(req),String.valueOf(args.length));
             }
             return true;
         }

@@ -27,7 +27,6 @@ import static mindustry.Vars.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 
 public class MapManager {
-    static Map currentMap=maps.all().first();
     public static MapD played;
     static MongoOperations data = new MongoTemplate(Database.client, Config.dbName);
 
@@ -35,20 +34,19 @@ public class MapManager {
         Events.on(EventType.GameOverEvent.class, e -> endGame(e.winner==Team.sharded));
 
         Events.on(EventType.PlayEvent.class, e-> {
-            currentMap=world.getMap();
-            String name=currentMap.name();
-            played = data.findOne(new Query(where("name").is(name)),MapD.class);
-            if(played == null){
-                played = new MapD(currentMap);
-                data.save(played);
-            }
+            played = getData(world.getMap());
             played.started = Time.millis();
             Hud.addAd(getWaveInfo(),30);
         });
     }
 
-    public static MapD getData(String filename){
-        return data.findOne(new Query(where("fileName").is(filename)),MapD.class);
+    public static MapD getData(Map map){
+        MapD md = data.findOne(new Query(where("fileName").is(map.file.name())),MapD.class);
+        if(md == null){
+            md = new MapD(map);
+            data.save(md);
+        }
+        return md;
     }
 
     public static Array<String> statistics(){
@@ -75,74 +73,22 @@ public class MapManager {
         for (int i=0;i<maps.size;i++){
             Map map = maps.get(i);
             String m = map.name();
-            MapD md = getData(map.file.name());
-            int r= md==null ? 5:(int)md.getRating();
+            MapD md = getData(map);
+            int r = (int)md.getRating();
             res.add("[yellow]"+i+"[] | [gray]"+m+"[] | "+String.format("[%s]%d/10[]",r<6 ? r<3 ? "scarlet":"yellow":"green",r));
         }
         return res;
     }
 
-    public static String getMapStats(String identifier){
-        Map map= identifier==null ? world.getMap():Tools.findMap(identifier);
-        if(map==null){
-            return null;
-        }
-        MapD md = getData(map.file.name());
-        if(md == null) {
-            md =new MapD(currentMap);
-            data.save(md);
-        }
-        return "[orange]--MAP STATS--[]\n\n" + md.toString();
-    }
-
-    public String getMapRules(String identifier){
-        Map map= identifier==null ? world.getMap():Tools.findMap(identifier);
-        if(map==null){
-            return null;
-        }
-        MapD md = getData(map.file.name());
-        if(md == null) {
-            md =new MapD(currentMap);
-            data.save(md);
-        }
-        Rules rules=map.rules();
-
-        return "[orange]--MAP RULES--[]\n\n"+
-                String.format("[gray]name:[] %s\n" +
-                        "[gray]mode:[] %s\n" +
-                        "[gray]first air-wave:[] "+(md.hasNoAirWave() ? "none" : md.firstAirWave)+"\n " +
-                        "[orange]Multipliers[]\n" +
-                        "[gray]build cost:[] %.2f\n"+
-                        "[gray]build speed:[] %.2f\n"+
-                        "[gray]block health:[] %.2f\n"+
-                        "[gray]unit build speed:[] %.2f\n"+
-                        "[gray]unit damage:[] %.2f\n"+
-                        "[gray]unit health:[] %.2f\n"+
-                        "[gray]player damage:[] %.2f\n"+
-                        "[gray]player health:[] %.2f\n"+
-                "",map.name(),rules.mode().name(),
-                rules.buildCostMultiplier,
-                rules.buildSpeedMultiplier,
-                rules.blockHealthMultiplier,
-                rules.unitBuildSpeedMultiplier,
-                rules.unitDamageMultiplier,
-                rules.unitHealthMultiplier,
-                rules.playerDamageMultiplier,
-                rules.playerHealthMultiplier);
-    }
-
 
 
     public void endGame(boolean won) {
-        if(currentMap==null){
-            return;
-        }
         if(played==null) return;
         played.playtime+=Time.timeSinceMillis(played.started);
         played.timesPlayed++;
         if(won) played.timesWon++;
         if(state.wave > played.waveRecord) played.waveRecord=state.wave;
-        currentMap=null;
+        played.save();
     }
 
     public String getWaveInfo(){

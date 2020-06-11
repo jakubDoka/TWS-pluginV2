@@ -26,8 +26,8 @@ public class Hud {
     final static String messageFile = Config.configDir + "hudMessages.json";
     static Timer.Task update;
     static ArrayList<Displayable> displayable = new ArrayList<>();
-    Timer.Task messageCycle;
-    Timer.Task coreDamageAlert;
+    Timer.Task messageCycle = null;
+    Timer.Task coreDamageAlert = null;
     boolean coreDamaged=false;
     boolean alertIsRed=false;
     static Array<String> messages= new Array<>();
@@ -48,6 +48,8 @@ public class Hud {
                 coreDamageAlert=null;
             },alertDuration);
         });
+        update();
+        startCycle(1);
     }
 
     public static void addDisplayable(Displayable displayable){
@@ -55,6 +57,9 @@ public class Hud {
     }
 
     void startCycle(int speed){
+        if(messageCycle != null){
+            messageCycle.cancel();
+        }
         this.speed=speed;
         messageCycle=Timer.schedule(()->{
             if(messages.isEmpty()){

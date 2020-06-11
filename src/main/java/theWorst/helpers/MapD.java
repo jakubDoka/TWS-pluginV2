@@ -5,8 +5,10 @@ import mindustry.game.Rules;
 import mindustry.game.SpawnGroup;
 import mindustry.maps.Map;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.query.Query;
 import theWorst.Main;
 import theWorst.Tools;
 import theWorst.database.PlayerD;
@@ -15,11 +17,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 
 import static mindustry.Vars.maps;
+import static org.springframework.data.mongodb.core.query.Criteria.where;
 
 @Document
 public class MapD {
-    final int defaultAirWave = 1000000;
-    @Id String fileName;
+    @Transient final int defaultAirWave = 1000000;
+    @Id String filename;
     long timesPlayed = 0;
     long timesWon = 0;
     long waveRecord = 0;
@@ -32,27 +35,26 @@ public class MapD {
     public HashMap<String,Byte> ratings=new HashMap<>();
 
     public MapD(Map map){
-        fileName = map.file.name();
+        filename = map.file.name();
         name=map.name();
         for(SpawnGroup sg:map.rules().spawns){
             if(sg.type.flying && sg.begin<firstAirWave) firstAirWave=sg.begin;
         }
     }
-
-    public MapD(String fileName,
+    @PersistenceConstructor public MapD(String filename,
                 long timesPlayed,
                 long timesWon,
                 long waveRecord,
-                int firsAirWave,
+                int firstAirWave,
                 long playtime,
                 long born,
                 String name,
                 HashMap<String,Byte> ratings){
-        this.fileName = fileName;
+        this.filename = filename;
         this.timesPlayed = timesPlayed;
         this.timesWon = timesWon;
         this.waveRecord = waveRecord;
-        this.firstAirWave = firsAirWave;
+        this.firstAirWave = firstAirWave;
         this.playtime = playtime;
         this.born = born;
         this.name = name;
@@ -64,12 +66,12 @@ public class MapD {
     }
 
     public float getRating(){
-        if (ratings.size()==0) return 0;
+        if (ratings.isEmpty()) return 0;
         float total=0;
-        for(byte b:ratings.values()){
-            total+=b;
+        for(byte b : ratings.values()){
+            total += b;
         }
-        return total/ratings.size();
+        return total / ratings.size();
     }
 
     public boolean hasNoAirWave() {
@@ -98,5 +100,9 @@ public class MapD {
                 String.format("%.2f",rules.unitHealthMultiplier),
                 String.format("%.2f",rules.playerDamageMultiplier),
                 String.format("%.2f",rules.playerHealthMultiplier));
+    }
+
+    public void save() {
+        MapManager.data.findAndReplace(new Query(where("filename").is(filename)),this);
     }
 }

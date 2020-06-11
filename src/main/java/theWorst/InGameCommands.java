@@ -266,13 +266,12 @@ public class InGameCommands {
             String what = "map-restart";
             PlayerD pd = getData(player);
             Map map = world.getMap();
-            MapD md = null;
+            MapD md = MapManager.played;
             if(args.length>1){
-                if(args[1].equalsIgnoreCase("this")) md = MapManager.played;
-                else {
+                if(!args[1].equalsIgnoreCase("this")) {
                     map = Tools.findMap(args[1]);
                     if(map != null){
-                        md = MapManager.getData(map.file.name());
+                        md = MapManager.getData(map);
                     }
                 }
             }
@@ -331,7 +330,7 @@ public class InGameCommands {
                         }
                         @Override
                         public void run() {
-                            Events.fire(EventType.GameOverEvent.class);
+                            Events.fire(new EventType.GameOverEvent(Team.crux));
                             sendMessage("map-gameover-done");
                             //todo launch all resources
                         }
@@ -350,8 +349,8 @@ public class InGameCommands {
                             MapManager.getMapList(),page,Tools.getTranslation(pd,"map-list"),20));
                     return;
                 case "info":
-                    if(Tools.wrongArgAmount(player,args,3)) return;
-                    if(md == null) {
+                    if(Tools.wrongArgAmount(player,args,2)) return;
+                    if( md == null ) {
                         sendErrMessage(player,"map-not-found");
                         return;
                     }
@@ -369,14 +368,16 @@ public class InGameCommands {
                     }
                     byte rating = (byte) Mathf.clamp(Byte.parseByte(args[2]),1,10);
                     md.ratings.put(player.uuid, rating);
+                    md.save();
                     sendMessage(player,"map-rate",md.name,
                             "["+(rating<6 ? rating<3 ? "scarlet":"yellow":"green") + "]" + rating + "[]");
+
                     return;
                 default:
                     sendErrMessage(player,"invalid-mode");
                     return;
             }
-            vote.aVote(voteData,10,((Map)voteData.target).name());
+            vote.aVote(voteData,10,voteData.target != null ? ((Map)voteData.target).name() : null);
                 });
 
     }

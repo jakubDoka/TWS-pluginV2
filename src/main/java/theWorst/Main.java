@@ -17,6 +17,8 @@ import theWorst.database.Database;
 import theWorst.database.Rank;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
+import theWorst.helpers.Hud;
+import theWorst.helpers.MapManager;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,10 +31,12 @@ import static theWorst.Tools.*;
 public class Main extends Plugin {
     static Administration administration =  new Administration();
     static ArrayList<Destroyable> destroyable = new ArrayList<>();
-
+    static Hud hud = new Hud();
     public Main() {
         new Database();
+        new MapManager();
         new Bot();
+        Events.on(EventType.WorldLoadEvent.class,e-> destroyable.forEach(Destroyable::destroy));
     }
 
     public void addDestroyable(Destroyable destroyable){
