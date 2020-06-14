@@ -19,11 +19,12 @@ import static mindustry.Vars.netServer;
 import static mindustry.Vars.world;
 import static theWorst.Tools.*;
 
-public class Administration {
+public class Administration implements Displayable{
     public static Emergency emergency = new Emergency(0); // Its just placeholder because time is 0
     TileInfo[][] data;
 
     public Administration() {
+        Hud.addDisplayable(this);
         //crete a a new action map when map changes.
         Events.on(EventType.PlayEvent.class, e -> {
             data = new TileInfo[world.height()][world.width()];
@@ -108,7 +109,7 @@ public class Administration {
 
             netServer.admins.addActionFilter((act) -> {
                 Player player = act.player;
-                if (player == null) return false;
+                if (player == null) return true;
                 PlayerD pd=Database.getData(player);
                 if (pd == null) return false;
                 pd.onAction(player);
@@ -138,6 +139,11 @@ public class Administration {
 
     }
 
+    @Override
+    public String getMessage(PlayerD pd) {
+        return emergency.getReport(pd);
+    }
+
     static class TileInfo{
         HashMap<String ,PlayerD> data = new HashMap<>();
         int lock= Perm.normal.getValue();
@@ -161,7 +167,7 @@ public class Administration {
                 return;
             }
             if (used>=2){
-                //Todo Tools.errMessage(player,commandUseLimit-used+" more quick uses of command and you will be banned for spam.");
+                Tools.sendMessage(player,"warming-spam",String.valueOf(commandUseLimit-used));
             }
         }
 
@@ -189,23 +195,24 @@ public class Administration {
 
         public Emergency(int min){
             if(min == -1) permanent = true;
-            time = 60*min;
+            time = 60 * min;
         }
 
         public boolean isActive(){
-            return time>0 || permanent;
+            return time > 0 || permanent;
         }
 
-        public String getReport(){
+        public String getReport(PlayerD pd){
             if(permanent){
-                return "emergency-permanent";
+                return Tools.format(Tools.getTranslation(pd,"emergency-permanent"),Rank.verified.getName());
             }
             if(time<=0){
                 return null;
             }
             time--;
             red = !red;
-            return "emergency";
+            String left = Tools.secToTime(time);
+            return Tools.format(Tools.getTranslation(pd,"emergency"),left,left);
         }
     }
 

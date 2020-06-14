@@ -2,7 +2,6 @@ package theWorst;
 
 import arc.files.Fi;
 import arc.math.Mathf;
-import arc.struct.Array;
 import arc.util.Strings;
 import arc.util.Timer;
 import mindustry.Vars;
@@ -17,18 +16,23 @@ import mindustry.world.modules.ItemModule;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
-import org.javacord.api.entity.permission.Role;
 import org.javacord.api.entity.user.User;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Rank;
+import theWorst.database.Stat;
 import theWorst.discord.Command;
 import theWorst.discord.CommandContext;
 import theWorst.discord.DiscordCommands;
+import theWorst.helpers.MapManager;
 
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -41,6 +45,7 @@ import static theWorst.Tools.setRankViaCommand;
 
 public class BotCommands {
     public BotCommands(DiscordCommands handler) {
+        String[] defaultRole = new String[]{"admin"};
         handler.registerCommand(new Command("help") {
             {
                 description = "Shows all commands and their description.";
@@ -157,13 +162,13 @@ public class BotCommands {
             }
         });
 
-        /*handler.registerCommand(new Command("downloadmap","<mapName/id>") {
+        handler.registerCommand(new Command("downloadmap","<mapName/id>") {
             {
                 description = "Preview and download a server map in a .msav file format.";
             }
             public void run(CommandContext ctx) {
 
-                Map found = MapManager.findMap(ctx.args[0]);
+                Map found = Tools.findMap(ctx.args[0]);
 
                 if (found == null) {
                     ctx.reply("Map not found!");
@@ -186,7 +191,7 @@ public class BotCommands {
                 StringBuilder b =new StringBuilder();
                 int i=0;
                 for(Map map:Vars.maps.customMaps()){
-                    double rating= MapManager.getMapRating(map);
+                    double rating = MapManager.getData(map).getRating();
                     b.append(i).append(" | ").append(map.name()).append(" | ").append(String.format("%.2f/10",rating)).append("\n");
                     i++;
                 }
@@ -195,35 +200,34 @@ public class BotCommands {
             }
         });
 
-        handler.registerCommand(new Command("search","<searchKey/chinese/russian/sort/online/rank> [sortType/rankName] [reverse]") {
+        handler.registerCommand(new Command("search","<searchKey/sort/rank> [sortType/rankName] [reverse]") {
             {
-                description = "Search for player in server database.Be careful database is big so if i resolve huge " +
-                        "search result i will send it to you in dm";
+                description = "Shows first 20 results of search.";
             }
             @Override
             public void run(CommandContext ctx) {
-                Array<String> res = Tools.getSearchResult(ctx.args, null, ctx.channel);
-                if (res == null) return;
+                ArrayList<String> res = Tools.search(ctx.args);
+                if (res == null) {
+                    ctx.reply("Sorry i don't know this sort type. Choose from these : " + Arrays.toString(Stat.values()));
+                    return;
+                }
 
                 StringBuilder mb = new StringBuilder();
-                int shown = 0;
-                int begin = Math.max(0,res.size-20);
-                for (int i = begin; i <res.size; i++) {
-                    String line =Tools.cleanColors(res.get(i));
-                    if(mb.length()+line.length()>maxMessageLength) break;
-                    shown++;
+                int size = res.size();
+                int begin = Math.max(0,size-20);
+                for (int i = begin; i <size; i++) {
                     mb.insert(0,Tools.cleanColors(res.get(i))+"\n");
                 }
                 if (res.isEmpty()) {
                     ctx.reply("No results found.");
                 } else {
                     ctx.channel.sendMessage(mb.toString());
-                    if(shown!=res.size){
-                        ctx.reply("I em showing just "+shown+" out of "+res.size+".");
+                    if(size>20){
+                        ctx.reply("I em showing just 20 out of " + size + ".");
                     }
                 }
             }
-        });*/
+        });
 
         handler.registerCommand(new Command("info","<name/id>") {
             {
@@ -241,24 +245,23 @@ public class BotCommands {
             }
         });
 
-        /*handler.registerCommand(new Command("postmap","|.msav|") {
+        handler.registerCommand(new Command("postmap","|.msav|") {
             @Override
             public void run(CommandContext ctx) {
                 Message message = ctx.event.getMessage();
                 MessageAttachment a = message.getAttachments().get(0);
 
-                String dir =Main.directory+"postedMaps/";
-                new File(dir).mkdir();
+                String path = Config.dir + "postedMaps/" + a.getFileName();
+                Tools.makeFullPath(path);
                 try {
-                    String path = dir+a.getFileName();
-                    Tools.downloadFile(a.downloadAsInputStream(),path);
+                    Files.copy(a.downloadAsInputStream(), Paths.get(path), StandardCopyOption.REPLACE_EXISTING);
                     Fi mapFile = new Fi(path);
                     Map posted = MapIO.createMap(mapFile,true);
 
                     EmbedBuilder eb = formMapEmbed(posted,"map post",ctx);
 
-                    if(channels.containsKey("maps")){
-                        channels.get("maps").sendMessage(eb,mapFile.file());
+                    if(config.channels.containsKey("maps")){
+                        config.channels.get("maps").sendMessage(eb,mapFile.file());
                         ctx.reply("Map posted.");
                     }else {
                         ctx.channel.sendMessage(eb,mapFile.file());
@@ -269,30 +272,28 @@ public class BotCommands {
             }
         });
 
-        handler.registerCommand(new Command("restrict","<command> <role/remove>") {
+        handler.registerCommand(new Command("restrict","<command> <roles>") {
             {
-                description = "Sets role restriction for command.";
-                role = admin;
+                description = "Sets role restriction for command. For more roles use role/role/role...";
+                role = defaultRole;
             }
             @Override
             public void run(CommandContext ctx) {
                 if(!handler.hasCommand(ctx.args[0]) ){
-                    String match = Tools.findBestMatch(ctx.args[0],handler.commands.keySet());
-                    ctx.reply("Sorry i don t know this command.");
-                    if(match==null) return;
-                    ctx.reply("Did you mean "+match+"?");
+                    ctx.reply("Sorry i don t know this command. Unable to change restrictions.");
                     return;
                 }
-                if(ctx.args[1].equals("remove")){
-                    handler.commands.get(ctx.args[0]).role=null;
-                    ctx.reply(String.format("Restriction from %s wos removed.", ctx.args[0]));
+                String[] roles = ctx.args[1].split("/");
+                for(String r : roles){
+                    if(!config.roles.containsKey(ctx.args[1])){
+                        ctx.reply("It might be little confusing but role names match names in the config file.\n"
+                                +config.roles.keySet().toString());
+                        ctx.reply("I don't know the "+r+".");
+                        return;
+                    }
                 }
-                if(!roles.containsKey(ctx.args[1])){
-                    ctx.reply("It might be little confusing but role names match names in the config file.\n"
-                            +roles.keySet().toString());
-                    return;
-                }
-                handler.commands.get(ctx.args[0]).role=roles.get(ctx.args[1]);
+
+                handler.commands.get(ctx.args[0]).role = roles;
 
                 ctx.reply(String.format("Role of %s is now %s.", ctx.args[0], ctx.args[1]));
             }
@@ -301,7 +302,7 @@ public class BotCommands {
         handler.registerCommand(new Command("addmap","|.msav|") {
             {
                 description = "Adds map to server.";
-                role=admin;
+                role = defaultRole;
             }
             @Override
             public void run(CommandContext ctx) {
@@ -309,20 +310,19 @@ public class BotCommands {
                 MessageAttachment a = message.getAttachments().get(0);
                 try {
                     String path="config/maps/"+a.getFileName();
-                    Tools.downloadFile(a.downloadAsInputStream(),path);
+                    Files.copy(a.downloadAsInputStream(), Paths.get(path), StandardCopyOption.REPLACE_EXISTING);
                     Fi mapFile = new Fi(path);
                     Map added = MapIO.createMap(mapFile,true);
 
                     EmbedBuilder eb = formMapEmbed(added,"new map",ctx);
 
-                    if(channels.containsKey("maps")){
-                        channels.get("maps").sendMessage(eb,mapFile.file());
+                    if(config.channels.containsKey("maps")){
+                        config.channels.get("maps").sendMessage(eb,mapFile.file());
                         ctx.reply("Map added.");
                     }else {
                         ctx.channel.sendMessage(eb,mapFile.file());
                     }
-
-                    maps.reload();
+                    MapManager.onMapAddition(added);
                 } catch (IOException ex){
                     ctx.reply("I em unable to upload map.");
                     ex.printStackTrace();
@@ -334,11 +334,11 @@ public class BotCommands {
         handler.registerCommand(new Command("removemap","<name/id>") {
             {
                 description = "Removes map from server.";
-                role=admin;
+                role = defaultRole;
             }
             @Override
             public void run(CommandContext ctx) {
-                Map removed = MapManager.findMap(ctx.args[0]);
+                Map removed = Tools.findMap(ctx.args[0]);
 
                 if(removed==null){
                     ctx.reply("Map not found.");
@@ -347,8 +347,8 @@ public class BotCommands {
 
                 EmbedBuilder eb = formMapEmbed(removed,"removed map",ctx);
                 CompletableFuture<Message> mess;
-                if(channels.containsKey("maps")){
-                    mess =  channels.get("maps").sendMessage(eb,removed.file.file());
+                if(config.channels.containsKey("maps")){
+                    mess = config.channels.get("maps").sendMessage(eb,removed.file.file());
                     ctx.reply("Map removed.");
                 }else {
                     mess = ctx.channel.sendMessage(eb,removed.file.file());
@@ -357,35 +357,47 @@ public class BotCommands {
                     @Override
                     public void run() {
                         if(mess.isDone()){
-                            maps.removeMap(removed);
-                            maps.reload();
+                            MapManager.onMapRemoval(removed);
                             this.cancel();
                         }
                     }
                 },0,1);
             }
-        });*/
+        });
 
-        /*handler.registerCommand(new Command("emergency","[off]") {
+        handler.registerCommand(new Command("emergency","[time/permanent/off]") {
             {
-                description = "Initialises or terminates emergency, available just for admins.";
-                role = admin;
+                description = "Emergency control.";
+                role = defaultRole;
             }
             @Override
             public void run(CommandContext ctx) {
-                ActionManager.switchEmergency(ctx.args.length==1);
-                if(ActionManager.isEmergency()){
-                    ctx.reply("Emergency started.");
-                } else {
-                    ctx.reply("Emergency stopped.");
+                switch (Tools.setEmergencyViaCommand(ctx.args)) {
+                    case success:
+                        ctx.reply("Emergency started.");
+                        break;
+                    case stopSuccess:
+                        ctx.reply("Emergency stopped.");
+                        break;
+                    case invalid:
+                        ctx.reply("There is already ongoing emergency.");
+                        break;
+                    case invalidStop:
+                        ctx.reply("No emergency to stop.");
+                        break;
+                    case invalidNotInteger:
+                        ctx.reply("Time has to be integer. Its in minutes");
+                        break;
+                    case permanentSuccess:
+                        ctx.reply("Permanent emergency started.");
                 }
             }
-        });*/
+        });
 
         handler.registerCommand(new Command("setrank","<name/id> <rank> [reason...]") {
             {
                 description = "Sets rank of the player, available just for admins.";
-                role = new String[]{"admin"};
+                role = defaultRole;
             }
             @Override
             public void run(CommandContext ctx) {
@@ -398,7 +410,7 @@ public class BotCommands {
                     case notPermitted:
                         ctx.reply("Changing or assigning admin rank can be done only thorough terminal.");
                         break;
-                    case invalidRank:
+                    case invalid:
                         ctx.reply("Rank not found.\nRanks:" + Arrays.toString(Rank.values())+"\n" +
                                 "Custom ranks:"+Database.ranks.keySet());
                         break;

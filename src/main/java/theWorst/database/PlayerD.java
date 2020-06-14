@@ -38,9 +38,9 @@ public class PlayerD {
     public long loadoutVotes =0;
     public long messageCount =0;
     public long playTime = 1;
-    public long born = Time.millis();
+    public long age = Time.millis();
     public long connected = Time.millis()+1;
-    public long lastActive = Time.millis();
+    public long lastActive = 0;
     @Transient public long lastAction = Time.millis();
     @Transient public boolean afk = false;
     public String specialRank=null;
@@ -73,8 +73,6 @@ public class PlayerD {
         ip=player.con.address;
         originalName=player.name;
 
-        lastAction=Time.millis();
-        connected=Time.millis();
         loadMeta(player);
     }
 
@@ -85,7 +83,6 @@ public class PlayerD {
             Database.updateName(player,this);
             Tools.sendMessage("afk-is-not",originalName,Database.AFK);
         }
-
     }
 
     public boolean isOnline(){
@@ -123,17 +120,19 @@ public class PlayerD {
             //meta is null! cannot continue
             return;
         }
-        oldMeta=meta;
-        country=meta.country;
-        lastActive=meta.lastActive;
-        specialRank=meta.specialRank;
-        rank=meta.rank;
-        textColor=meta.textColor;
-        discordLink=meta.discordLink;
-        settings=meta.settings;
-        mutes=meta.mutes;
-        lastMessage=meta.lastMessage;
-        born=meta.born;
+        oldMeta = meta;
+        serverId = meta.serverId;
+        country = meta.country;
+        lastActive = meta.lastActive;
+        specialRank = meta.specialRank;
+        rank = meta.rank;
+        textColor = meta.textColor;
+        discordLink = meta.discordLink;
+        settings = meta.settings;
+        mutes = meta.mutes;
+        lastMessage = meta.lastMessage;
+        age = meta.age;
+        playTime = meta.playTime;
         meta.connected = connected;
         Database.updateMeta(meta);
     }
@@ -147,62 +146,62 @@ public class PlayerD {
         //loading old data
         PlayerD meta = Database.getMeta(uuid);
         //it can happen when mongoDB database is dropped when server is running
-        if(meta == null){
+        if (meta == null) {
             Database.data.save(this);
             return;
         }
         //updating it
         ///counters
-        meta.buildingsBuilt+=buildingsBuilt;
-        meta.buildingsBroken+=buildingsBroken;
-        meta.enemiesKilled+=enemiesKilled;
-        meta.deaths+=deaths;
-        meta.gamesPlayed+=gamesPlayed;
-        meta.gamesWon+=gamesWon;
-        meta.factoryVotes+=factoryVotes;
-        meta.loadoutVotes+=loadoutVotes;
-        meta.messageCount+=messageCount;
-        meta.playTime+=Time.timeSinceMillis(connected);
+        meta.buildingsBuilt += buildingsBuilt;
+        meta.buildingsBroken += buildingsBroken;
+        meta.enemiesKilled += enemiesKilled;
+        meta.deaths += deaths;
+        meta.gamesPlayed += gamesPlayed;
+        meta.gamesWon += gamesWon;
+        meta.factoryVotes += factoryVotes;
+        meta.loadoutVotes += loadoutVotes;
+        meta.messageCount += messageCount;
+        meta.playTime += Time.timeSinceMillis(connected);
         ///settings
-        meta.textColor=textColor;
-        meta.discordLink=discordLink;
-        meta.settings=settings;
-        meta.mutes=mutes;
+        meta.textColor = textColor;
+        meta.discordLink = discordLink;
+        meta.settings = settings;
+        meta.mutes = mutes;
         ///just data
-        meta.connected=connected;
-        meta.lastActive=lastActive;
-        meta.specialRank=specialRank;
-        meta.rank=rank;
-        meta.ip=ip;
-        meta.originalName=originalName;
-        meta.lastMessage=lastMessage;
+        meta.connected = connected;
+        meta.lastActive = lastActive;
+        meta.specialRank = specialRank;
+        meta.rank = rank;
+        meta.ip = ip;
+        meta.originalName = originalName;
+        meta.lastMessage = lastMessage;
         //replace old one in database
         Database.updateMeta(meta);
     }
 
     @Override
     public String toString() {
-        if(oldMeta == null) oldMeta= new PlayerD();
+        if (oldMeta == null) oldMeta = new PlayerD();
         //the current instance of player data is counting everything from zero and then just incrementing to database
         // when player disconnects. That is why we have to use old data instance to provide somewhat accurate information
-        String activity = isOnline() ? "[green]ONLINE" : "[gray]OFFLINE FOR "+Tools.milsToTime(Time.timeSinceMillis(lastActive));
+        String activity = isOnline() ? "[green]ONLINE" : "[gray]OFFLINE FOR " + Tools.milsToTime(Time.timeSinceMillis(lastActive));
         return activity + "[]\n" +
                 "[yellow]server ID:[]" + serverId + "\n" +
                 "[gray]name:[] " + originalName + "\n" +
                 "[gray]rank:[] " + rank + "\n" +
-                "[gray]special rank:[] " + (specialRank==null ? "none" : specialRank) + "\n" +
+                "[gray]special rank:[] " + (specialRank == null ? "none" : specialRank) + "\n" +
                 "[gray]playtime:[] " + Tools.milsToTime(playTime) + "\n" +
-                "[gray]server age[]: " + Tools.milsToTime(Time.timeSinceMillis(born)) + "\n" +
-                "[gray]messages sent[]:" + (messageCount+oldMeta.messageCount) + "\n" +
-                "[gray]games played:[] " + (gamesPlayed+oldMeta.gamesPlayed) + "\n" +
-                "[gray]games won:[] " + (gamesWon+oldMeta.gamesWon) + "\n" +
-                "[gray]buildings built:[] " +(buildingsBuilt+oldMeta.buildingsBuilt) + "\n" +
-                "[gray]buildings broken:[] " + (buildingsBroken+oldMeta.buildingsBroken) + "\n" +
-                "[gray]successful loadout votes:[] " +(loadoutVotes+oldMeta.buildingsBroken) + "\n" +
-                "[gray]successful factory votes:[] " +(factoryVotes+oldMeta.factoryVotes) + "\n" +
-                "[gray]enemies killed:[] " + (enemiesKilled+oldMeta.enemiesKilled) + "\n" +
+                "[gray]server age[]: " + Tools.milsToTime(Time.timeSinceMillis(age)) + "\n" +
+                "[gray]messages sent[]:" + (messageCount + oldMeta.messageCount) + "\n" +
+                "[gray]games played:[] " + (gamesPlayed + oldMeta.gamesPlayed) + "\n" +
+                "[gray]games won:[] " + (gamesWon + oldMeta.gamesWon) + "\n" +
+                "[gray]buildings built:[] " + (buildingsBuilt + oldMeta.buildingsBuilt) + "\n" +
+                "[gray]buildings broken:[] " + (buildingsBroken + oldMeta.buildingsBroken) + "\n" +
+                "[gray]successful loadout votes:[] " + (loadoutVotes + oldMeta.buildingsBroken) + "\n" +
+                "[gray]successful factory votes:[] " + (factoryVotes + oldMeta.factoryVotes) + "\n" +
+                "[gray]enemies killed:[] " + (enemiesKilled + oldMeta.enemiesKilled) + "\n" +
                 "[gray]country:[] " + country + "\n" +
-                "[gray]deaths:[] " + (deaths+oldMeta.deaths);
+                "[gray]deaths:[] " + (deaths + oldMeta.deaths);
     }
 
     @PersistenceConstructor public PlayerD(long buildingsBuilt,
@@ -215,7 +214,7 @@ public class PlayerD {
                    long loadoutVotes,
                    long messageCount,
                    long playTime,
-                   long born,
+                   long age,
                    long connected,
                    long lastActive,
                    String specialRank,
@@ -229,32 +228,32 @@ public class PlayerD {
                    String rank,
                    String ip,
                    String originalName,
-                   long lastMessage){
-        this.buildingsBuilt=buildingsBuilt;
-        this.buildingsBroken=buildingsBroken;
-        this.enemiesKilled=enemiesKilled;
-        this.deaths=deaths;
-        this.gamesPlayed=gamesPlayed;
-        this.gamesWon=gamesWon;
-        this.factoryVotes=factoryVotes;
-        this.loadoutVotes=loadoutVotes;
-        this.messageCount=messageCount;
-        this.playTime=playTime;
-        this.born=born;
-        this.connected=connected;
-        this.lastActive=lastActive;
-        this.specialRank=specialRank;
-        this.country=country;
-        this.textColor=textColor;
-        this.discordLink=discordLink;
-        this.settings=settings;
-        this.mutes=mutes;
-        this.serverId=serverId;
-        this.uuid=uuid;
-        this.rank=rank;
-        this.ip=ip;
-        this.originalName=originalName;
-        this.lastMessage=lastMessage;
+                   long lastMessage) {
+        this.buildingsBuilt = buildingsBuilt;
+        this.buildingsBroken = buildingsBroken;
+        this.enemiesKilled = enemiesKilled;
+        this.deaths = deaths;
+        this.gamesPlayed = gamesPlayed;
+        this.gamesWon = gamesWon;
+        this.factoryVotes = factoryVotes;
+        this.loadoutVotes = loadoutVotes;
+        this.messageCount = messageCount;
+        this.playTime = playTime;
+        this.age = age;
+        this.connected = connected;
+        this.lastActive = lastActive;
+        this.specialRank = specialRank;
+        this.country = country;
+        this.textColor = textColor;
+        this.discordLink = discordLink;
+        this.settings = settings;
+        this.mutes = mutes;
+        this.serverId = serverId;
+        this.uuid = uuid;
+        this.rank = rank;
+        this.ip = ip;
+        this.originalName = originalName;
+        this.lastMessage = lastMessage;
     }
 
 

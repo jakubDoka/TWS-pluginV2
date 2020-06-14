@@ -1,8 +1,10 @@
 package theWorst.votes;
 
+import arc.Events;
 import arc.math.Mathf;
 import arc.util.Timer;
 import mindustry.entities.type.Player;
+import mindustry.game.EventType;
 import mindustry.gen.Call;
 import theWorst.Tools;
 import theWorst.database.Database;
@@ -14,10 +16,12 @@ import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
 
 
+import java.awt.*;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
+import static mindustry.Vars.player;
 import static mindustry.Vars.playerGroup;
 import static theWorst.Tools.sendErrMessage;
 
@@ -28,9 +32,9 @@ public class Vote implements Displayable, Destroyable {
     final String mode;
 
     Set<String> voted = new HashSet<>();
-    HashMap<String,Integer> recent = new HashMap<>();
+    Tools.RecentMap recent = new Tools.RecentMap(60,"vote-can-egan");
 
-
+    boolean canVote = true;
     public boolean voting = false;
 
     Integer maxReq = null;
@@ -42,11 +46,18 @@ public class Vote implements Displayable, Destroyable {
     public Vote(String mode){
         this.mode = mode;
         Hud.addDisplayable(this);
+        Events.on(EventType.GameOverEvent.class, e->canVote = false);
+        Events.on(EventType.PlayEvent.class, e->canVote = true);
+
     }
 
     public void aVote(VoteData voteData, Integer maxReq, String ... args) {
         Player player=voteData.by;
         Database.getData(player).onAction(player);
+        if (!canVote){
+            sendErrMessage(player,"vote-cannot-vote");
+            return;
+        }
         if (voting) {
             sendErrMessage(player,"vote-in-process");
             return;
@@ -71,24 +82,6 @@ public class Vote implements Displayable, Destroyable {
         voting = true;
         addVote(player,"y");
         Call.sendMessage(voteData.reason);
-    }
-
-    public void addToRecent(Player player){
-        if(Database.hasPerm(player, Perm.high)) return;
-        sendErrMessage(player,"vote-your-failed");
-        recent.put(player.uuid, voteDuration);
-        Timer.schedule(new Timer.Task(){
-            @Override
-            public void run() {
-                int time=recent.get(player.uuid);
-                if(time==0){
-                    recent.remove(player.uuid);
-                    this.cancel();
-                    return;
-                }
-                recent.put(player.uuid, time-1);
-            }
-        },0,1);
     }
 
     public int getRequired() {
@@ -138,13 +131,13 @@ public class Vote implements Displayable, Destroyable {
             return;
         }
         voting = false;
-        String result ="vote-" + message;
         if (success) {
             voteData.run();
-            //todo
+            Hud.addAd(voteData.reason + "-done", 10, args);
         } else {
-            addToRecent(voteData.by);
-            //todo
+            recent.add(voteData.by);
+            Hud.addAd(voteData.reason + "-fail", 10, args);
+            sendErrMessage(voteData.by,"vote-failed-penalty");
         }
     }
 
@@ -160,7 +153,7 @@ public class Vote implements Displayable, Destroyable {
         String md = Tools.getTranslation(pd,mode);
         String fMessage = Tools.format(Tools.getTranslation(pd,message),args);
         String req = Tools.getTranslation(pd,"vote-req");
-        return String.format("[%s]%s %s %02d [green]%d[] : [scarlet]%d[] [gray]%s %d[]",
+        return String.format("[%s]%s %s %02ds [green]%d[] : [scarlet]%d[] [gray]%s %d[][]",
                 color,fMessage,md,time,yes,no,req,getRequired());
     }
 

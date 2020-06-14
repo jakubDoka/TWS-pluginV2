@@ -1,21 +1,35 @@
 package theWorst.database;
 
 import arc.Events;
+import arc.graphics.Color;
 import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Time;
 import arc.util.Timer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
+import mindustry.Vars;
+import mindustry.content.Fx;
+import mindustry.entities.Effects;
+import mindustry.entities.EntityGroup;
+import mindustry.entities.traits.BuilderTrait;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
+import mindustry.game.Team;
+import mindustry.gen.Call;
 import mindustry.net.Administration;
+import mindustry.type.ItemStack;
+import mindustry.world.Block;
+import mindustry.world.blocks.storage.CoreBlock;
 import org.bson.Document;
 import org.javacord.api.entity.permission.Role;
 import org.javacord.api.entity.server.Server;
 import org.javacord.api.entity.user.User;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
@@ -23,15 +37,14 @@ import theWorst.Bot;
 import theWorst.Config;
 import theWorst.Tools;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import static mindustry.Vars.netServer;
-import static mindustry.Vars.playerGroup;
+import static mindustry.Vars.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static theWorst.Tools.logInfo;
 
@@ -41,7 +54,7 @@ public class Database {
     static final String subnetFile = Config.saveDir + "subnetBuns.json";
     public static MongoClient client = MongoClients.create();
     static MongoDatabase database = client.getDatabase(Config.dbName);
-    static MongoCollection<Document> rawData = database.getCollection(PlayerD.class.getName());
+    static MongoCollection<Document> rawData = database.getCollection("playerD");
     static MongoOperations data = new MongoTemplate(client, Config.dbName);
     static HashMap<String,PlayerD> online = new HashMap<>();
     public static HashMap<String,SpecialRank> ranks=new HashMap<>();
@@ -59,8 +72,20 @@ public class Database {
     public Database(){
         autocorrect();
         loadSubnet();
+        loadRanks();
         new AfkMaker();
         Events.on(EventType.PlayerConnect.class,e->{
+            //remove fake ranks
+            String name = e.player.name;
+            e.player.name = Tools.cleanEmotes(e.player.name);
+            if(!name.equals(e.player.name)){
+                //name cannot be blank
+                if(e.player.name.replace(" ","").isEmpty()){
+                    e.player.name = e.player.id +"&#@";
+                }
+                //let player know
+                Tools.sendErrMessage(e.player,"name-modified");
+            }
             PlayerD pd = new PlayerD(e.player);
             online.put(e.player.uuid, pd);
             //marked subnet so mark player aromatically
@@ -70,6 +95,10 @@ public class Database {
             }
             //resolving special rank
             SpecialRank sp = getSpecialRank(pd);
+            if(sp != null && !sp.isPermanent()){
+                pd.specialRank = null;
+                sp = null;
+            }
             for(SpecialRank rank : ranks.values()){
                 if(rank.condition(pd) && (sp==null || sp.value>rank.value)){
                    pd.specialRank = rank.name;
@@ -120,7 +149,89 @@ public class Database {
             pd.disconnect();
         });
 
+        //games played and games won counter
+        Events.on(EventType.GameOverEvent.class, e ->{
+            for(Player p:playerGroup){
+                PlayerD pd=getData(p);
+                if(p.getTeam()==e.winner) {
+                    pd.gamesWon++;
+                }
+                pd.gamesPlayed++;
+            }
+        });
 
+        //build and destruct permissions handling
+        Events.on(EventType.BuildSelectEvent.class, e->{
+            if(!(e.builder instanceof Player)) return;
+            boolean happen =false;
+            Player player=(Player)e.builder;
+            CoreBlock.CoreEntity core = Tools.getCore();
+            if(core==null) return;
+            BuilderTrait.BuildRequest request = player.buildRequest();
+            if(request==null) return;
+            if(hasSpecialPerm(player,Perm.destruct) && request.breaking){
+                happen=true;
+                for(ItemStack s:request.block.requirements){
+                    core.items.add(s.item,s.amount/2);
+                }
+                Call.onDeconstructFinish(request.tile(),request.block,((Player) e.builder).id);
+            }else if(hasSpecialPerm(player,Perm.build) && !request.breaking){
+                if(core.items.has(request.block.requirements)){
+                    happen=true;
+                    for(ItemStack s:request.block.requirements){
+                        core.items.remove(s);
+                    }
+                    Call.onConstructFinish(e.tile,request.block,((Player) e.builder).id,
+                            (byte) request.rotation,player.getTeam(),false);
+                    e.tile.configure(request.config);
+                }
+            }
+            //necessary because instant build or break do not trigger event
+            if(happen) Events.fire(new EventType.BlockBuildEndEvent(e.tile,player,e.team,e.breaking));
+        });
+
+        //count units killed and deaths
+        Events.on(EventType.UnitDestroyEvent.class, e->{
+            if(e.unit instanceof Player){
+                getData((Player) e.unit).deaths++;
+            }else if(e.unit.getTeam() != Team.sharded){
+                for(Player p:playerGroup){
+                    getData(p).enemiesKilled++;
+                }
+            }
+        });
+
+        //handle hammer event
+        Events.on(EventType.PlayerIpBanEvent.class,e->{
+            netServer.admins.unbanPlayerIP(e.ip);
+            for(PlayerD pd : getAllMeta()){
+                if(pd.ip.equals(e.ip)){
+                    pd.rank=Rank.griefer.name();
+                    netServer.admins.getInfo(pd.uuid).lastKicked=Time.millis();
+                    subnet.add(getSubnet(pd));
+                    break;
+                }
+            }
+        });
+
+        //count buildings and destroys
+        Events.on(EventType.BlockBuildEndEvent.class, e->{
+            if(e.player == null) return;
+            if(!e.breaking && e.tile.block().buildCost/60<1) return;
+            PlayerD pd=getData(e.player);
+            if(e.breaking){
+                pd.buildingsBroken++;
+            }else {
+                pd.buildingsBuilt++;
+            }
+        });
+
+    }
+
+    public static void reload(){
+        database = client.getDatabase(Config.dbName);
+        rawData = database.getCollection("playerD");
+        data = new MongoTemplate(client, Config.dbName);
     }
 
     //just for testing purposes
@@ -183,6 +294,58 @@ public class Database {
                 subnet.add((String) o);
             }
         },Database::saveSubnet);
+    }
+
+    public static boolean loadRanks() {
+        ranks.clear();
+        AtomicBoolean res = new AtomicBoolean(true);
+        Tools.loadJson(rankFile,data -> {
+            try {
+                for(Object o : (JSONArray)data.get("ranks")){
+                    ObjectMapper mapper = new ObjectMapper();
+                    SpecialRank sp = mapper.readValue(((JSONObject)o).toJSONString(),SpecialRank.class);
+                    for(String i : sp.quests.keySet()){
+                        Log.info(i + "-" + sp.quests.get(i));
+                        for(String j : sp.quests.get(i).keySet()){
+                            Log.info(j + "-" + sp.quests.get(i).get(j));
+                        }
+                    }
+                    ranks.put(sp.name,sp);
+                }
+            } catch (IOException ex){
+                ex.printStackTrace();
+            }
+        },()->{
+            res.set(false);
+            ObjectMapper mapper = new ObjectMapper();
+            SpecialRank rank = new SpecialRank(){{
+               name = "bug";
+               color = "red";
+               value = 1;
+               permissions = new HashSet<String>(){{
+                   add(Perm.colorCombo.name());
+               }};
+               quests = new HashMap<String, HashMap<String, Integer>>(){{
+                   put(Stat.deaths.name(),new HashMap<String, Integer>(){{
+                       put("frequency",2);
+                       put("required",3);
+                   }});
+               }};
+            }};
+            try {
+                String r = mapper.writeValueAsString(rank);
+                JSONObject obj = (JSONObject) new JSONParser().parse(r);
+                JSONObject data = new JSONObject();
+                data.put("ranks",new JSONArray(){{
+                    add(obj);
+                }});
+                Tools.saveJson(rankFile,data.toJSONString());
+            } catch (IOException | ParseException e) {
+                e.printStackTrace();
+            }
+            Tools.logInfo("files-default-config-created","special ranks", rankFile);
+        });
+        return res.get();
     }
 
     public static SpecialRank getSpecialRank(PlayerD pd){
@@ -285,15 +448,15 @@ public class Database {
     //when structure of playerD is changed this function tries its bet to make database still compatible
     //mongoDB surly has tools for this kind of actions its just too complex for me to figure out
     private static void autocorrect(){
-        MongoCollection<Document> rawPref = database.getCollection("pref");
         //creates document from updated class
         data.save(new PlayerD(),"pref");
         //assuming that all documents have same structure, and they should we are taking one o the old ones
         Document oldDoc = rawData.find().first();
-        Document currentDoc = rawPref.find().first();
+        Document currentDoc = data.getCollection("pref").find().first();
+        data.getCollection("pref").drop();
         //i don't know how this can happen but i want that database the database that produced it
         if(currentDoc == null || oldDoc == null){
-            Log.err("Autocorrect error. Report please.");
+            Log.err(currentDoc == null ? "missing current doc" : "missing old doc");
             return;
         }
         //if there is new field added
@@ -318,8 +481,6 @@ public class Database {
                 logInfo("autocorrect-field-remove",s);
             }
         }
-        //pref collection is useless so get rid of it
-        rawPref.drop();
     }
 
     private static class AfkMaker {

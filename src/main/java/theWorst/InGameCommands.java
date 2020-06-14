@@ -1,10 +1,14 @@
 package theWorst;
 
 import arc.Events;
+import arc.graphics.Color;
 import arc.math.Mathf;
 import arc.struct.Array;
 import arc.util.CommandHandler;
 import arc.util.Strings;
+import arc.util.Timer;
+import mindustry.content.Fx;
+import mindustry.entities.Effects;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.game.Gamemode;
@@ -15,6 +19,7 @@ import theWorst.database.*;
 import theWorst.discord.MapParser;
 import theWorst.helpers.MapD;
 import theWorst.helpers.MapManager;
+import theWorst.helpers.Tester;
 import theWorst.votes.Vote;
 import theWorst.votes.VoteData;
 
@@ -61,7 +66,6 @@ public class InGameCommands {
                 } else {
                     Database.setRank(pd, Rank.griefer, null);
                 }
-                sendMessage(reason + "-pass",pd.originalName);
             }
         };
 
@@ -159,7 +163,7 @@ public class InGameCommands {
                             return;
                         }
                         SpecialRank sp = Database.getSpecialRank(pd);
-                        if((sp == null || !sp.permissions.contains(Perm.colorCombo)) && !Database.hasPerm(player,Perm.highest)){
+                        if((sp == null || !sp.permissions.contains(Perm.colorCombo.name())) && !Database.hasPerm(player,Perm.highest)){
                             sendErrMessage(player,"setting-color-no-perm");
                             return;
                         }
@@ -250,7 +254,7 @@ public class InGameCommands {
                 case notFound:
                     sendErrMessage(player,"player-not-found");
                     break;
-                case invalidRank:
+                case invalid:
                     sendErrMessage(player,"rank-not-found");
                     sendMessage(player,"rank-s",Arrays.toString(Rank.values()));
                     sendMessage(player,"rank-s-custom",Database.ranks.keySet().toString());
@@ -260,7 +264,7 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("map","<help/change/restart/gameover/list/info/rules/rate> [name/idx/this] [1-10]",
+        handler.<Player>register("map","<help/change/restart/gameover/list/info/rate> [name/idx/this] [1-10]",
                 "More info via /map help",(args,player)->{
             VoteData voteData;
             String what = "map-restart";
@@ -282,7 +286,6 @@ public class InGameCommands {
                 case "change":
                     what = "map-change";
                     if(wrongArgAmount(player,args,2)) return;
-                    map = findMap(args[1]);
                     if (map == null){
                         sendErrMessage(player,"map-not-found");
                         return;
@@ -331,7 +334,6 @@ public class InGameCommands {
                         @Override
                         public void run() {
                             Events.fire(new EventType.GameOverEvent(Team.crux));
-                            sendMessage("map-gameover-done");
                             //todo launch all resources
                         }
                     };
@@ -349,8 +351,7 @@ public class InGameCommands {
                             MapManager.getMapList(),page,Tools.getTranslation(pd,"map-list"),20));
                     return;
                 case "info":
-                    if(Tools.wrongArgAmount(player,args,2)) return;
-                    if( md == null ) {
+                    if( md == null || map == null) {
                         sendErrMessage(player,"map-not-found");
                         return;
                     }
@@ -378,7 +379,105 @@ public class InGameCommands {
                     return;
             }
             vote.aVote(voteData,10,voteData.target != null ? ((Map)voteData.target).name() : null);
-                });
+        });
 
+        handler.<Player>register("emergency","<time/permanent/stop>","Emergency control.",(args,player)->{
+            if(!player.isAdmin){
+                sendErrMessage(player,"refuse-not-admin");
+                return;
+            }
+            switch (Tools.setEmergencyViaCommand(args)) {
+                case success:
+                    sendMessage(player,"emergency-started");
+                    break;
+                case stopSuccess:
+                    sendMessage(player,"emergency-stopped");
+                    break;
+                case invalid:
+                    sendErrMessage(player,"emergency-ongoing");
+                    break;
+                case invalidStop:
+                    sendErrMessage(player,"emergency-cannot-stop");
+                    break;
+                case invalidNotInteger:
+                    sendErrMessage(player,"refuse-not-integer","1");
+                    break;
+                case permanentSuccess:
+                    sendMessage(player,"emergency-permanent-started");
+            }
+        });
+
+        handler.<Player>register("search","<searchKey/sort/rank> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
+            ArrayList<String> res = Tools.search(args);
+            if (res == null) {
+                sendErrMessage(player, "search-invalid-mode",Arrays.toString(Stat.values()));
+                return;
+            }
+            int showing = 40;
+            StringBuilder mb = new StringBuilder();
+            int size = res.size();
+            int begin = Math.max(0,size-showing);
+            for (int i = begin; i <size; i++) {
+                mb.insert(0,Tools.cleanColors(res.get(i))+"\n");
+            }
+            if (res.isEmpty()) {
+                sendErrMessage(player, "search-no-results");
+            } else {
+                player.sendMessage(mb.toString());
+                if(size>showing){
+                    sendMessage(player, "search-show-report", String.valueOf(size));
+                }
+            }
+        });
+
+        handler.<Player>register("test","<start/egan/help/answer>","More info via /test help.",
+                (args,player)->{
+                    Integer penalty = Tester.recent.contains(player);
+                    PlayerD pd = Database.getData(player);
+                    boolean isTested = Tester.tests.containsKey(player.uuid);
+                    switch (args[0]){
+                        case "help" :
+                            sendInfoPopup(player,"test-help");
+                            return;
+                        case "start":
+                            if(pd.rank.equals(Rank.griefer.name())){
+                                sendErrMessage(player,"griefer-no-perm");
+                                return;
+                            }
+                            if(Database.hasPerm(player, Perm.high)){
+                                sendErrMessage(player,"test-no-need", Rank.verified.getName());
+                                return;
+                            }
+                            if(penalty != null){
+                                sendErrMessage(player,"test-is-recent",Tools.secToTime(penalty));
+                                return;
+                            }
+                            if(isTested){
+                                sendErrMessage(player,"test-already-testing");
+                                return;
+                            }
+                            sendMessage(player,"test-starting");
+                            Tester.tests.put(player.uuid,new Tester.Test(player));
+                            return;
+                        case "egan":
+                            if(!isTested){
+                                sendErrMessage(player,"test-not-tested");
+                                return;
+                            }
+                            Tester.tests.get(player.uuid).ask(player);
+                            return;
+                        default:
+                            if(!isTested){
+                                sendErrMessage(player,"test-not-tested");
+                                return;
+                            }
+                            if(!Strings.canParseInt(args[0])){
+                                sendErrMessage(player,"refuse-not-integer","1");
+                                return;
+                            }
+                            sendMessage(player,"test-processing");
+                            Tester.tests.get(player.uuid).processAnswer(player,Integer.parseInt(args[0])-1);
+                    }
+                });
     }
 }

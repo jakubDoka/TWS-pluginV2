@@ -36,7 +36,7 @@ public class MapManager {
         Events.on(EventType.PlayEvent.class, e-> {
             played = getData(world.getMap());
             played.started = Time.millis();
-            Hud.addAd(getWaveInfo(),30);
+            Hud.addAd(played.hasNoAirWave() ? "map-no-air-wave" : "map-first-air-wave",30,"" + played.defaultAirWave);
         });
     }
 
@@ -80,7 +80,20 @@ public class MapManager {
         return res;
     }
 
+    public static void onMapRemoval(Map removed) {
+        maps.removeMap(removed);
+        data.remove(getData(removed));
+        maps.reload();
+    }
 
+    public static void onMapAddition(Map added) {
+        MapD md = data.findOne(new Query(where("fileName").is(added.file.name())),MapD.class);;
+        if(md != null){
+            data.remove(md);
+        }
+        data.save(new MapD(added));
+        maps.reload();
+    }
 
     public void endGame(boolean won) {
         if(played==null) return;

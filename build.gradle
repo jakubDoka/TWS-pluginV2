@@ -19,14 +19,13 @@ ext{
 }
 
 dependencies {
-    compile 'com.fasterxml.jackson.core:jackson-databind:2.0.1'
     compile 'com.googlecode.json-simple:json-simple:1.1.1'
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.0.1'
     compile group: 'org.jsoup', name: 'jsoup', version: '1.12.1'
     compile 'org.mongojack:mongojack:4.0.1'
     compile 'org.springframework.data:spring-data-mongodb:3.0.0.RELEASE'
     compile 'org.mongodb:mongo-java-driver:2.12.3'
     implementation "org.javacord:javacord:3.0.6"
-    runtimeOnly 'org.apache.logging.log4j:log4j-core:2.11.0'
     compileOnly "com.github.Anuken.Arc:arc-core:$mindustryVersion"
     compileOnly "com.github.Anuken.Mindustry:core:$mindustryVersion"
 }

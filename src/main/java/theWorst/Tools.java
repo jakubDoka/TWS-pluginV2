@@ -11,12 +11,14 @@ import mindustry.entities.type.Player;
 import mindustry.game.Team;
 import mindustry.gen.Call;
 import mindustry.maps.Map;
-import mindustry.net.Administration;
 import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.Floor;
+import mindustry.world.blocks.storage.CoreBlock;
+import org.bson.Document;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -25,12 +27,12 @@ import theWorst.database.*;
 import theWorst.discord.ColorMap;
 import theWorst.discord.CommandContext;
 import theWorst.discord.MapParser;
+import theWorst.helpers.Administration;
 
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.ResourceBundle;
+import java.util.*;
+import arc.util.Timer;
 
 import static java.lang.Math.min;
 import static mindustry.Vars.*;
@@ -138,10 +140,6 @@ public class Tools {
             if(!Database.hasEnabled(p,Setting.chat) || Database.getData(p).mutes.contains(sender.uuid)) continue;
             p.sendMessage("[coral][[[#"+sender.color+"]"+sender.name+"[]]:[]"+message);
         }
-    }
-
-    public static boolean isGriefer(Player player){
-        return Database.getData(player).rank.equals(Rank.griefer.name());
     }
 
     //string formatting
@@ -272,18 +270,22 @@ public class Tools {
 
     public static void saveJson(String filename, String save){
         //creates full path
-        StringBuilder path = new StringBuilder();
-        String[] dirs = filename.split("/");
-        for(int i = 0; i<dirs.length-1; i++){
-            path.append(dirs[i]).append("/");
-            new File(path.toString()).mkdir();
-        }
+        makeFullPath(filename);
         //path exists so save
         try (FileWriter file = new FileWriter(filename)) {
             file.write(save);
         } catch (IOException ex) {
             Log.info("Error when creating/updating "+filename+".");
             ex.printStackTrace();
+        }
+    }
+
+    public static void makeFullPath(String filename){
+        StringBuilder path = new StringBuilder();
+        String[] dirs = filename.split("/");
+        for(int i = 0; i<dirs.length-1; i++){
+            path.append(dirs[i]).append("/");
+            new File(path.toString()).mkdir();
         }
     }
 
@@ -391,7 +393,7 @@ public class Tools {
                 sendMessage("rank-restart", pd.originalName);
                 Log.info("rank-restart", pd.originalName);
             }
-            else if (!Database.ranks.containsKey(rank)) return Res.invalidRank;
+            else if (!Database.ranks.containsKey(rank)) return Res.invalid;
             else {
                 pd.specialRank = rank;
                 SpecialRank sr = Database.getSpecialRank(pd);
@@ -404,12 +406,104 @@ public class Tools {
         return Res.success;
     }
 
+    //i need to do same thing on three places so this is necessary
+    public static Res setEmergencyViaCommand(String[] args){
+        if(args.length==0){
+            if(Administration.emergency.isActive()){
+                return Res.invalid;
+            }
+            Administration.emergency = new Administration.Emergency(3);
+            return Res.success;
+        }
+        if(args[0].equals("permanent")){
+            if(theWorst.helpers.Administration.emergency.isActive()){
+                return Res.invalid;
+            }
+            Administration.emergency = new Administration.Emergency(-1);
+
+            return Res.permanentSuccess;
+        }
+        if(args[0].equals("off")){
+            if(!theWorst.helpers.Administration.emergency.isActive()){
+                return Res.invalidStop;
+            }
+            Administration.emergency = new Administration.Emergency(0);
+            return Res.stopSuccess;
+        }
+        if(!Strings.canParsePostiveInt(args[0])){
+            return Res.invalidNotInteger;
+        }
+        Administration.emergency = new Administration.Emergency(Integer.parseInt(args[0]));
+        return Res.success;
+    }
+
+    public static String pdToLine(PlayerD pd){
+        return "[yellow]" + pd.serverId + "[] | [gray]" + pd.originalName + "[] | " + getRank(pd).getName();
+    }
+
+    public static ArrayList<String> search(String[] args){
+        List<PlayerD> all = Database.getAllMeta();
+        ArrayList<String> res = new ArrayList<>();
+        switch (args[0]){
+            case "sort":
+                if(!enumContains(Stat.values(),args[1])){
+                    return null;
+                }
+                HashMap<Document, PlayerD> holder = new HashMap<>();
+                for (Document d : Database.getAllRawMeta()) {
+                    holder.put(d, Database.getMeta((String) d.get("_id")));
+                }
+                while (!holder.isEmpty()) {
+                    long best = 0;
+                    Document bestD = null;
+                    for (Document d : holder.keySet()) {
+                        Long val = (Long) d.get(args[1]);
+                        if(val == null){
+                            Log.info("error: missing property " + args[1]);
+                            return null;
+                        }
+                        if (val >= best) {
+                            best = val;
+                            bestD = d;
+                        }
+                    }
+                    res.add(pdToLine(holder.get(bestD)));
+                    holder.remove(bestD);
+                }
+                break;
+            case "rank":
+                for(PlayerD pd : all){
+                    if(pd.rank.equals(args[1])) res.add(pdToLine(pd));
+                }
+                break;
+            default:
+                for(PlayerD pd : all){
+                    if(pd.originalName.startsWith(args[0])) res.add(pdToLine(pd));
+                }
+                break;
+        }
+        if(args.length == 3){
+            int size = res.size();
+            ArrayList<String> reversed = new ArrayList<>(size);
+            for(int i =0; i < res.size(); i++){
+                reversed.set(i, res.get(size - 1 - i));
+            }
+            return reversed;
+        }
+        return res;
+    }
+
     public enum Res{
         notFound,
         notPermitted,
-        invalidRank,
-        success
+        invalid,
+        invalidNotInteger,
+        success,
+        permanentSuccess,
+        stopSuccess,
+        invalidStop
     }
+
 
     //enum tools
     public static <T extends Enum<T>> boolean enumContains(T[] aValues,String value) {
@@ -446,5 +540,44 @@ public class Tools {
 
             return parts[0] + parts[1] + parts[2];
         }
+    }
+
+    //administration
+    public static class RecentMap extends HashMap<String, Integer>{
+        int penalty;
+        String endMessage;
+
+        public RecentMap(int penalty, String endMessage){
+            this.penalty = penalty;
+            this.endMessage = endMessage;
+        }
+
+        public void add(Player player){
+            String uuid = player.uuid;
+            put(uuid,penalty);
+            Timer.schedule(new Timer.Task() {
+                @Override
+                public void run() {
+                    Integer time = get(uuid);
+                    if(time <= 0){
+                        remove(uuid);
+                        sendMessage(player, endMessage);
+                        cancel();
+                        return;
+                    }
+                    put(uuid, time-1);
+                }
+            }, 1, 1);
+        }
+
+        public Integer contains(Player player){
+            return get(player.uuid);
+        }
+    }
+
+    //just tools
+    public static CoreBlock.CoreEntity getCore(){
+        if(state.teams.cores(Team.sharded).isEmpty()) return null;
+        return state.teams.cores(Team.sharded).first();
     }
 }

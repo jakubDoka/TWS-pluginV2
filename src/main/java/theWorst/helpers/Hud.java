@@ -3,6 +3,7 @@ package theWorst.helpers;
 import arc.Events;
 import arc.struct.Array;
 import arc.util.Log;
+import arc.util.Time;
 import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
@@ -26,72 +27,53 @@ public class Hud {
     final static String messageFile = Config.configDir + "hudMessages.json";
     static Timer.Task update;
     static ArrayList<Displayable> displayable = new ArrayList<>();
-    Timer.Task messageCycle = null;
-    Timer.Task coreDamageAlert = null;
-    boolean coreDamaged=false;
-    boolean alertIsRed=false;
+    static Timer.Task messageCycle = null;
+    boolean showCoreAlert;
     static Array<String> messages= new Array<>();
-    int speed=10;
+    static int speed=10;
     static Array<Ad> adQueue= new Array<>();
-    int current=0;
+    static int current=0;
 
 
     public Hud(){
         Events.on(EventType.Trigger.teamCoreDamage,()->{
-            int alertDuration=10;
-            if(coreDamageAlert!=null){
-                return;
-            }
-            coreDamaged=true;
-            coreDamageAlert=Timer.schedule(()->{
-                coreDamaged=false;
-                coreDamageAlert=null;
-            },alertDuration);
+            if(!showCoreAlert) return;
+            addAd("hud-core-under-attack",10,"!scarlet","!gray");
+            showCoreAlert = false;
+            Timer.schedule(()->showCoreAlert=true,10);
         });
+        loadMessages();
         update();
-        startCycle(1);
     }
 
     public static void addDisplayable(Displayable displayable){
         Hud.displayable.add(displayable);
     }
 
-    void startCycle(int speed){
-        if(messageCycle != null){
-            messageCycle.cancel();
-        }
-        this.speed=speed;
-        messageCycle=Timer.schedule(()->{
-            if(messages.isEmpty()){
-                return;
-            }
-
-            current+=1;
-            current%=messages.size;
-        },0,speed*60);
-    }
-
     void update(){
         update=Timer.schedule(()-> {
             try {
                 for (Player p : playerGroup) {
+                    //hud disabled si hide the hud
                     if (!Database.hasEnabled(p, Setting.hud)) {
-                        Call.hideHudText(player.con);
+                        Call.hideHudText(p.con);
                         continue;
                     }
-                    PlayerD pd = Database.getData(player);
-                    StringBuilder b = new StringBuilder();
-                    if (!messages.isEmpty()) b.append(messages.get(current));
+                    PlayerD pd = Database.getData(p);
+                    StringBuilder b = new StringBuilder().append("[#cbcbcb]");
+                    if (!messages.isEmpty()) b.append(messages.get(current)).append("\n");
+                    //displayable are registered in their constructors
                     for (Displayable d : displayable) {
                         String r = d.getMessage(pd);
                         if (r == null) continue;
                         b.append(r);
                         b.append("\n");
                     }
+                    //is there are adds going on show them
                     for (Ad a : adQueue) {
                         b.append(a.getMessage(pd)).append("\n");
                     }
-                    Call.setHudText(p.con, b.toString());
+                    Call.setHudText(p.con, b.toString().substring(0,b.length()-1)); //get rid of \n character
                 }
             } catch (Exception ex) {ex.printStackTrace();}
             },0,1);
@@ -137,19 +119,35 @@ public class Hud {
     }
 
     public static void loadMessages(){
+        speed = 3;
         Tools.loadJson(messageFile,data->{
-            for(Object o : (JSONArray)data.get("messages")){
-                messages.add((String) o);
+            if(data.containsKey("messages")){
+                for(Object o : (JSONArray)data.get("messages")){
+                    messages.add((String) o);
+                }
             }
+            if(data.containsKey("speed")) speed = ((Long)data.get("speed")).intValue();
         },Hud::defaultMessages);
+        if(messageCycle != null){
+            messageCycle.cancel();
+        }
+        messageCycle=Timer.schedule(()->{
+            if(messages.isEmpty()){
+                return;
+            }
+            current+=1;
+            current%=messages.size;
+        },0,speed*60);
     }
 
     private static void defaultMessages() {
         JSONObject data = new JSONObject();
         JSONArray array = new JSONArray();
+        array.add("To toggle thous messages modify file [orange]"+messageFile+"[].");
         array.add("Put your messages like this.");
         array.add("And this.");
-        data.put("subnet",array);
+        data.put("messages",array);
+        data.put("speed",1);
         Tools.saveJson(messageFile,data.toJSONString());
         Tools.logInfo("files-default-config-created","hud messages", messageFile);
     }
