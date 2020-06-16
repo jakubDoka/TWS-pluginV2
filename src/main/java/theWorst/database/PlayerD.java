@@ -1,10 +1,20 @@
 package theWorst.database;
 
+import arc.Core;
+import arc.graphics.Color;
+import arc.math.geom.Vec2;
+import arc.util.Log;
 import arc.util.Time;
 import com.fasterxml.jackson.annotation.JsonCreator;
 
 import javafx.print.PageLayout;
+import mindustry.content.Bullets;
+import mindustry.content.Fx;
+import mindustry.entities.Effects;
+import mindustry.entities.bullet.BulletType;
+import mindustry.entities.type.Bullet;
 import mindustry.entities.type.Player;
+import mindustry.gen.Call;
 import mindustry.net.Administration;
 import org.mongojack.MongoCollection;
 import org.springframework.data.annotation.Id;
@@ -17,6 +27,7 @@ import theWorst.Config;
 import theWorst.Tools;
 import org.json.simple.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.ResourceBundle;
 
@@ -45,6 +56,7 @@ public class PlayerD {
     @Transient public boolean afk = false;
     public String specialRank=null;
     public String country="unknown";
+    @Transient public ArrayList<Pet> pets = new ArrayList<>();
 
     //user customization
     public String textColor = "white";
@@ -60,6 +72,8 @@ public class PlayerD {
     public String originalName = "";
     public long lastMessage = 0;
 
+
+
     @Transient PlayerD oldMeta;
     @Transient public ResourceBundle bundle = Tools.defaultBundle;
 
@@ -72,7 +86,6 @@ public class PlayerD {
         //this data can change
         ip=player.con.address;
         originalName=player.name;
-
         loadMeta(player);
     }
 
@@ -255,6 +268,5 @@ public class PlayerD {
         this.originalName = originalName;
         this.lastMessage = lastMessage;
     }
-
-
 }
+

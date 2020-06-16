@@ -7,8 +7,11 @@ import org.bson.Document;
 import theWorst.Tools;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+
+import static theWorst.Tools.logInfo;
 
 public class SpecialRank implements Serializable {
     public String name;
@@ -18,6 +21,7 @@ public class SpecialRank implements Serializable {
     public HashSet<String> permissions = new HashSet<String>(){{ add(Perm.normal.name());}};
     public HashSet<String> linked = null;
     public HashMap<String, HashMap<String,Integer>> quests = null;
+    public ArrayList<String> pets = null;
 
     @JsonCreator public SpecialRank(
             @JsonProperty("name") String name,
@@ -26,14 +30,24 @@ public class SpecialRank implements Serializable {
             @JsonProperty("value") int value,
             @JsonProperty("permissions") HashSet<String> permissions,
             @JsonProperty("linked") HashSet<String> linked,
-            @JsonProperty("quests") HashMap<String, HashMap<String,Integer>> quests){
+            @JsonProperty("quests") HashMap<String, HashMap<String,Integer>> quests,
+            @JsonProperty("pets")ArrayList<String> pets){
         this.name = name;
+        if(name == null){
+            this.name = "noName";
+            logInfo("missing-name","special rank");
+        }
         this.color = color;
-        this.description = description;
+        if(color == null){
+            this.color = "red";
+            logInfo("special-missing-color",name);
+        }
+        if(description != null) this.description = description;
         this.value = value;
         if(permissions != null) this.permissions = permissions;
         this.linked = linked;
         this.quests = quests;
+        this.pets = pets;
     }
 
     public SpecialRank() { }
@@ -48,14 +62,13 @@ public class SpecialRank implements Serializable {
             for (String l : linked){
                 SpecialRank other = Database.ranks.get(l);
                 if(other == null) {
-                    Tools.logInfo("special-rank-error-missing-rank");
+                    logInfo("special-rank-error-missing-rank");
                     return false;
                 }
                 if(!other.condition(tested)) return false;
             }
-            return true;
         }
-        if(quests == null || quests.isEmpty()) return false;
+        if(quests == null && linked == null) return false;
         Document rawData = Database.getRawMeta(tested.uuid);
         for(String stat : quests.keySet()){
             HashMap<String,Integer> quest = quests.get(stat);

@@ -6,7 +6,10 @@ import arc.struct.Array;
 import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Tmp;
+import javafx.scene.effect.Effect;
 import mindustry.content.Blocks;
+import mindustry.content.Fx;
+import mindustry.entities.Effects;
 import mindustry.entities.type.Player;
 import mindustry.game.Team;
 import mindustry.gen.Call;
@@ -31,6 +34,7 @@ import theWorst.helpers.Administration;
 
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.lang.reflect.Field;
 import java.util.*;
 import arc.util.Timer;
 
@@ -363,6 +367,24 @@ public class Tools {
 
     public static boolean isCommandRelated(String message){
         return message.startsWith("/") || message.equalsIgnoreCase("y") || message.equalsIgnoreCase("n");
+    }
+
+    public static <T> Object getPropertyByName(Class<T> tClass, String propertyName, Object object) {
+        try {
+            Field field = tClass.getDeclaredField(propertyName);
+            return field.get(object);
+        } catch (IllegalAccessException | NoSuchFieldException e) {
+            return null;
+        }
+    }
+
+    public static <T> String[] getPropertyNameList(Class<T> tClass){
+        Field[] fields = tClass.getDeclaredFields();
+        String[] res = new String[fields.length];
+        for(int i = 0; i < res.length; i++){
+            res[i] = fields[i].getName();
+        }
+        return res;
     }
 
     //beautiful spaghetti in deed

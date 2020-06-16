@@ -24,8 +24,10 @@ import theWorst.votes.Vote;
 import theWorst.votes.VoteData;
 
 import java.beans.Transient;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 
 import static mindustry.Vars.*;
 import static theWorst.Tools.*;
@@ -124,82 +126,91 @@ public class InGameCommands {
             Call.onInfoMessage(player.con,"[orange]==PLAYER PROFILE==[]\n\n"+data);
         });
 
-        handler.<Player>register("set","[setting/textcolor] [on/off/colorCode]","Toggles the " +
-                "provided setting or sets the color of your messages. /set to see setting options.",(args,player)->{
+        handler.<Player>register("set","[setting/help] [on/off/argument]",
+                "/set to see setting options. /set help for more info.",(args,player)->{
             PlayerD pd = getData(player);
-            ArrayList<String > settings = new ArrayList<>();
-            StringBuilder sb = new StringBuilder();
-            for(Setting s : Setting.values()){
-                settings.add(s.name());
-                sb.append(" ").append(s.name());
-            }
-            if(args.length==0){
-                sendMessage(player,"setting");
+
+            if(args.length==0) {
+                StringBuilder sb = new StringBuilder();
+                for (Setting s : Setting.values()) {
+                    sb.append(" ").append(s.name());
+                }
+                sendMessage(player, "setting");
                 player.sendMessage(sb.toString());
+                return;
             }
-            switch (args[0]){
+            if(args.length == 1){
+                if(!args[0].equals("help")){
+                    wrongArgAmount(player,args,2);
+                    return;
+                }
+                Tools.sendInfoPopup(player,"set-help");
+                return;
+            }
+            sendMessage(player,"set-textColor",args[1]);
+            switch (args[0]) {
                 case "textColor":
-                    if(!Database.hasPerm(player, Perm.high)){
-                        sendErrMessage(player,"at-least-verified",Rank.verified.getName());
+                    if (!Database.hasPerm(player, Perm.high)) {
+                        sendErrMessage(player, "at-least-verified", Rank.verified.getName());
                         return;
                     }
                     String[] colors = args[1].split("/");
-                    if(colors.length>1){
+                    if (colors.length > 1) {
                         boolean invalid = false;
-                        for(String s : colors){
-                            if(s.length()!=6){
+                        for (String s : colors) {
+                            if (s.length() != 6) {
                                 invalid = true;
                                 break;
                             }
-                            try{
-                                Integer.parseInt(s,16);
-                            } catch (Exception ex){
+                            try {
+                                Integer.parseInt(s, 16);
+                            } catch (Exception ex) {
                                 invalid = true;
                                 break;
                             }
                         }
-                        if(invalid){
-                            sendErrMessage(player,"setting-color-invalid-format",args[1]);
+                        if (invalid) {
+                            sendErrMessage(player, "set-color-invalid-format", args[1]);
                             return;
                         }
                         SpecialRank sp = Database.getSpecialRank(pd);
-                        if((sp == null || !sp.permissions.contains(Perm.colorCombo.name())) && !Database.hasPerm(player,Perm.highest)){
-                            sendErrMessage(player,"setting-color-no-perm");
+                        if ((sp == null || !sp.permissions.contains(Perm.colorCombo.name())) && !Database.hasPerm(player, Perm.highest)) {
+                            sendErrMessage(player, "set-color-no-perm");
                             return;
                         }
-                        pd.textColor=args[1];
-                        String preview = Tools.smoothColors("Colors go brrrrr!!",args[1].split("/"));
-                        sendMessage(player,"setting-color-preview",preview);
+                        pd.textColor = args[1];
+                        String preview = Tools.smoothColors("Colors go brrrrr!!", args[1].split("/"));
+                        sendMessage(player, "set-color-preview", preview);
                         return;
                     }
-                    pd.textColor=args[1];
-                    sendMessage(player,"setting-textColor",args[1]);
+                    pd.textColor = args[1];
+
+                    break;
+            }
+            if(!Tools.enumContains(Setting.values(),args[0])){
+                sendErrMessage(player,"set-invalid");
+                return;
+            }
+            switch (args[1]){
+                case "on" :
+                    if(pd.settings.contains(args[0])){
+                        sendErrMessage(player, "set-already-enabled");
+                        return;
+                    }
+                    pd.settings.add(args[0]);
+                    break;
+                case "off" :
+                    if(!pd.settings.contains(args[0])){
+                        sendErrMessage(player,"set-already-disabled");
+                        return;
+                    }
+                    pd.settings.remove(args[0]);
                     break;
                 default:
-                    if(!settings.contains(args[0])){
-                        sendErrMessage(player,"setting-invalid");
-                        return;
-                    }
-                    switch (args[1]){
-                        case "on" :
-                            if(pd.settings.contains(args[0])){
-                                sendErrMessage(player, "setting-already-enabled");
-                                return;
-                            }
-                            pd.settings.add(args[0]);
-                            break;
-                        case "off" :
-                            if(!pd.settings.contains(args[0])){
-                                sendErrMessage(player,"setting-already-disabled");
-                                return;
-                            }
-                            pd.settings.remove(args[0]);
-                            break;
-                        default:
-                            sendErrMessage(player,"no-such-option",args[1],"on/off");
-                    }
-                    sendMessage(player,"setting-toggled",args[0],args[1]);
+                    sendErrMessage(player,"no-such-option",args[1],"on/off");
             }
+            sendMessage(player,"set-toggled",args[0],args[1]);
+
         });
 
         handler.<Player>register("mute","<name/id>","Mutes or, if muted, unmutes player for you. " +
@@ -478,6 +489,7 @@ public class InGameCommands {
                             sendMessage(player,"test-processing");
                             Tester.tests.get(player.uuid).processAnswer(player,Integer.parseInt(args[0])-1);
                     }
-                });
+        });
+
     }
 }

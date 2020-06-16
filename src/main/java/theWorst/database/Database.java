@@ -1,18 +1,14 @@
 package theWorst.database;
 
 import arc.Events;
-import arc.graphics.Color;
 import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Time;
 import arc.util.Timer;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
-import mindustry.Vars;
-import mindustry.content.Fx;
-import mindustry.entities.Effects;
-import mindustry.entities.EntityGroup;
 import mindustry.entities.traits.BuilderTrait;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
@@ -20,7 +16,6 @@ import mindustry.game.Team;
 import mindustry.gen.Call;
 import mindustry.net.Administration;
 import mindustry.type.ItemStack;
-import mindustry.world.Block;
 import mindustry.world.blocks.storage.CoreBlock;
 import org.bson.Document;
 import org.javacord.api.entity.permission.Role;
@@ -37,9 +32,12 @@ import theWorst.Bot;
 import theWorst.Config;
 import theWorst.Tools;
 
-import java.io.File;
+import java.awt.*;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -51,6 +49,7 @@ import static theWorst.Tools.logInfo;
 public class Database {
     public static final String AFK = "[gray]<AFK>[]";
     static final String rankFile = Config.configDir + "specialRanks.json";
+    static final String petFile = Config.configDir + "pets.json";
     static final String subnetFile = Config.saveDir + "subnetBuns.json";
     public static MongoClient client = MongoClients.create();
     static MongoDatabase database = client.getDatabase(Config.dbName);
@@ -58,6 +57,7 @@ public class Database {
     static MongoOperations data = new MongoTemplate(client, Config.dbName);
     static HashMap<String,PlayerD> online = new HashMap<>();
     public static HashMap<String,SpecialRank> ranks=new HashMap<>();
+    public static HashMap<String,Pet> pets=new HashMap<>();
     static HashSet<String> subnet = new HashSet<>();
 
     private static final PlayerD defaultPD = new PlayerD(){{
@@ -72,7 +72,11 @@ public class Database {
     public Database(){
         autocorrect();
         loadSubnet();
-        loadRanks();
+        Events.on(EventType.ServerLoadEvent.class, e->{
+            loadPets();
+            loadRanks();
+        });
+
         new AfkMaker();
         Events.on(EventType.PlayerConnect.class,e->{
             //remove fake ranks
@@ -102,6 +106,17 @@ public class Database {
             for(SpecialRank rank : ranks.values()){
                 if(rank.condition(pd) && (sp==null || sp.value>rank.value)){
                    pd.specialRank = rank.name;
+                   sp = rank;
+                }
+            }
+            if(sp != null && sp.pets != null){
+                for(String pet : sp.pets){
+                    Pet found = pets.get(pet);
+                    if(found == null){
+                        Log.info("missing pet :" + pet);
+                    } else {
+                        pd.pets.add(new Pet(found));
+                    }
                 }
             }
             //modify name based of rank
@@ -161,33 +176,33 @@ public class Database {
         });
 
         //build and destruct permissions handling
-        Events.on(EventType.BuildSelectEvent.class, e->{
-            if(!(e.builder instanceof Player)) return;
-            boolean happen =false;
-            Player player=(Player)e.builder;
+        Events.on(EventType.BuildSelectEvent.class, e-> {
+            if (!(e.builder instanceof Player)) return;
+            boolean happen = false;
+            Player player = (Player) e.builder;
             CoreBlock.CoreEntity core = Tools.getCore();
-            if(core==null) return;
+            if (core == null) return;
             BuilderTrait.BuildRequest request = player.buildRequest();
-            if(request==null) return;
-            if(hasSpecialPerm(player,Perm.destruct) && request.breaking){
-                happen=true;
-                for(ItemStack s:request.block.requirements){
-                    core.items.add(s.item,s.amount/2);
+            if (request == null) return;
+            if (hasSpecialPerm(player, Perm.destruct) && request.breaking) {
+                happen = true;
+                for (ItemStack s : request.block.requirements) {
+                    core.items.add(s.item, s.amount / 2);
                 }
-                Call.onDeconstructFinish(request.tile(),request.block,((Player) e.builder).id);
-            }else if(hasSpecialPerm(player,Perm.build) && !request.breaking){
-                if(core.items.has(request.block.requirements)){
-                    happen=true;
-                    for(ItemStack s:request.block.requirements){
+                Call.onDeconstructFinish(request.tile(), request.block, ((Player) e.builder).id);
+            } else if (hasSpecialPerm(player, Perm.build) && !request.breaking) {
+                if (core.items.has(request.block.requirements)) {
+                    happen = true;
+                    for (ItemStack s : request.block.requirements) {
                         core.items.remove(s);
                     }
-                    Call.onConstructFinish(e.tile,request.block,((Player) e.builder).id,
-                            (byte) request.rotation,player.getTeam(),false);
+                    Call.onConstructFinish(e.tile, request.block, ((Player) e.builder).id,
+                            (byte) request.rotation, player.getTeam(), false);
                     e.tile.configure(request.config);
                 }
             }
             //necessary because instant build or break do not trigger event
-            if(happen) Events.fire(new EventType.BlockBuildEndEvent(e.tile,player,e.team,e.breaking));
+            if (happen) Events.fire(new EventType.BlockBuildEndEvent(e.tile, player, e.team, e.breaking));
         });
 
         //count units killed and deaths
@@ -301,52 +316,80 @@ public class Database {
         AtomicBoolean res = new AtomicBoolean(true);
         Tools.loadJson(rankFile,data -> {
             try {
-                for(Object o : (JSONArray)data.get("ranks")){
-                    ObjectMapper mapper = new ObjectMapper();
-                    SpecialRank sp = mapper.readValue(((JSONObject)o).toJSONString(),SpecialRank.class);
-                    for(String i : sp.quests.keySet()){
-                        Log.info(i + "-" + sp.quests.get(i));
-                        for(String j : sp.quests.get(i).keySet()){
-                            Log.info(j + "-" + sp.quests.get(i).get(j));
-                        }
-                    }
-                    ranks.put(sp.name,sp);
-                }
+                ObjectMapper mapper = new ObjectMapper();
+                SpecialRank[] srs = mapper.readValue(((JSONArray)data.get("ranks")).toJSONString(),SpecialRank[].class);
+                for(SpecialRank sr : srs)
+                    ranks.put(sr.name,sr);
             } catch (IOException ex){
                 ex.printStackTrace();
             }
         },()->{
-            res.set(false);
-            ObjectMapper mapper = new ObjectMapper();
-            SpecialRank rank = new SpecialRank(){{
-               name = "bug";
-               color = "red";
-               value = 1;
-               permissions = new HashSet<String>(){{
-                   add(Perm.colorCombo.name());
-               }};
-               quests = new HashMap<String, HashMap<String, Integer>>(){{
-                   put(Stat.deaths.name(),new HashMap<String, Integer>(){{
-                       put("frequency",2);
-                       put("required",3);
-                   }});
-               }};
-            }};
-            try {
-                String r = mapper.writeValueAsString(rank);
-                JSONObject obj = (JSONObject) new JSONParser().parse(r);
-                JSONObject data = new JSONObject();
-                data.put("ranks",new JSONArray(){{
-                    add(obj);
-                }});
-                Tools.saveJson(rankFile,data.toJSONString());
-            } catch (IOException | ParseException e) {
-                e.printStackTrace();
-            }
+            Tools.saveJson(rankFile, "{\n" +
+                    "    \"ranks\":[\n" +
+                    "        {\n" +
+                    "            \"name\":\"kamikaze\",\n" +
+                    "            \"color\":\"scarlet\",\n" +
+                    "            \"description\":\"missing\",\n" +
+                    "            \"value\":1,\n" +
+                    "            \"permissions\":[\"suicide\"],\n" +
+                    "            \"pets\":[\"fire-pet\"],\n" +
+                    "            \"quests\":{\n" +
+                    "                \"deaths\":{\n" +
+                    "                    \"best\":2\n" +
+                    "                }\n" +
+                    "            }\n" +
+                    "        },\n" +
+                    "        {\n" +
+                    "            \"name\":\"builder\",\n" +
+                    "            \"color\":\"green\",\n" +
+                    "            \"description\":\"You have to build a lot o get this rank.\",\n" +
+                    "            \"value\":5,\n" +
+                    "            \"permissions\":[\"build\"],\n" +
+                    "            \"quests\":{\n" +
+                    "                \"buildingsBuilt\":{\n" +
+                    "                    \"required\":10000,\n" +
+                    "                    \"frequency\":300\n" +
+                    "                }\n" +
+                    "            }\n" +
+                    "        }\n" +
+                    "    ]\n" +
+                    "}");
             Tools.logInfo("files-default-config-created","special ranks", rankFile);
         });
         return res.get();
     }
+
+    public static boolean loadPets(){
+        pets.clear();
+        AtomicBoolean res = new AtomicBoolean(true);
+        Tools.loadJson(petFile,data -> {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                Pet[] pets = mapper.readValue(((JSONArray)data.get("pets")).toJSONString(),Pet[].class);
+                for(Pet p : pets)
+                    Database.pets.put(p.name,p);
+            } catch (IOException ex){
+                ex.printStackTrace();
+            }
+        },()->{
+
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+
+                JSONObject pet = (JSONObject) new JSONParser().parse(mapper.writeValueAsString(new Pet()));
+                JSONObject data = new JSONObject();
+                JSONArray array = new JSONArray();
+                array.add(pet);
+                data.put("pets",array);
+                Tools.saveJson(petFile, data.toJSONString());
+                Tools.logInfo("files-default-config-created","pets", petFile);
+            } catch (JsonProcessingException | ParseException e) {
+                e.printStackTrace();
+            }
+
+
+        });
+        return res.get();}
 
     public static SpecialRank getSpecialRank(PlayerD pd){
         if(pd.specialRank==null) return null;
@@ -442,7 +485,7 @@ public class Database {
     public static boolean hasSpecialPerm(Player player,Perm perm){
         SpecialRank sr=getSpecialRank(getData(player));
         if(sr==null) return false;
-        return sr.permissions.contains(perm);
+        return sr.permissions.contains(perm.name());
     }
 
     //when structure of playerD is changed this function tries its bet to make database still compatible

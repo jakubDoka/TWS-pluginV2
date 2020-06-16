@@ -4,13 +4,19 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.org.apache.xpath.internal.objects.XNull;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.HashSet;
 
 public class Config {
-    public static String dir = "config/mods/The_Worst/";
-    public static String saveDir = dir + "saves/";
-    public static String configDir = dir + "config/";
-    public static String file = configDir + "general.json";
-    public static String dbName= "mindustryServer";
+    public static final String dir = "config/mods/The_Worst/";
+    public static final String saveDir = dir + "saves/";
+    public static final String configDir = dir + "config/";
+    public static final String file = configDir + "general.json";
+    public static String dbName = "mindustryServer";
     public static long grieferAntiSpamTime = 1000*10;
     public static String welcomeMessage = null;
     public static String rules = null;
@@ -21,16 +27,18 @@ public class Config {
             if(data.containsKey("grieferAntiSpamTime")) grieferAntiSpamTime = (Long) data.get("grieferAntiSpamTime");
             if(data.containsKey("welcomeMessage")) welcomeMessage = (String) data.get("welcomeMessage");
             if(data.containsKey("rules")) rules = (String) data.get("rules");
-        },Config::defaultConfig);
-    }
-
-    public static void defaultConfig(){
-        Tools.saveJson(file,"{\n" +
-                "\t\"dbName\" : \"mindustryServer\",\n" +
-                "\t\"grieferAntiSpamTime\" : 10,\n" +
-                "\t\"welcomeMessage\":null,\n" +
-                "\t\"rules\":null\n" +
-                "}");
+        },()->{
+            JSONObject data = new JSONObject();
+            for(Field f : Config.class.getDeclaredFields()){
+                if(Modifier.isFinal(f.getModifiers())) continue;
+                try {
+                    data.put(f.getName(),f.get(null));
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+            Tools.saveJson(file, data.toJSONString());
+        });
     }
 
 

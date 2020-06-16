@@ -6,18 +6,12 @@ import arc.util.CommandHandler;
 import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Time;
+import mindustry.content.Bullets;
+import mindustry.content.Fx;
 import mindustry.core.GameState;
-import mindustry.entities.type.Player;
 import mindustry.game.EventType;
-import mindustry.maps.generators.Generator;
-import mindustry.maps.generators.MapGenerator;
 import mindustry.plugin.Plugin;
-import mindustry.type.Zone;
-import mindustry.world.Tile;
-import theWorst.database.BackupManager;
-import theWorst.database.Database;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
+import theWorst.database.*;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Hud;
@@ -26,9 +20,10 @@ import theWorst.helpers.MapManager;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.concurrent.CompletableFuture;
 
 import static arc.util.Log.info;
-import static arc.util.Log.log;
 import static mindustry.Vars.*;
 import static theWorst.Tools.*;
 
@@ -42,6 +37,15 @@ public class Main extends Plugin {
         new MapManager();
         new Bot();
         Events.on(EventType.WorldLoadEvent.class,e-> destroyable.forEach(Destroyable::destroy));
+
+        Events.on(EventType.Trigger.update, () -> CompletableFuture.runAsync(() -> playerGroup.all().forEach(player -> {
+            PlayerD pd = Database.getData(player);
+            if (!pd.pets.isEmpty()) {
+                for(Pet p : pd.pets){
+                    p.update(player, pd.pets);
+                }
+            }
+        })));
     }
 
     public void addDestroyable(Destroyable destroyable){
@@ -57,7 +61,7 @@ public class Main extends Plugin {
             }
             Database.clean();
             logInfo("dbdrop-erased");
-                });
+        });
 
         handler.register("dbbackup","<add/remove/load/show> [idx]",
                 "Shows backups and their indexes or adds, removes or loads the backup by index.",args->{
@@ -100,7 +104,7 @@ public class Main extends Plugin {
             logInfo("invalid-mode");
         });
 
-        handler.register("w-unkick", "<ID/uuid>", "Erases kick status of player player.", args -> {
+        handler.register("unkick", "<ID/uuid>", "Erases kick status of player player.", args -> {
             PlayerD pd = Database.findData(args[0]);
             if (pd == null) {
                 logInfo("player-not-found");
@@ -112,29 +116,75 @@ public class Main extends Plugin {
 
         handler.register("mapstats","Shows all maps with statistics.",args-> Log.info(MapManager.statistics()));
 
-        handler.register("config","<factory/test/general/ranks/discord>", "Applies the factory configuration,settings and " +
+        handler.register("config","<target/help>", "Applies the factory configuration,settings and " +
                 "loads test questions.", args -> {
             switch (args[0]){
+                case "help":
+                    logInfo("show-modes","ranks,pets,general,discord");
+                    return;
                 case "ranks":
-                    if(Database.loadRanks()){
-                        logInfo("config-ranks");
-                    } else {
-                        logInfo("config-new-rank-file");
-                    }
+                    Database.loadRanks();
+                    return;
+                case "pets":
+                    Database.loadPets();
                     return;
                 case "general":
                     Config.load();
                     Database.reload();
-                    logInfo("config-general");
                     return;
                 case "discord":
                     Bot.connect();
-                    logInfo("config-discord");
                     return;
                 default:
-                    info("Invalid argument.");
+                    logInfo("invalid-mode");
             }
         });
+
+        handler.register("worsthelp","<target/help>", "Applies the factory configuration,settings and " +
+                "loads test questions.", args -> {
+            HashSet<String> banned = new HashSet<String>(){{
+                add("dynamicExplosion");
+                add("dropItem");
+                add("block");
+                add("shieldBreak");
+                add("incendTrail");
+                add("missileTrail");
+            }};
+            StringBuilder sb;
+            StringBuilder sb2;
+            switch (args[0]){
+                case "help":
+                    logInfo("show-modes", "ranks,pets");
+                    return;
+                case "ranks":
+                    sb = new StringBuilder();
+                    for(Perm s : Perm.values()){
+                        if(s.description == null) continue;
+                        sb.append(s.name()).append(" - ").append(s.description).append("\n");
+                    }
+                    sb2 = new StringBuilder();
+                    for(Stat s : Stat.values()){
+                        sb2.append(s.name()).append(" ");
+                    }
+                    logInfo("worsthelp-ranks",sb.toString(),sb2.toString());
+                    return;
+                case "pets":
+                    sb = new StringBuilder();
+                    for(String s : getPropertyNameList(Fx.class)){
+                        if(banned.contains(s)) continue;
+                        sb.append(s).append(" ");
+                    }
+                    sb2 = new StringBuilder();
+                    for(String s : getPropertyNameList(Bullets.class)){
+                        sb2.append(s).append(" ");
+                    }
+                    logInfo("worsthelp-pets",sb.toString(),sb2.toString());
+                    return;
+                default:
+                    logInfo("invalid-mode");
+            }
+        });
+
 
         handler.register("setrank", "<uuid/name/id> <rank/restart> [reason...]",
                 "Sets rank of the player.", args -> {

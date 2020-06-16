@@ -5,6 +5,8 @@
       <w>brrrrr</w>
       <w>dbbackup</w>
       <w>dbdrop</w>
+      <w>ffff</w>
+      <w>ffffff</w>
       <w>gameover</w>
       <w>griefer</w>
       <w>griefers</w>
@@ -18,9 +20,11 @@
       <w>mongofield</w>
       <w>msav</w>
       <w>setrank</w>
+      <w>textcolor</w>
       <w>unkick</w>
       <w>unmuted</w>
       <w>unmutes</w>
+      <w>worsthelp</w>
     </words>
   </dictionary>
 </component>
