@@ -36,6 +36,8 @@ public class Hud {
 
 
     public Hud(){
+        //this is necessary, if local player is null, team core damage will not be triggered
+        player = new Player();
         Events.on(EventType.Trigger.teamCoreDamage,()->{
             if(!showCoreAlert) return;
             addAd("hud-core-under-attack",10,"!scarlet","!gray");
@@ -54,7 +56,7 @@ public class Hud {
         update=Timer.schedule(()-> {
             try {
                 for (Player p : playerGroup) {
-                    //hud disabled si hide the hud
+                    //player has hud disabled so hide the hud
                     if (!Database.hasEnabled(p, Setting.hud)) {
                         Call.hideHudText(p.con);
                         continue;

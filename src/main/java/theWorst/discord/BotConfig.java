@@ -21,7 +21,7 @@ public class BotConfig {
     public final HashMap<String,Role> roles = new HashMap<>();
     public Long serverId = null;
 
-    private final static String datafile = dir+"botConfig.json";
+    private final static String datafile = dir + "config.json";
 
     public BotConfig(){
             //loading json config

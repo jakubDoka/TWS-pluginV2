@@ -1,26 +1,23 @@
 package theWorst.helpers;
 
 import arc.Events;
+import arc.files.Fi;
 import arc.struct.Array;
-import arc.util.Log;
-import arc.util.Strings;
 import arc.util.Time;
 import mindustry.Vars;
-import mindustry.entities.type.Player;
-import mindustry.game.*;
-import mindustry.gen.Call;
+import mindustry.game.EventType;
+import mindustry.game.Team;
+import mindustry.io.MapIO;
 import mindustry.maps.Map;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import theWorst.Config;
-import theWorst.Main;
-import theWorst.Tools;
 import theWorst.database.Database;
-import theWorst.discord.MapParser;
 
-import java.io.*;
-import java.util.HashMap;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import static mindustry.Vars.*;
@@ -38,6 +35,23 @@ public class MapManager {
             played.started = Time.millis();
             Hud.addAd(played.hasNoAirWave() ? "map-no-air-wave" : "map-first-air-wave",30,"" + played.defaultAirWave);
         });
+    }
+
+    public static void cleanMaps(){
+        List<MapD> mapDS = data.findAll(MapD.class);
+        for(MapD mapD : mapDS){
+            File mapFile = new File("config/maps" + mapD.filename);
+            if(mapFile.exists()){
+                data.remove(mapD);
+                continue;
+            }
+            try {
+                Map map = MapIO.createMap(new Fi(mapFile), true);
+                if(new MapD(map).firstAirWave != mapD.firstAirWave) data.remove(mapD);
+            } catch (IOException e) {
+                data.remove(mapD);
+            }
+        }
     }
 
     public static MapD getData(Map map){
@@ -67,9 +81,9 @@ public class MapManager {
         return res;
     }
 
-    public static Array<String> getMapList() {
+    public static ArrayList<String> getMapList() {
         Array<Map> maps=Vars.maps.customMaps();
-        Array<String> res=new Array<>();
+        ArrayList<String> res=new ArrayList<>();
         for (int i=0;i<maps.size;i++){
             Map map = maps.get(i);
             String m = map.name();
@@ -83,11 +97,12 @@ public class MapManager {
     public static void onMapRemoval(Map removed) {
         maps.removeMap(removed);
         data.remove(getData(removed));
+        played = null;
         maps.reload();
     }
 
     public static void onMapAddition(Map added) {
-        MapD md = data.findOne(new Query(where("fileName").is(added.file.name())),MapD.class);;
+        MapD md = data.findOne(new Query(where("fileName").is(added.file.name())),MapD.class);
         if(md != null){
             data.remove(md);
         }
@@ -102,10 +117,5 @@ public class MapManager {
         if(won) played.timesWon++;
         if(state.wave > played.waveRecord) played.waveRecord=state.wave;
         played.save();
-    }
-
-    public String getWaveInfo(){
-        if(played.hasNoAirWave()) return "No air waves on this map.";
-        return "Air enemy starts at wave [orange]" + played.firstAirWave + "[] !";
     }
 }

@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static arc.util.Log.info;
 import static mindustry.Vars.*;
+import static mindustry.Vars.maps;
 import static theWorst.Tools.*;
 
 public class Main extends Plugin {
@@ -46,6 +47,10 @@ public class Main extends Plugin {
                 }
             }
         })));
+
+        Events.on(EventType.ServerLoadEvent.class, e->{
+            MapManager.cleanMaps();
+        });
     }
 
     public void addDestroyable(Destroyable destroyable){
@@ -61,6 +66,18 @@ public class Main extends Plugin {
             }
             Database.clean();
             logInfo("dbdrop-erased");
+        });
+
+        handler.removeCommand("reloadmaps");
+        handler.register("reloadmaps", "Reload all maps from disk.", arg -> {
+            int beforeMaps = maps.all().size;
+            maps.reload();
+            MapManager.cleanMaps();
+            if(maps.all().size > beforeMaps){
+                info("&lc{0}&ly new map(s) found and reloaded.", maps.all().size - beforeMaps);
+            }else{
+                info("&lyMaps reloaded.");
+            }
         });
 
         handler.register("dbbackup","<add/remove/load/show> [idx]",
@@ -116,11 +133,11 @@ public class Main extends Plugin {
 
         handler.register("mapstats","Shows all maps with statistics.",args-> Log.info(MapManager.statistics()));
 
-        handler.register("config","<target/help>", "Applies the factory configuration,settings and " +
+        handler.register("wconfig","<target/help>", "Applies the factory configuration,settings and " +
                 "loads test questions.", args -> {
             switch (args[0]){
                 case "help":
-                    logInfo("show-modes","ranks,pets,general,discord");
+                    logInfo("show-modes","ranks,pets,general,discord,discordrolerestrict");
                     return;
                 case "ranks":
                     Database.loadRanks();
@@ -134,6 +151,9 @@ public class Main extends Plugin {
                     return;
                 case "discord":
                     Bot.connect();
+                    return;
+                case "discordrolerestrict":
+                    Bot.loadRestrictions();
                     return;
                 default:
                     logInfo("invalid-mode");
@@ -221,6 +241,7 @@ public class Main extends Plugin {
             }
         });
 
+        handler.removeCommand("exit");
         handler.register("exit", "Exit the server application.", arg -> {
             info("Shutting down server.");
             net.dispose();

@@ -10,11 +10,14 @@ import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.permission.Role;
 import org.javacord.api.entity.server.Server;
 import org.javacord.api.entity.user.User;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Rank;
 import theWorst.database.Setting;
 import theWorst.discord.BotConfig;
+import theWorst.discord.Command;
 import theWorst.discord.DiscordCommands;
 
 import javax.swing.event.DocumentEvent;
@@ -24,19 +27,19 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static mindustry.Vars.player;
+
 import static mindustry.Vars.playerGroup;
-import static theWorst.Tools.hasMapAttached;
+import static theWorst.Tools.*;
+import static theWorst.Tools.logInfo;
 
 public class Bot {
     public static String dir = Config.configDir + "bot/";
+    static final String restrictionFile = dir + "restrictions.json";
     public static BotConfig config;
     public static DiscordApi api = null;
     public static final HashMap<Long,LinkData> pendingLinks = new HashMap<>();
     private static final DiscordCommands handler = new DiscordCommands();
     private static final BotCommands commands = new BotCommands(handler);
-
-
 
     public static class LinkData{
         public String name,pin,id;
@@ -60,6 +63,7 @@ public class Bot {
             config.channels.get("commandLog").sendMessage(String.format("**%s** - %s (%d): %s",
                     pd.originalName,pd.rank,pd.serverId,e.message));
         });
+        loadRestrictions();
         connect();
     }
 
@@ -80,16 +84,9 @@ public class Bot {
             String content=Tools.cleanEmotes(event.getMessageContent());
             if(event.getMessageAuthor().isBotUser() || content.startsWith(config.prefix)) return;
             //if there wos only emote in message it got removed and we don't want to show blank message
-            boolean blank = true;
-            for(int i=0;i<content.length();i++){
-                if(content.charAt(i)!=' ') {
-                    blank = false;
-                    break;
-                }
-            }
-            if(blank) return;
+            if(content.replace(" ","").isEmpty()) return;
             for(Player p : playerGroup) {
-                if(Database.hasEnabled(player, Setting.chat)) {
+                if(Database.hasEnabled(p, Setting.chat)) {
                     p.sendMessage("[coral][[[royal]"+event.getMessageAuthor().getName()+"[]]:[sky]"+content);
                 }
             }
@@ -101,6 +98,35 @@ public class Bot {
                 event.getChannel().sendMessage("If you want to post map use !postmap command!");
                 event.getMessage().delete();
             }
+        });
+    }
+
+    public static void loadRestrictions() {
+        loadJson(restrictionFile, data -> {
+            for (Object o : data.keySet()) {
+                String s = (String) o;
+                JSONArray ja = (JSONArray) data.get(o);
+                String[] roles = new String[ja.size()];
+                for (int i = 0; i < roles.length; i++) {
+                    roles[i] = (String) ja.get(i);
+                }
+                if (!handler.commands.containsKey(s)) continue;
+                handler.commands.get(s).role = roles;
+            }
+        }, () -> {
+            JSONObject data = new JSONObject();
+            for (Command c : handler.commands.values()) {
+                JSONArray roles = new JSONArray();
+                if(c.role != null) {
+                    for (String role : c.role) {
+                        roles.add(role);
+                    }
+                }
+                data.put(c.name, roles);
+
+            }
+            saveJson(restrictionFile, data.toJSONString());
+            logInfo("files-default-config-created", "command restrictions", restrictionFile);
         });
     }
 

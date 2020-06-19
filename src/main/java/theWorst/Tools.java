@@ -39,7 +39,9 @@ import java.util.*;
 import arc.util.Timer;
 
 import static java.lang.Math.min;
-import static mindustry.Vars.*;
+import static mindustry.Vars.state;
+import static mindustry.Vars.playerGroup;
+import static mindustry.Vars.maps;
 import static mindustry.Vars.world;
 
 public class Tools {
@@ -123,12 +125,16 @@ public class Tools {
     }
 
 
-    public static String getTranslation(PlayerD pd,String key){
-        if(pd.bundle != null && pd.bundle.containsKey(key) && pd.settings.contains(Setting.translate.name())){
+    public static String getTranslation(PlayerD pd, String key){
+        if(pd != null && pd.bundle != null && pd.bundle.containsKey(key) && pd.settings.contains(Setting.translate.name())){
             return pd.bundle.getString(key);
         }
         if(!defaultBundle.containsKey(key)) return "error: bundle " + key + "is missing. Please report it.";
         return defaultBundle.getString(key);
+    }
+
+    public static boolean cnaTranslate(PlayerD pd, String key){
+        return pd.bundle.containsKey(key) || defaultBundle.containsKey(key);
     }
 
     //because players may have different bundle
@@ -144,6 +150,10 @@ public class Tools {
             if(!Database.hasEnabled(p,Setting.chat) || Database.getData(p).mutes.contains(sender.uuid)) continue;
             p.sendMessage("[coral][[[#"+sender.color+"]"+sender.name+"[]]:[]"+message);
         }
+    }
+
+    public static String getCountryCode(Locale loc){
+        return loc.getLanguage() + "_" + loc.getCountry();
     }
 
     //string formatting
@@ -235,12 +245,12 @@ public class Tools {
         return res.toString();
     }
 
-    public static String formPage(Array<String > data,int page,String title,int pageSize) {
+    public static String formPage(ArrayList<String > data,int page,String title,int pageSize) {
         StringBuilder b = new StringBuilder();
-        int pageCount = (int) Math.ceil(data.size / (float) pageSize);
+        int pageCount = (int) Math.ceil(data.size() / (float) pageSize);
         page = Mathf.clamp(page, 1, pageCount) - 1;
         int start = page * pageSize;
-        int end = min(data.size, (page + 1) * pageSize);
+        int end = min(data.size(), (page + 1) * pageSize);
         b.append("[orange]--").append(title.toUpperCase()).append("(").append(page + 1).append("/");
         b.append(pageCount).append(")--[]\n\n");
         for (int i = start; i < end; i++) {
@@ -445,7 +455,7 @@ public class Tools {
 
             return Res.permanentSuccess;
         }
-        if(args[0].equals("off")){
+        if(args[0].equals("stop")){
             if(!theWorst.helpers.Administration.emergency.isActive()){
                 return Res.invalidStop;
             }

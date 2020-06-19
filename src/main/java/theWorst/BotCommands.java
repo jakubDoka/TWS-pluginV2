@@ -4,7 +4,6 @@ import arc.files.Fi;
 import arc.math.Mathf;
 import arc.util.Strings;
 import arc.util.Timer;
-import mindustry.Vars;
 import mindustry.core.GameState;
 import mindustry.entities.type.Player;
 import mindustry.game.Team;
@@ -17,6 +16,8 @@ import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.entity.user.User;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Rank;
@@ -26,8 +27,7 @@ import theWorst.discord.CommandContext;
 import theWorst.discord.DiscordCommands;
 import theWorst.helpers.MapManager;
 
-import java.awt.*;
-import java.io.File;
+import java.awt.Color;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -37,15 +37,15 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static mindustry.Vars.maps;
-import static mindustry.Vars.state;
+import static mindustry.Vars.*;
 import static theWorst.Bot.*;
-import static theWorst.Tools.formMapEmbed;
-import static theWorst.Tools.setRankViaCommand;
+import static theWorst.Tools.*;
 
 public class BotCommands {
+
     public BotCommands(DiscordCommands handler) {
         String[] defaultRole = new String[]{"admin"};
+
         handler.registerCommand(new Command("help") {
             {
                 description = "Shows all commands and their description.";
@@ -64,7 +64,7 @@ public class BotCommands {
             }
         });
 
-       handler.registerCommand(new Command("link","<serverId>") {
+       handler.registerCommand(new Command("link","<serverId/disconnect>") {
             {
                 description = "Links your discord with your server profile.";
             }
@@ -80,6 +80,22 @@ public class BotCommands {
                     return;
                 }
                 User user = optionalUser.get();
+                PlayerD found = Database.query("discordLink",user.getIdAsString());
+                if(ctx.args[0].equals("disconnect")){
+                    if( found == null){
+                        ctx.reply("You don t have any linked account to disconnect.");
+                    } else {
+                        ctx.reply("Account with user name **" + cleanColors(found.originalName) +
+                                "** wos successfully disconnected.");
+                        found.discordLink = null;
+                    }
+                    return;
+                }
+                if (found != null) {
+                    ctx.reply("Your account is already linked to **" + cleanColors(found.originalName) +
+                            "**. If you want to change the linked account use **" + config.prefix + "link disconnect**.");
+                    return;
+                }
                 PlayerD pd = Database.getMetaById(Long.parseLong(ctx.args[0]));
                 if(pd==null){
                     ctx.reply("Account not found.");
@@ -102,12 +118,12 @@ public class BotCommands {
             @Override
             public void run(CommandContext ctx) {
                 EmbedBuilder eb =new EmbedBuilder().setTitle("GAME STATE");
-                if(Vars.state.is(GameState.State.playing)){
-                    eb.addField("map", Vars.world.getMap().name())
-                            .addField("mode", Vars.state.rules.mode().name())
-                            .addInlineField("players",String.valueOf(Vars.playerGroup.size()))
-                            .addInlineField("wave",String.valueOf(Vars.state.wave))
-                            .addInlineField("enemies",String.valueOf(Vars.state.enemies))
+                if(state.is(GameState.State.playing)){
+                    eb.addField("map", world.getMap().name())
+                            .addField("mode", state.rules.mode().name())
+                            .addInlineField("players",String.valueOf(playerGroup.size()))
+                            .addInlineField("wave",String.valueOf(state.wave))
+                            .addInlineField("enemies",String.valueOf(state.enemies))
                             .setImage(Tools.getMiniMapImg())
                             .setColor(Color.green);
                 } else {
@@ -124,7 +140,7 @@ public class BotCommands {
             @Override
             public void run(CommandContext ctx) {
                 StringBuilder sb = new StringBuilder();
-                for(Player p:Vars.playerGroup){
+                for(Player p:playerGroup){
                     PlayerD pd = Database.getData(p);
                     sb.append(pd.originalName).append(" | ").append(pd.rank).append(" | ").append(pd.serverId).append("\n");
                 }
@@ -132,7 +148,7 @@ public class BotCommands {
                         .setTitle("PLAYERS ONLINE")
                         .setColor(Color.green)
                         .setDescription(sb.toString());
-                if(Vars.playerGroup.size()==0) eb.setDescription("No players online.");
+                if(playerGroup.size()==0) eb.setDescription("No players online.");
                 ctx.channel.sendMessage(eb);
             }
         });
@@ -190,7 +206,7 @@ public class BotCommands {
                         .setColor(Color.orange);
                 StringBuilder b =new StringBuilder();
                 int i=0;
-                for(Map map:Vars.maps.customMaps()){
+                for(Map map:maps.customMaps()){
                     double rating = MapManager.getData(map).getRating();
                     b.append(i).append(" | ").append(map.name()).append(" | ").append(String.format("%.2f/10",rating)).append("\n");
                     i++;
@@ -216,7 +232,7 @@ public class BotCommands {
                 int size = res.size();
                 int begin = Math.max(0,size-20);
                 for (int i = begin; i <size; i++) {
-                    mb.insert(0,Tools.cleanColors(res.get(i))+"\n");
+                    mb.insert(0, cleanColors(res.get(i))+"\n");
                 }
                 if (res.isEmpty()) {
                     ctx.reply("No results found.");
@@ -240,7 +256,7 @@ public class BotCommands {
                     ctx.reply("No data found.");
                     return;
                 }
-                String data = Tools.cleanColors(pd.toString());
+                String data = cleanColors(pd.toString(null));
                 ctx.channel.sendMessage(new EmbedBuilder().setDescription(data).setTitle("PLAYER INFO").setColor(Color.blue));
             }
         });
@@ -269,33 +285,6 @@ public class BotCommands {
                 } catch (IOException ex){
                     ctx.reply("I em unable to post your map.");
                 }
-            }
-        });
-
-        handler.registerCommand(new Command("restrict","<command> <roles>") {
-            {
-                description = "Sets role restriction for command. For more roles use role/role/role...";
-                role = defaultRole;
-            }
-            @Override
-            public void run(CommandContext ctx) {
-                if(!handler.hasCommand(ctx.args[0]) ){
-                    ctx.reply("Sorry i don t know this command. Unable to change restrictions.");
-                    return;
-                }
-                String[] roles = ctx.args[1].split("/");
-                for(String r : roles){
-                    if(!config.roles.containsKey(ctx.args[1])){
-                        ctx.reply("It might be little confusing but role names match names in the config file.\n"
-                                +config.roles.keySet().toString());
-                        ctx.reply("I don't know the "+r+".");
-                        return;
-                    }
-                }
-
-                handler.commands.get(ctx.args[0]).role = roles;
-
-                ctx.reply(String.format("Role of %s is now %s.", ctx.args[0], ctx.args[1]));
             }
         });
 

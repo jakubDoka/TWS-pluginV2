@@ -1,40 +1,22 @@
 package theWorst.database;
 
-import arc.Core;
-import arc.graphics.Color;
-import arc.math.geom.Vec2;
-import arc.util.Log;
 import arc.util.Time;
-import com.fasterxml.jackson.annotation.JsonCreator;
-
-import javafx.print.PageLayout;
-import mindustry.content.Bullets;
-import mindustry.content.Fx;
-import mindustry.entities.Effects;
-import mindustry.entities.bullet.BulletType;
-import mindustry.entities.type.Bullet;
+import com.mongodb.lang.Nullable;
 import mindustry.entities.type.Player;
-import mindustry.gen.Call;
-import mindustry.net.Administration;
-import org.mongojack.MongoCollection;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.query.Query;
 import theWorst.Config;
 import theWorst.Tools;
-import org.json.simple.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.ResourceBundle;
 
-import static org.springframework.data.mongodb.core.query.Criteria.where;
-
-//@JsonIgnoreProperties(value = {"afk", "ip", "lastAction", "oldMeta", "online", "bundle"})
-//@MongoCollection(name = "players")
+import static theWorst.Tools.*;
+import static theWorst.database.Database.getData;
 
 @Document
 public class PlayerD {
@@ -54,8 +36,7 @@ public class PlayerD {
     public long lastActive = 0;
     @Transient public long lastAction = Time.millis();
     @Transient public boolean afk = false;
-    public String specialRank=null;
-    public String country="unknown";
+    public String specialRank = null;
     @Transient public ArrayList<Pet> pets = new ArrayList<>();
 
     //user customization
@@ -63,6 +44,7 @@ public class PlayerD {
     public String discordLink = null;
     public HashSet<String> settings = new HashSet<>();
     public HashSet<String> mutes = new HashSet<>();
+    public String donationLevel = null;
 
     //administration
     @Indexed public long serverId;
@@ -105,22 +87,17 @@ public class PlayerD {
     private void loadMeta(Player player) {
         PlayerD meta = Database.getMeta(uuid);
         //It takes about 3 seconds to figure out bundle for player, thread gets rid of the delay.
-        new Thread(()-> {
-            JSONObject data = Tools.getLocData(ip);
-            if(data!=null){
-                country = (String) data.get("country_name");
-                if(country == null){
-                    country=Tools.locale.getDisplayCountry();
-                }
+        new Thread(()->{
+            bundle=ResourceBundle.getBundle(Tools.bundlePath,Tools.getLocale(ip,Tools.getLocData(ip)));
+            String welcomeMessage = Config.welcomeMessage.getOrDefault(
+                    getCountryCode(getData(player).bundle.getLocale()),Config.welcomeMessage.get("default"));
+            if(meta == null && welcomeMessage != null){
+                Tools.sendMessage(player, welcomeMessage);
             }
-            bundle=ResourceBundle.getBundle(Tools.bundlePath,Tools.getLocale(ip,data));
-        }).start();
+        } ).start();
         //no data about player so this is new player
         if(meta == null){
             //greet a newcomer
-            if(Config.welcomeMessage!=null){
-                Tools.sendMessage(player, Config.welcomeMessage);
-            }
             //enable all settings by default
             for(Setting s : Setting.values()){
                 settings.add(s.name());
@@ -135,7 +112,6 @@ public class PlayerD {
         }
         oldMeta = meta;
         serverId = meta.serverId;
-        country = meta.country;
         lastActive = meta.lastActive;
         specialRank = meta.specialRank;
         rank = meta.rank;
@@ -146,6 +122,7 @@ public class PlayerD {
         lastMessage = meta.lastMessage;
         age = meta.age;
         playTime = meta.playTime;
+        donationLevel = meta.donationLevel;
         meta.connected = connected;
         Database.updateMeta(meta);
     }
@@ -188,33 +165,62 @@ public class PlayerD {
         meta.ip = ip;
         meta.originalName = originalName;
         meta.lastMessage = lastMessage;
+        meta.donationLevel = donationLevel;
         //replace old one in database
         Database.updateMeta(meta);
     }
 
-    @Override
-    public String toString() {
+    public String toString(@Nullable PlayerD pd) {
         if (oldMeta == null) oldMeta = new PlayerD();
         //the current instance of player data is counting everything from zero and then just incrementing to database
         // when player disconnects. That is why we have to use old data instance to provide somewhat accurate information
-        String activity = isOnline() ? "[green]ONLINE" : "[gray]OFFLINE FOR " + Tools.milsToTime(Time.timeSinceMillis(lastActive));
-        return activity + "[]\n" +
-                "[yellow]server ID:[]" + serverId + "\n" +
-                "[gray]name:[] " + originalName + "\n" +
-                "[gray]rank:[] " + rank + "\n" +
-                "[gray]special rank:[] " + (specialRank == null ? "none" : specialRank) + "\n" +
-                "[gray]playtime:[] " + Tools.milsToTime(playTime) + "\n" +
-                "[gray]server age[]: " + Tools.milsToTime(Time.timeSinceMillis(age)) + "\n" +
-                "[gray]messages sent[]:" + (messageCount + oldMeta.messageCount) + "\n" +
-                "[gray]games played:[] " + (gamesPlayed + oldMeta.gamesPlayed) + "\n" +
-                "[gray]games won:[] " + (gamesWon + oldMeta.gamesWon) + "\n" +
-                "[gray]buildings built:[] " + (buildingsBuilt + oldMeta.buildingsBuilt) + "\n" +
-                "[gray]buildings broken:[] " + (buildingsBroken + oldMeta.buildingsBroken) + "\n" +
-                "[gray]successful loadout votes:[] " + (loadoutVotes + oldMeta.buildingsBroken) + "\n" +
-                "[gray]successful factory votes:[] " + (factoryVotes + oldMeta.factoryVotes) + "\n" +
-                "[gray]enemies killed:[] " + (enemiesKilled + oldMeta.enemiesKilled) + "\n" +
-                "[gray]country:[] " + country + "\n" +
-                "[gray]deaths:[] " + (deaths + oldMeta.deaths);
+        SpecialRank sr = Database.ranks.get(specialRank);
+        SpecialRank dl = Database.ranks.get(donationLevel);
+        String activity = isOnline() ? getTranslation(pd,"player-online") :
+                format(getTranslation(pd, "player-offline"),milsToTime(Time.timeSinceMillis(lastActive)));
+        return format(getTranslation(pd, "player-info"),
+                activity,
+                "" + serverId,
+                "" + getLevel(),
+                originalName,
+                Rank.valueOf(rank).getName(),
+                (sr == null ? "none" : sr.getSuffix()),
+                (dl == null ? "none" : dl.getSuffix()),
+                milsToTime(playTime),
+                milsToTime(Time.timeSinceMillis(age)),
+                "" + (messageCount + oldMeta.messageCount),
+                "" + (gamesPlayed + oldMeta.gamesPlayed),
+                "" + (gamesWon + oldMeta.gamesWon),
+                "" + (buildingsBuilt + oldMeta.buildingsBuilt),
+                "" + (buildingsBroken + oldMeta.buildingsBroken),
+                "" + (loadoutVotes + oldMeta.buildingsBroken),
+                "" + (factoryVotes + oldMeta.factoryVotes),
+                "" + (enemiesKilled + oldMeta.enemiesKilled),
+                bundle.getLocale().getDisplayCountry(pd == null ? defaultBundle.getLocale() : pd.bundle.getLocale()),
+                "" + (deaths + oldMeta.deaths));
+    }
+
+    public int getLevel(){
+        long value=
+                (buildingsBuilt + oldMeta.buildingsBuilt)*4+
+                (buildingsBroken + oldMeta.buildingsBroken)*4+
+                (gamesWon + oldMeta.gamesWon)*200+
+                (gamesPlayed + oldMeta.gamesPlayed)*2+
+                (loadoutVotes + oldMeta.buildingsBroken)*100+
+                (factoryVotes + oldMeta.factoryVotes)*100+
+                (enemiesKilled + oldMeta.enemiesKilled)/10+
+                oldMeta.playTime/(1000*60)+
+                (messageCount + oldMeta.messageCount)*5;
+        int level=1;
+        int first=500;
+        while (true){
+            value-=first* Math.pow(1.1,level);
+            if(value<0){
+                break;
+            }
+            level++;
+        }
+        return level;
     }
 
     @PersistenceConstructor public PlayerD(long buildingsBuilt,
@@ -231,9 +237,9 @@ public class PlayerD {
                    long connected,
                    long lastActive,
                    String specialRank,
-                   String country,
                    String textColor,
                    String discordLink,
+                   String donationLevel,
                    HashSet<String> settings,
                    HashSet<String> mutes,
                    long serverId,
@@ -256,7 +262,6 @@ public class PlayerD {
         this.connected = connected;
         this.lastActive = lastActive;
         this.specialRank = specialRank;
-        this.country = country;
         this.textColor = textColor;
         this.discordLink = discordLink;
         this.settings = settings;
@@ -267,6 +272,7 @@ public class PlayerD {
         this.ip = ip;
         this.originalName = originalName;
         this.lastMessage = lastMessage;
+        this.donationLevel = donationLevel;
     }
 }
 

@@ -5,6 +5,7 @@
       <w>brrrrr</w>
       <w>dbbackup</w>
       <w>dbdrop</w>
+      <w>discordrolerestrict</w>
       <w>ffff</w>
       <w>ffffff</w>
       <w>gameover</w>
@@ -19,11 +20,13 @@
       <w>mongobackup</w>
       <w>mongofield</w>
       <w>msav</w>
+      <w>reloadmaps</w>
       <w>setrank</w>
       <w>textcolor</w>
       <w>unkick</w>
       <w>unmuted</w>
       <w>unmutes</w>
+      <w>wconfig</w>
       <w>worsthelp</w>
     </words>
   </dictionary>

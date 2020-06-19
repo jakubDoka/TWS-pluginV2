@@ -1,14 +1,10 @@
 package theWorst;
 
 import arc.Events;
-import arc.graphics.Color;
 import arc.math.Mathf;
 import arc.struct.Array;
 import arc.util.CommandHandler;
 import arc.util.Strings;
-import arc.util.Timer;
-import mindustry.content.Fx;
-import mindustry.entities.Effects;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.game.Gamemode;
@@ -16,18 +12,14 @@ import mindustry.game.Team;
 import mindustry.gen.Call;
 import mindustry.maps.Map;
 import theWorst.database.*;
-import theWorst.discord.MapParser;
 import theWorst.helpers.MapD;
 import theWorst.helpers.MapManager;
 import theWorst.helpers.Tester;
 import theWorst.votes.Vote;
 import theWorst.votes.VoteData;
 
-import java.beans.Transient;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 
 import static mindustry.Vars.*;
 import static theWorst.Tools.*;
@@ -95,6 +87,33 @@ public class InGameCommands {
             }
         });
 
+        handler.removeCommand("help");
+
+        handler.<Player>register("help","[page]","Shows all available commands and how to use them.",(args,player)->{
+            ArrayList<String> res = new ArrayList<>();
+            PlayerD pd = getData(player);
+            for(CommandHandler.Command c : handler.getCommandList()){
+                String paramKey = c.text + "-params";
+                String descriptionKey = c.text + "-description";
+                String params = cnaTranslate(pd, paramKey) ?  getTranslation(pd , paramKey) : c.paramText;
+                String description = cnaTranslate(pd, descriptionKey) ?  getTranslation(pd , descriptionKey) : c.description;
+                res.add(String.format("[orange]/%s[] - [gray]%s[] - %s", c.text, params, description));
+            }
+            int page = args.length == 1 && Strings.canParsePostiveInt(args[0]) ? Integer.parseInt(args[0]) : 1;
+            player.sendMessage(formPage(res, page, "help", 7));
+        });
+
+        handler.<Player>register("rules","Shows rules of this server.",(args,player)->{
+
+            String rules = Config.rules.getOrDefault(getCountryCode(getData(player).bundle.getLocale()),Config.rules.get("default"));
+            if(rules == null){
+                sendMessage(player,"There are no rules on this server.");
+                return;
+            }
+
+            Call.onInfoMessage(player.con,"[orange]==RULES==[]\n\n"+rules);
+        });
+
         handler.<Player>register("mkgf","<name/id>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
@@ -147,45 +166,46 @@ public class InGameCommands {
                 Tools.sendInfoPopup(player,"set-help");
                 return;
             }
-            sendMessage(player,"set-textColor",args[1]);
-            switch (args[0]) {
-                case "textColor":
+            if(args[0].equals("textcolor")) {
+                String[] colors = args[1].split("/");
+                //this is color combo
+                if (colors.length > 1) {
+                    //checking if it has correct format
+                    boolean invalid = false;
+                    for (String s : colors) {
+                        if (s.length() != 6) {
+                            invalid = true;
+                            break;
+                        }
+                        try {
+                            Integer.parseInt(s, 16);
+                        } catch (Exception ex) {
+                            invalid = true;
+                            break;
+                        }
+                    }
+                    if (invalid) {
+                        sendErrMessage(player, "set-color-invalid-format", args[1]);
+                        return;
+                    }
+                    //checking if player has permission for this
+                    SpecialRank sp = Database.getSpecialRank(pd);
+                    if ((sp == null || !sp.permissions.contains(Perm.colorCombo.name()))) {
+                        sendErrMessage(player, "set-color-no-perm");
+                        return;
+                    }
+                    String preview = Tools.smoothColors("Colors go brrrrr!!", args[1].split("/"));
+                    sendMessage(player, "set-color-preview", preview);
+                } else {
+                    //checking if player is verified
                     if (!Database.hasPerm(player, Perm.high)) {
                         sendErrMessage(player, "at-least-verified", Rank.verified.getName());
                         return;
                     }
-                    String[] colors = args[1].split("/");
-                    if (colors.length > 1) {
-                        boolean invalid = false;
-                        for (String s : colors) {
-                            if (s.length() != 6) {
-                                invalid = true;
-                                break;
-                            }
-                            try {
-                                Integer.parseInt(s, 16);
-                            } catch (Exception ex) {
-                                invalid = true;
-                                break;
-                            }
-                        }
-                        if (invalid) {
-                            sendErrMessage(player, "set-color-invalid-format", args[1]);
-                            return;
-                        }
-                        SpecialRank sp = Database.getSpecialRank(pd);
-                        if ((sp == null || !sp.permissions.contains(Perm.colorCombo.name())) && !Database.hasPerm(player, Perm.highest)) {
-                            sendErrMessage(player, "set-color-no-perm");
-                            return;
-                        }
-                        pd.textColor = args[1];
-                        String preview = Tools.smoothColors("Colors go brrrrr!!", args[1].split("/"));
-                        sendMessage(player, "set-color-preview", preview);
-                        return;
-                    }
-                    pd.textColor = args[1];
-
-                    break;
+                    sendMessage(player, "set-textColor", args[1]);
+                }
+                pd.textColor = args[1];
+                return;
             }
             if(!Tools.enumContains(Setting.values(),args[0])){
                 sendErrMessage(player,"set-invalid");
@@ -210,7 +230,6 @@ public class InGameCommands {
                     sendErrMessage(player,"no-such-option",args[1],"on/off");
             }
             sendMessage(player,"set-toggled",args[0],args[1]);
-
         });
 
         handler.<Player>register("mute","<name/id>","Mutes or, if muted, unmutes player for you. " +
@@ -383,13 +402,12 @@ public class InGameCommands {
                     md.save();
                     sendMessage(player,"map-rate",md.name,
                             "["+(rating<6 ? rating<3 ? "scarlet":"yellow":"green") + "]" + rating + "[]");
-
                     return;
                 default:
                     sendErrMessage(player,"invalid-mode");
                     return;
             }
-            vote.aVote(voteData,10,voteData.target != null ? ((Map)voteData.target).name() : null);
+            vote.aVote(voteData,10,voteData.target != null ? ((Map)voteData.target).name() : "");
         });
 
         handler.<Player>register("emergency","<time/permanent/stop>","Emergency control.",(args,player)->{
@@ -441,54 +459,84 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("test","<start/egan/help/answer>","More info via /test help.",
-                (args,player)->{
-                    Integer penalty = Tester.recent.contains(player);
-                    PlayerD pd = Database.getData(player);
-                    boolean isTested = Tester.tests.containsKey(player.uuid);
-                    switch (args[0]){
-                        case "help" :
-                            sendInfoPopup(player,"test-help");
-                            return;
-                        case "start":
-                            if(pd.rank.equals(Rank.griefer.name())){
-                                sendErrMessage(player,"griefer-no-perm");
-                                return;
-                            }
-                            if(Database.hasPerm(player, Perm.high)){
-                                sendErrMessage(player,"test-no-need", Rank.verified.getName());
-                                return;
-                            }
-                            if(penalty != null){
-                                sendErrMessage(player,"test-is-recent",Tools.secToTime(penalty));
-                                return;
-                            }
-                            if(isTested){
-                                sendErrMessage(player,"test-already-testing");
-                                return;
-                            }
-                            sendMessage(player,"test-starting");
-                            Tester.tests.put(player.uuid,new Tester.Test(player));
-                            return;
-                        case "egan":
-                            if(!isTested){
-                                sendErrMessage(player,"test-not-tested");
-                                return;
-                            }
-                            Tester.tests.get(player.uuid).ask(player);
-                            return;
-                        default:
-                            if(!isTested){
-                                sendErrMessage(player,"test-not-tested");
-                                return;
-                            }
-                            if(!Strings.canParseInt(args[0])){
-                                sendErrMessage(player,"refuse-not-integer","1");
-                                return;
-                            }
-                            sendMessage(player,"test-processing");
-                            Tester.tests.get(player.uuid).processAnswer(player,Integer.parseInt(args[0])-1);
+        handler.<Player>register("test","<start/egan/help/answer>","More info via /test help.", (args,player)-> {
+            Integer penalty = Tester.recent.contains(player);
+            PlayerD pd = Database.getData(player);
+            boolean isTested = Tester.tests.containsKey(player.uuid);
+            switch (args[0]) {
+                case "help":
+                    sendInfoPopup(player, "test-help");
+                    return;
+                case "start":
+                    if (pd.rank.equals(Rank.griefer.name())) {
+                        sendErrMessage(player, "griefer-no-perm");
+                        return;
                     }
+                    if (Database.hasPerm(player, Perm.high)) {
+                        sendErrMessage(player, "test-no-need", Rank.verified.getName());
+                        return;
+                    }
+                    if (penalty != null) {
+                        sendErrMessage(player, "test-is-recent", Tools.secToTime(penalty));
+                        return;
+                    }
+                    if (isTested) {
+                        sendErrMessage(player, "test-already-testing");
+                        return;
+                    }
+                    sendMessage(player, "test-starting");
+                    Tester.tests.put(player.uuid, new Tester.Test(player));
+                    return;
+                case "egan":
+                    if (!isTested) {
+                        sendErrMessage(player, "test-not-tested");
+                        return;
+                    }
+                    Tester.tests.get(player.uuid).ask(player);
+                    return;
+                default:
+                    if (!isTested) {
+                        sendErrMessage(player, "test-not-tested");
+                        return;
+                    }
+                    if (!Strings.canParseInt(args[0])) {
+                        sendErrMessage(player, "refuse-not-integer", "1");
+                        return;
+                    }
+                    sendMessage(player, "test-processing");
+                    Tester.tests.get(player.uuid).processAnswer(player, Integer.parseInt(args[0]) - 1);
+            }
+        });
+
+        handler.<Player>register("ranks","<normal/special/info> <name/page>",
+                "More info via /ranks help.", (args,player)->{
+            PlayerD pd = Database.getData(player);
+            ArrayList<String> res = new ArrayList<>();
+            int page = args.length == 2 && Strings.canParsePostiveInt(args[1]) ? Integer.parseInt(args[1]) : 1;
+            switch (args[0]){
+                case "info":
+                    SpecialRank sr = Database.ranks.get(args[1]);
+                    if(sr == null){
+                        sendErrMessage(player,"ranks-rank-not-exist");
+                        return;
+                    }
+                    Call.onInfoMessage(player.con, sr.getDescription(pd));
+                    return;
+                case "normal":
+                    for(Rank r : Rank.values()){
+                        res.add(r.getName());
+                    }
+                    break;
+                case "special":
+                    for(SpecialRank s : Database.ranks.values()){
+                        res.add(s.getSuffix());
+                    }
+                    break;
+                default:
+                    sendErrMessage(player,"invalid-mode");
+                    return;
+            }
+            Call.onInfoMessage(player.con, Tools.formPage(res, page, args[0] + "ranks", 20));
         });
 
     }

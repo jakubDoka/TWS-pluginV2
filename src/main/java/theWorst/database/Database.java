@@ -32,7 +32,6 @@ import theWorst.Bot;
 import theWorst.Config;
 import theWorst.Tools;
 
-import java.awt.*;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,13 +46,14 @@ import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static theWorst.Tools.logInfo;
 
 public class Database {
+    public static final String playerCollection = "playerD";
     public static final String AFK = "[gray]<AFK>[]";
     static final String rankFile = Config.configDir + "specialRanks.json";
     static final String petFile = Config.configDir + "pets.json";
     static final String subnetFile = Config.saveDir + "subnetBuns.json";
     public static MongoClient client = MongoClients.create();
     static MongoDatabase database = client.getDatabase(Config.dbName);
-    static MongoCollection<Document> rawData = database.getCollection("playerD");
+    static MongoCollection<Document> rawData = database.getCollection(playerCollection);
     static MongoOperations data = new MongoTemplate(client, Config.dbName);
     static HashMap<String,PlayerD> online = new HashMap<>();
     public static HashMap<String,SpecialRank> ranks=new HashMap<>();
@@ -63,10 +63,6 @@ public class Database {
     private static final PlayerD defaultPD = new PlayerD(){{
             oldMeta=new PlayerD();
             uuid = "default";
-    }};
-    private static final SpecialRank error = new SpecialRank(){{
-            name="error";
-            color="red";
     }};
 
     public Database(){
@@ -80,9 +76,9 @@ public class Database {
         new AfkMaker();
         Events.on(EventType.PlayerConnect.class,e->{
             //remove fake ranks
-            String name = e.player.name;
+            String originalName = e.player.name;
             e.player.name = Tools.cleanEmotes(e.player.name);
-            if(!name.equals(e.player.name)){
+            if(!originalName.equals(e.player.name)){
                 //name cannot be blank
                 if(e.player.name.replace(" ","").isEmpty()){
                     e.player.name = e.player.id +"&#@";
@@ -98,27 +94,19 @@ public class Database {
                 Tools.sendMessage("griefer-subnet",e.player.name);
             }
             //resolving special rank
-            SpecialRank sp = getSpecialRank(pd);
-            if(sp != null && !sp.isPermanent()){
+            SpecialRank sr = getSpecialRank(pd);
+            if(sr != null && !sr.isPermanent()){
                 pd.specialRank = null;
-                sp = null;
+                sr = null;
             }
+
             for(SpecialRank rank : ranks.values()){
-                if(rank.condition(pd) && (sp==null || sp.value>rank.value)){
+                if(rank.condition(pd) && (sr==null || sr.value < rank.value)){
                    pd.specialRank = rank.name;
-                   sp = rank;
+                   sr = rank;
                 }
             }
-            if(sp != null && sp.pets != null){
-                for(String pet : sp.pets){
-                    Pet found = pets.get(pet);
-                    if(found == null){
-                        Log.info("missing pet :" + pet);
-                    } else {
-                        pd.pets.add(new Pet(found));
-                    }
-                }
-            }
+            addPets(pd, sr);
             //modify name based of rank
             updateName(e.player,pd);
             Tools.sendMessage("player-connected",e.player.name,String.valueOf(pd.serverId));
@@ -139,13 +127,26 @@ public class Database {
                             Optional<Server> server = Bot.api.getServerById(Bot.config.serverId);
                             if (!server.isPresent()) return;
                             Rank finalR = null;
+                            SpecialRank finalDl = null;
                             for (Role r : user.getRoles(server.get())) {
-                                if(Tools.enumContains(Rank.values(),r.getName())){
+                                String roleName = r.getName();
+                                if(Tools.enumContains(Rank.values(),roleName)){
                                     Rank rank = Rank.valueOf(r.getName());
                                     if (Rank.valueOf(pd.rank).getValue() < rank.getValue()) {
                                         finalR = rank;
                                     }
+                                } else if (ranks.containsKey(roleName)){
+                                    SpecialRank dl = ranks.get(pd.donationLevel);
+                                    SpecialRank ndl = ranks.get(roleName);
+                                    if(pd.donationLevel == null || dl == null || dl.value < ndl.value){
+                                        pd.donationLevel = roleName;
+                                        finalDl = ndl;
+                                    }
                                 }
+                            }
+                            if(pd.donationLevel != null) {
+                                updateName(e.player, pd);
+                                addPets(pd, finalDl);
                             }
                             if(finalR == null) return;
                             setRank(pd, finalR, e.player);
@@ -178,21 +179,18 @@ public class Database {
         //build and destruct permissions handling
         Events.on(EventType.BuildSelectEvent.class, e-> {
             if (!(e.builder instanceof Player)) return;
-            boolean happen = false;
             Player player = (Player) e.builder;
             CoreBlock.CoreEntity core = Tools.getCore();
             if (core == null) return;
             BuilderTrait.BuildRequest request = player.buildRequest();
             if (request == null) return;
             if (hasSpecialPerm(player, Perm.destruct) && request.breaking) {
-                happen = true;
                 for (ItemStack s : request.block.requirements) {
                     core.items.add(s.item, s.amount / 2);
                 }
                 Call.onDeconstructFinish(request.tile(), request.block, ((Player) e.builder).id);
-            } else if (hasSpecialPerm(player, Perm.build) && !request.breaking) {
+            } else if (hasSpecialPerm(player, Perm.build) && !request.breaking && request.block.buildCost > 30) {
                 if (core.items.has(request.block.requirements)) {
-                    happen = true;
                     for (ItemStack s : request.block.requirements) {
                         core.items.remove(s);
                     }
@@ -200,9 +198,9 @@ public class Database {
                             (byte) request.rotation, player.getTeam(), false);
                     e.tile.configure(request.config);
                 }
-            }
+            } else return;
             //necessary because instant build or break do not trigger event
-            if (happen) Events.fire(new EventType.BlockBuildEndEvent(e.tile, player, e.team, e.breaking));
+            Events.fire(new EventType.BlockBuildEndEvent(e.tile, player, e.team, e.breaking));
         });
 
         //count units killed and deaths
@@ -243,9 +241,22 @@ public class Database {
 
     }
 
+    void addPets(PlayerD pd, SpecialRank sr){
+        if(sr != null && sr.pets != null){
+            for(String pet : sr.pets){
+                Pet found = pets.get(pet);
+                if(found == null){
+                    Log.info("missing pet :" + pet);
+                } else {
+                    pd.pets.add(new Pet(found));
+                }
+            }
+        }
+    }
+
     public static void reload(){
         database = client.getDatabase(Config.dbName);
-        rawData = database.getCollection("playerD");
+        rawData = database.getCollection(playerCollection);
         data = new MongoTemplate(client, Config.dbName);
     }
 
@@ -253,7 +264,7 @@ public class Database {
     public static void clean(){
         rawData.drop();
         data = new MongoTemplate(client,Config.dbName);
-        rawData = MongoClients.create().getDatabase(Config.dbName).getCollection("players");
+        rawData = MongoClients.create().getDatabase(Config.dbName).getCollection(playerCollection);
     }
 
     public static String getSubnet(PlayerD pd){
@@ -311,7 +322,7 @@ public class Database {
         },Database::saveSubnet);
     }
 
-    public static boolean loadRanks() {
+    public static void loadRanks() {
         ranks.clear();
         AtomicBoolean res = new AtomicBoolean(true);
         Tools.loadJson(rankFile,data -> {
@@ -329,7 +340,9 @@ public class Database {
                     "        {\n" +
                     "            \"name\":\"kamikaze\",\n" +
                     "            \"color\":\"scarlet\",\n" +
-                    "            \"description\":\"missing\",\n" +
+                    "            \"description\":{\n" +
+                    "               \"default\":\"Just die a lot.\"\n" +
+                    "            },\n" +
                     "            \"value\":1,\n" +
                     "            \"permissions\":[\"suicide\"],\n" +
                     "            \"pets\":[\"fire-pet\"],\n" +
@@ -342,7 +355,6 @@ public class Database {
                     "        {\n" +
                     "            \"name\":\"builder\",\n" +
                     "            \"color\":\"green\",\n" +
-                    "            \"description\":\"You have to build a lot o get this rank.\",\n" +
                     "            \"value\":5,\n" +
                     "            \"permissions\":[\"build\"],\n" +
                     "            \"quests\":{\n" +
@@ -356,10 +368,10 @@ public class Database {
                     "}");
             Tools.logInfo("files-default-config-created","special ranks", rankFile);
         });
-        return res.get();
+        res.get();
     }
 
-    public static boolean loadPets(){
+    public static void loadPets(){
         pets.clear();
         AtomicBoolean res = new AtomicBoolean(true);
         Tools.loadJson(petFile,data -> {
@@ -389,15 +401,20 @@ public class Database {
 
 
         });
-        return res.get();}
+        res.get();
+    }
 
-    public static SpecialRank getSpecialRank(PlayerD pd){
-        if(pd.specialRank==null) return null;
-        SpecialRank sr=ranks.get(pd.specialRank);
-        if(sr==null){
-            pd.specialRank=null;
-            return error;
-        }
+    public static SpecialRank getSpecialRank(PlayerD pd) {
+        if (pd.specialRank == null) return null;
+        SpecialRank sr = ranks.get(pd.specialRank);
+        if (sr == null) pd.specialRank = null;
+        return sr;
+    }
+
+    public static SpecialRank getDonationLevel(PlayerD pd) {
+        if (pd.donationLevel == null) return null;
+        SpecialRank sr = ranks.get(pd.donationLevel);
+        if (sr == null) pd.donationLevel = null;
         return sr;
     }
 
@@ -408,7 +425,13 @@ public class Database {
         } else if(pd.specialRank!=null) {
             SpecialRank rank = getSpecialRank(pd);
             if(rank == null){
-                pd.specialRank = null;
+                updateName(player,pd);
+                return;
+            }
+            player.name += rank.getSuffix();
+        } else if(pd.donationLevel != null) {
+            SpecialRank rank = getDonationLevel(pd);
+            if(rank == null){
                 updateName(player,pd);
                 return;
             }
@@ -424,12 +447,16 @@ public class Database {
         Database.data.findAndReplace(new Query(where("_id").is(pd.uuid)),pd);
     }
 
+    public static PlayerD query(String property, Object value){
+        return data.findOne(new Query(where(property).is(value)),PlayerD.class);
+    }
+
     public static PlayerD getMeta(String uuid){
-        return data.findOne(new Query(where("_id").is(uuid)),PlayerD.class);
+        return query("_id", uuid);
     }
 
     public static PlayerD getMetaById(long id){
-        return data.findOne(new Query(where("serverId").is(id)),PlayerD.class);
+        return query("serverId", id);
     }
 
     public static Document getRawMeta(String uuid) {
@@ -469,6 +496,8 @@ public class Database {
         return pd;
     }
 
+
+
     public static boolean hasEnabled(Player player, Setting setting){
         return getData(player).settings.contains(setting.name());
     }
@@ -483,9 +512,13 @@ public class Database {
     }
 
     public static boolean hasSpecialPerm(Player player,Perm perm){
-        SpecialRank sr=getSpecialRank(getData(player));
-        if(sr==null) return false;
-        return sr.permissions.contains(perm.name());
+        PlayerD pd = getData(player);
+        SpecialRank sr = getSpecialRank(pd);
+        SpecialRank dl = getDonationLevel(pd);
+        boolean srh = false, dlh = false;
+        if(sr != null) srh = sr.permissions.contains(perm.name());
+        if(dl != null) dlh = dl.permissions.contains(perm.name());
+        return  srh || dlh;
     }
 
     //when structure of playerD is changed this function tries its bet to make database still compatible

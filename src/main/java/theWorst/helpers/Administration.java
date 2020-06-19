@@ -3,17 +3,15 @@ package theWorst.helpers;
 import arc.Events;
 import arc.util.Time;
 import arc.util.Timer;
-import com.sun.scenario.effect.impl.prism.ps.PPSBlend_SOFT_LIGHTPeer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
-import org.springframework.context.annotation.MBeanExportConfiguration;
 import theWorst.Config;
 import theWorst.Tools;
 import theWorst.database.*;
 
+import java.awt.*;
 import java.util.HashMap;
-import java.util.TimerTask;
 
 import static mindustry.Vars.netServer;
 import static mindustry.Vars.world;
@@ -21,10 +19,26 @@ import static theWorst.Tools.*;
 
 public class Administration implements Displayable{
     public static Emergency emergency = new Emergency(0); // Its just placeholder because time is 0
+    public static HashMap<String, Integer> recent = new HashMap<>();
+    public static Timer.Task recentThread;
+    private final int maxAGFreq = 5;
     TileInfo[][] data;
 
     public Administration() {
         Hud.addDisplayable(this);
+        //this updates recent map of deposit and withdraw events.
+        if(recentThread != null) recentThread.cancel();
+        recentThread = Timer.schedule(()->{
+            for(String s : recent.keySet()){
+                int val = recent.get(s);
+                if(val <= 0){
+                    recent.remove(s);
+                    continue;
+                }
+                recent.put(s, val - maxAGFreq);
+            }
+        },0,1);
+
         //crete a a new action map when map changes.
         Events.on(EventType.PlayEvent.class, e -> {
             data = new TileInfo[world.height()][world.width()];
@@ -93,16 +107,17 @@ public class Administration implements Displayable{
                         return null;
                     }
                     color = "pink";
-                } else if (Database.hasSpecialPerm(player, Perm.colorCombo) || Database.hasPerm(player, Perm.highest)) {
-                    String[] colors = pd.textColor.split("/");
-                    if(colors.length>1){
-                        message = smoothColors(message,colors);
-                    }
 
                 }
-
+                //handle users with color combo permission
+                String[] colors = pd.textColor.split("/");
+                if (Database.hasSpecialPerm(player, Perm.colorCombo) && colors.length > 1) {
+                    message = smoothColors(message,colors);
+                } else message = "[" + color + "]" + message;
+                //updating stats
                 pd.lastMessage = Time.millis();
                 pd.messageCount++;
+                //final sending message, i have my own function for this because people ca have this user muted
                 sendChatMessage(player,message);
                 return null;
             });
@@ -114,13 +129,26 @@ public class Administration implements Displayable{
                 if (pd == null) return false;
                 pd.onAction(player);
                 Rank rank = Tools.getRank(pd);
-
-                if(act.type== mindustry.net.Administration.ActionType.tapTile) return true;
+                //taping on tiles is ok.
+                if(act.type == mindustry.net.Administration.ActionType.tapTile) return true;
+                //this is against Ag client messing up game
+                if(act.type == mindustry.net.Administration.ActionType.depositItem ||
+                        act.type == mindustry.net.Administration.ActionType.withdrawItem){
+                    int val = recent.getOrDefault(player.uuid, 0);
+                    if(val > maxAGFreq){
+                        sendErrMessage(player , "AG-slow-down");
+                        recent.put(player.uuid,30);
+                        return false;
+                    }
+                    recent.put(player.uuid, val+1);
+                }
                 TileInfo ti=data[act.tile.y][act.tile.x];
+                //if there is emergency
                 if(emergency.isActive() && rank.permission.getValue()<Perm.high.getValue()) {
                     Tools.sendErrMessage(player,"at-least-verified",Rank.verified.getName());
                     return false;
                 }
+                //if player has to low permission to interact
                 if(!(rank.permission.getValue()>=ti.lock)){
                     if(rank==Rank.griefer){
                         Tools.sendErrMessage(player,"griefer-no-perm");
@@ -130,6 +158,7 @@ public class Administration implements Displayable{
                     return false;
 
                 }
+                //remember tis action for inspect.
                 ti.data.put(act.type.name(),pd);
                 return true;
 
