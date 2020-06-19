@@ -40,7 +40,7 @@ public class MapManager {
     public static void cleanMaps(){
         List<MapD> mapDS = data.findAll(MapD.class);
         for(MapD mapD : mapDS){
-            File mapFile = new File("config/maps" + mapD.filename);
+            File mapFile = new File("config/maps/" + mapD.filename);
             if(mapFile.exists()){
                 data.remove(mapD);
                 continue;
