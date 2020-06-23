@@ -36,22 +36,22 @@ public class PlayerD {
     public long lastActive = 0;
     @Transient public long lastAction = Time.millis();
     @Transient public boolean afk = false;
-    public String specialRank = null;
+    public String specialRank;
     @Transient public ArrayList<Pet> pets = new ArrayList<>();
 
     //user customization
     public String textColor = "white";
-    public String discordLink = null;
+    public String discordLink;
     public HashSet<String> settings = new HashSet<>();
     public HashSet<String> mutes = new HashSet<>();
-    public String donationLevel = null;
+    public String donationLevel;
 
     //administration
     @Indexed public long serverId;
     @Id public String uuid;
     public String rank = "newcomer";
     public String ip;
-    public String originalName = "";
+    public String originalName;
     public long lastMessage = 0;
 
 
@@ -60,7 +60,10 @@ public class PlayerD {
     @Transient public ResourceBundle bundle = Tools.defaultBundle;
 
     //empty instance used only when player joins for the firs time
-    protected PlayerD(){}
+    protected PlayerD(){
+        specialRank = "";
+        ip = "";
+    }
 
     public PlayerD(Player player){
         uuid=player.uuid;
@@ -103,8 +106,7 @@ public class PlayerD {
                 settings.add(s.name());
             }
             //its simple and produces easy to remember ids
-            serverId = Database.data.findAll(PlayerD.class).size();
-
+            serverId = Database.getDatabaseSize();
             Database.data.save(this);
             oldMeta= new PlayerD();
             //meta is null! cannot continue

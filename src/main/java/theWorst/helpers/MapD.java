@@ -21,7 +21,7 @@ import static org.springframework.data.mongodb.core.query.Criteria.where;
 
 @Document
 public class MapD {
-    @Transient final int defaultAirWave = 1000000;
+    @Transient static final int defaultAirWave = 1000000;
     @Id String filename;
     long timesPlayed = 0;
     long timesWon = 0;

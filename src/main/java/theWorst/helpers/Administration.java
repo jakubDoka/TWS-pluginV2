@@ -12,6 +12,7 @@ import theWorst.database.*;
 
 import java.awt.*;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import static mindustry.Vars.netServer;
 import static mindustry.Vars.world;
@@ -29,7 +30,7 @@ public class Administration implements Displayable{
         //this updates recent map of deposit and withdraw events.
         if(recentThread != null) recentThread.cancel();
         recentThread = Timer.schedule(()->{
-            for(String s : recent.keySet()){
+            for(String s : new HashSet<>(recent.keySet())){
                 int val = recent.get(s);
                 if(val <= 0){
                     recent.remove(s);
@@ -113,7 +114,7 @@ public class Administration implements Displayable{
                 String[] colors = pd.textColor.split("/");
                 if (Database.hasSpecialPerm(player, Perm.colorCombo) && colors.length > 1) {
                     message = smoothColors(message,colors);
-                } else message = "[" + color + "]" + message;
+                } else message = "[#" + color + "]" + message;
                 //updating stats
                 pd.lastMessage = Time.millis();
                 pd.messageCount++;
@@ -171,6 +172,11 @@ public class Administration implements Displayable{
     @Override
     public String getMessage(PlayerD pd) {
         return emergency.getReport(pd);
+    }
+
+    @Override
+    public void onTick() {
+        emergency.onTick();
     }
 
     static class TileInfo{
@@ -235,13 +241,17 @@ public class Administration implements Displayable{
             if(permanent){
                 return Tools.format(Tools.getTranslation(pd,"emergency-permanent"),Rank.verified.getName());
             }
-            if(time<=0){
+            if(time <= 0){
                 return null;
             }
-            time--;
-            red = !red;
             String left = Tools.secToTime(time);
             return Tools.format(Tools.getTranslation(pd,"emergency"),left,left);
+        }
+
+        public void onTick(){
+            if(time <= 0) return;
+            time--;
+            red = !red;
         }
     }
 

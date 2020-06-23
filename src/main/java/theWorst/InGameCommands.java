@@ -1,20 +1,26 @@
 package theWorst;
 
 import arc.Events;
+import arc.math.Mat;
 import arc.math.Mathf;
 import arc.struct.Array;
 import arc.util.CommandHandler;
+import arc.util.Log;
 import arc.util.Strings;
+import arc.util.Time;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.game.Gamemode;
 import mindustry.game.Team;
 import mindustry.gen.Call;
 import mindustry.maps.Map;
+import mindustry.type.Item;
+import mindustry.type.ItemStack;
+import mindustry.type.ItemType;
+import mindustry.world.blocks.storage.CoreBlock;
 import theWorst.database.*;
-import theWorst.helpers.MapD;
-import theWorst.helpers.MapManager;
-import theWorst.helpers.Tester;
+import theWorst.helpers.*;
+import theWorst.helpers.gameChangers.Loadout;
 import theWorst.votes.Vote;
 import theWorst.votes.VoteData;
 
@@ -28,56 +34,14 @@ import static theWorst.database.Database.getData;
 public class InGameCommands {
     public static Vote vote = new Vote("vote-y-n");
     public static Vote voteKick = new Vote("vote-/vote-y-/vote-n");
+    public static Loadout loadout;
     interface Command {
         VoteData run(String[] args, Player player);
     }
 
-    Command mkgfCommand = (args,player)->{
-        PlayerD pd = Database.findData(args[0]);
-        if(pd == null){
-            sendErrMessage(player, "player-not-found");
-            return null;
-        }
-        if(pd.uuid.equals(player.uuid)){
-            sendErrMessage(player,"mkgf-self");
-            return null;
-        }
-        if(getRank(pd).isAdmin){
-            sendErrMessage(player,"mkgf-target-admin");
-            return null;
-        }
-
-        VoteData voteData = new VoteData(){
-            {
-                by = player;
-                target = pd;
-                reason = pd.rank.equals(Rank.griefer.name()) ? "mkgf-remove" : "mkgf-add";
-            }
-            @Override
-            public void run() {
-                if (pd.rank.equals(Rank.griefer.name())) {
-                    Database.setRank(pd, Rank.newcomer, null);
-                } else {
-                    Database.setRank(pd, Rank.griefer, null);
-                }
-            }
-        };
-
-        if(player.isAdmin){
-            voteData.run();
-            return null;
-        }
-        /*if(playerGroup.size()<3){
-            sendErrMessage(player,"mkgf-not-enough");
-            return null;
-        }*/
-        return voteData;
-    };
 
 
-
-    public InGameCommands(CommandHandler handler) {
-
+    public InGameCommands(){
         Events.on(EventType.PlayerChatEvent.class,e->{
             getData(e.player).onAction(e.player);
             if(e.message.equalsIgnoreCase("y") || e.message.equalsIgnoreCase("n")) {
@@ -87,7 +51,21 @@ public class InGameCommands {
             }
         });
 
+        Events.on(EventType.PlayerLeave.class,e->{
+            voteKick.revolve();
+            vote.revolve();
+        });
+
+        Events.on(EventType.ServerLoadEvent.class, e->{
+            loadout = new Loadout();
+        });
+    }
+
+
+    public void register(CommandHandler handler) {
         handler.removeCommand("help");
+
+        //todo /serverstats : fps, game length, player count, space left, count of players in database,
 
         handler.<Player>register("help","[page]","Shows all available commands and how to use them.",(args,player)->{
             ArrayList<String> res = new ArrayList<>();
@@ -103,6 +81,18 @@ public class InGameCommands {
             player.sendMessage(formPage(res, page, "help", 7));
         });
 
+        handler.<Player>register("status","Shows some information about server like fps.",(args, player)-> {
+            int totalFreeSpace = getFreeTiles(false);
+            int currentFreeSpace = getFreeTiles(true);
+            sendInfoPopup(player, "server-status",
+                    "" + (int) (1 / Time.delta()),
+                    "" + playerGroup.size(),
+                    "" + Database.getDatabaseSize(),
+                    "" + currentFreeSpace,
+                    "" + totalFreeSpace,
+                    "" + (int)( (float) currentFreeSpace / totalFreeSpace * 100));
+        });
+
         handler.<Player>register("rules","Shows rules of this server.",(args,player)->{
 
             String rules = Config.rules.getOrDefault(getCountryCode(getData(player).bundle.getLocale()),Config.rules.get("default"));
@@ -113,6 +103,49 @@ public class InGameCommands {
 
             Call.onInfoMessage(player.con,"[orange]==RULES==[]\n\n"+rules);
         });
+
+        Command mkgfCommand = (args,player)->{
+            PlayerD pd = Database.findData(args[0]);
+            if(pd == null){
+                sendErrMessage(player, "player-not-found");
+                return null;
+            }
+            if(pd.uuid.equals(player.uuid)){
+                sendErrMessage(player,"mkgf-self");
+                return null;
+            }
+            if(getRank(pd).isAdmin){
+                sendErrMessage(player,"mkgf-target-admin");
+                return null;
+            }
+
+            VoteData voteData = new VoteData(){
+                {
+                    by = player;
+                    target = pd;
+                    reason = pd.rank.equals(Rank.griefer.name()) ? "mkgf-remove" : "mkgf-add";
+                }
+                @Override
+                public void run() {
+                    if (pd.rank.equals(Rank.griefer.name())) {
+                        Database.setRank(pd, Rank.newcomer, null);
+                    } else {
+                        Database.setRank(pd, Rank.griefer, null);
+                    }
+                }
+            };
+
+            if(player.isAdmin){
+                voteData.run();
+                return null;
+            }
+        /*if(playerGroup.size()<3){
+            sendErrMessage(player,"mkgf-not-enough");
+            return null;
+            todo
+        }*/
+            return voteData;
+        };
 
         handler.<Player>register("mkgf","<name/id>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
@@ -128,19 +161,20 @@ public class InGameCommands {
 
         handler.<Player>register("info","[id]","Displays players profile.",(args, player)->{
             String data;
+            PlayerD pd = getData(player);
             if(args.length == 0){
-                data = getData(player).toString();
+                data = pd.toString(pd);
             } else {
                 if(!Strings.canParsePostiveInt(args[0])){
                     sendErrMessage(player,"refuse-not-integer","1");
                     return;
                 }
-                PlayerD pd = Database.findData(args[0]);
-                if(pd == null){
+                PlayerD other = Database.findData(args[0]);
+                if(other == null){
                     sendErrMessage(player,"player-not-found");
                     return;
                 }
-                data = pd.toString();
+                data = other.toString(pd);
             }
             Call.onInfoMessage(player.con,"[orange]==PLAYER PROFILE==[]\n\n"+data);
         });
@@ -508,13 +542,41 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("ranks","<normal/special/info> <name/page>",
+        /*handler.<Player>register("drop","<help/block/meteor/bomb> [blockName/material]",
+                "More info via /drop help.", (args,player)->{
+            switch (args[0]){
+                case "help":
+                    return;
+                case "block":
+                    if(Terraformer.buildBlock(player.getTeam(), Terraformer.getBlockByName(args[1], true), player.tileOn())){
+                        //todo
+                        player.sendMessage("succes");
+                    }
+                    return;
+                case "meteor":
+                    if(!args[1].startsWith("ore")) {
+                        //todo
+                        return;
+                    }
+                    Terraformer.dropMeteor(Terraformer.getBlockByName(args[1] , false), player.tileOn(), 100);
+                case "bomb":
+                    Terraformer.dropMeteor(null, player.tileOn(), 100);
+                default:
+                    sendErrMessage(player,"invalid-mode");
+            }
+        });*/
+
+        handler.<Player>register("ranks","<help/normal/special/info> [name/page]",
                 "More info via /ranks help.", (args,player)->{
             PlayerD pd = Database.getData(player);
             ArrayList<String> res = new ArrayList<>();
             int page = args.length == 2 && Strings.canParsePostiveInt(args[1]) ? Integer.parseInt(args[1]) : 1;
             switch (args[0]){
+                case "help":
+                    sendInfoPopup(player, "ranks-help");
+                    return;
                 case "info":
+                    if(wrongArgAmount(player,args,2)) return;
                     SpecialRank sr = Database.ranks.get(args[1]);
                     if(sr == null){
                         sendErrMessage(player,"ranks-rank-not-exist");
@@ -539,5 +601,131 @@ public class InGameCommands {
             Call.onInfoMessage(player.con, Tools.formPage(res, page, args[0] + "ranks", 20));
         });
 
+        handler.<Player>register("l","<put/use/info/help> [amount] [item/all]","More info via /l help.", (args, player)-> {
+
+            if (args.length == 1) {
+                player.sendMessage("nothing");
+            } else if (args.length == 3) {
+                VoteData data = null;
+                CoreBlock.CoreEntity core = Tools.getCore();
+                if(core == null){
+                    sendErrMessage(player,"loadout-no-cores");//todo
+                    return;
+                }
+                if(!Strings.canParsePostiveInt(args[1])){
+                    sendErrMessage(player, "refuse-not-integer","2");
+                    return;
+                }
+                int amount = Integer.parseInt(args[1]);
+                Item item = Loadout.getItemByName(args[2]);
+                ItemStack stack = null;
+                String arg;
+                switch (args[0]) {
+                    case "put":
+                        ArrayList<ItemStack> stacks = new ArrayList<>();
+                        if(args[2].equals("all")){
+                            arg = args[1] + "of all resources";
+                            int total = 0;
+                            for(Item i : content.items()){
+                                if(i.type != ItemType.material) continue;
+                                int am = core.items.get(i);
+                                total += am;
+                                stacks.add(new ItemStack(i, Mathf.clamp(amount, 0 ,am)));
+                            }
+                            if(total == 0){
+                                sendMessage(player,"loadout-nothing-to-transport");//todo
+                                return;
+                            }
+                        } else if( item == null){
+                            sendErrMessage(player, "loadout-item-not-found", args[2]);//todo
+                            return;
+                        } else {
+                            stack = new ItemStack(item, Mathf.clamp(amount, 0, core.items.get(item)));
+                            if(stack.amount == 0){
+                                sendErrMessage(player,"loadout-nothing-to-transport");//todo
+                                return;
+                            }
+                            arg = Loadout.stackToString(stack);
+                        }
+                        ItemStack finalStack = stack;
+                        data = new VoteData() {
+                            {
+                                reason = "loadout-put"; //todo
+                            }
+                            @Override
+                            public void run() {
+                                if(finalStack != null){
+                                    ItemStack transported = loadout.canAdd(finalStack);
+                                    core.items.remove(transported);
+                                    loadout.add(transported);
+                                } else {
+                                    for(ItemStack s : loadout.canAdd(stacks)){
+                                        core.items.remove(s);
+                                        loadout.add(s);
+                                    }
+                                }
+                            }
+                        };
+                        break;
+                    case "get":
+                        if (loadout.ships.size() == Loadout.config.shipCount) {
+                            sendErrMessage(player, "loadout-no-ships");//todo
+                            return;
+                        }
+                        if (args[2].equals("all")){
+                            sendErrMessage(player, "loadout-cannot-all");//todo
+                            return;
+                        } if( item == null){
+                            sendErrMessage(player, "loadout-item-not-found", args[2]);//todo
+                            return;
+                        } else {
+                            stack = new ItemStack(item, Mathf.clamp(amount, 0, loadout.getAmount(item)));
+                            int shipSpace = (Loadout.config.shipCount - loadout.ships.size()) * Loadout.config.shipCapacity;
+                            stack.amount = Mathf.clamp(stack.amount, 0, shipSpace);
+                            if(stack.amount == 0){
+                                sendErrMessage(player,"loadout-nothing-to-transport");//todo
+                                return;
+                            }
+                            arg = Loadout.stackToString(stack);
+                        }
+                        finalStack = stack;
+                        data = new VoteData() {
+                            {
+                                reason = "loadout-use"; //todo
+                            }
+                            @Override
+                            public void run() {
+                                int ships = Mathf.ceil((float) finalStack.amount / Loadout.config.shipCapacity);
+                                ships = Mathf.clamp(ships, 1, Loadout.config.shipCount - loadout.ships.size());
+                                loadout.withdraw(finalStack);
+                                for(int i = 0; i < ships; i++){
+                                    int finalAmount = Mathf.clamp(finalStack.amount, 0, Loadout.config.shipCapacity);
+                                    finalStack.amount -= finalAmount;
+                                    loadout.ships.add(new Loadout.Ship() {
+                                        {
+                                            time = Loadout.config.shipSpeed;
+                                            stack = new ItemStack(finalStack.item, finalAmount);
+                                        }
+                                        @Override
+                                        public void onArrival() {
+                                            core.items.add(stack.item, stack.amount);
+                                            Hud.addAd("loadout-ship-arrived", 10, "!green", "!gray");
+                                        }
+                                    });
+                                }
+                            }
+                        };
+                        break;
+                    default:
+                        sendErrMessage(player, "invalid-mode");
+                        return;
+                }
+                data.by = player;
+                data.target = stack;
+                vote.aVote(data, 3, arg);
+            } else {
+                wrongArgAmount(player, args, 3);
+            }
+        });
     }
 }

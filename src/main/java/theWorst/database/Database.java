@@ -33,6 +33,7 @@ import theWorst.Config;
 import theWorst.Tools;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,7 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static mindustry.Vars.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
-import static theWorst.Tools.logInfo;
+import static theWorst.Tools.*;
 
 public class Database {
     public static final String playerCollection = "playerD";
@@ -110,6 +111,7 @@ public class Database {
             //modify name based of rank
             updateName(e.player,pd);
             Tools.sendMessage("player-connected",e.player.name,String.valueOf(pd.serverId));
+            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes connected.", cleanColors(e.player.name), pd.serverId));
             if (Bot.api == null || Bot.config.serverId == null || pd.rank.equals(Rank.griefer.name())) return;
             if (Bot.pendingLinks.containsKey(pd.serverId)){
                 Tools.sendMessage(e.player,"discord-pending-link",Bot.pendingLinks.get(pd.serverId).name);
@@ -162,6 +164,7 @@ public class Database {
             PlayerD pd = online.remove(e.player.uuid);
             if(pd == null) return;
             Tools.sendMessage("player-disconnected",e.player.name,String.valueOf(pd.serverId));
+            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes disconnected.", cleanColors(e.player.name), pd.serverId));
             pd.disconnect();
         });
 
@@ -334,6 +337,36 @@ public class Database {
             } catch (IOException ex){
                 ex.printStackTrace();
             }
+            boolean invalid = false;
+            for(SpecialRank r : ranks.values()){
+                if(r.quests != null) {
+                    for(String s: r.quests.keySet()){
+                        if(!enumContains(Stat.values(),s)){
+                            logInfo("special-error-invalid-stat", r.name, s);
+                            invalid = true;
+                        }
+                        for(String l : r.quests.get(s).keySet()){
+                            if(!enumContains(SpecialRank.Mod.values(),l)){
+                                logInfo("special-error-invalid-stat-property", r.name, s, l);
+                                invalid = true;
+                            }
+                        }
+                    }
+                }
+                if(r.linked != null){
+                    for(String l : r.linked){
+                        if(!ranks.containsKey(l)){
+                            logInfo("special-rank-error-missing-rank" , l, r.name);
+                            invalid = true;
+                        }
+
+                    }
+                }
+            }
+            if(invalid){
+                ranks.clear();
+                logInfo("special-rank-file-invalid");
+            }
         },()->{
             Tools.saveJson(rankFile, "{\n" +
                     "    \"ranks\":[\n" +
@@ -463,6 +496,10 @@ public class Database {
         return rawData.find(Filters.eq("_id",uuid)).first();
     }
 
+    public static int getDatabaseSize(){
+        return (int) database.runCommand(new Document("collStats", playerCollection)).get("count");
+    }
+
     public static List<PlayerD> getAllMeta(){
         return data.findAll(PlayerD.class);
     }
@@ -478,7 +515,6 @@ public class Database {
     public static PlayerD findData(String key){
         PlayerD pd;
         if(Strings.canParsePostiveInt(key)){
-            Log.info("happened");
             pd = getMetaById(Long.parseLong(key));
         } else {
             pd = getMeta(key);
@@ -513,6 +549,7 @@ public class Database {
 
     public static boolean hasSpecialPerm(Player player,Perm perm){
         PlayerD pd = getData(player);
+        if(!pd.settings.contains(Setting.ability.name())) return false;
         SpecialRank sr = getSpecialRank(pd);
         SpecialRank dl = getDonationLevel(pd);
         boolean srh = false, dlh = false;
@@ -525,7 +562,18 @@ public class Database {
     //mongoDB surly has tools for this kind of actions its just too complex for me to figure out
     private static void autocorrect(){
         //creates document from updated class
-        data.save(new PlayerD(),"pref");
+        PlayerD pd = new PlayerD();
+        for(Field f : PlayerD.class.getDeclaredFields()){
+            try {
+                Object val = f.get(pd);
+                if(val == null && f.getType() == String.class){
+                    f.set(pd, "");
+                }
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
+        data.save(pd,"pref");
         //assuming that all documents have same structure, and they should we are taking one o the old ones
         Document oldDoc = rawData.find().first();
         Document currentDoc = data.getCollection("pref").find().first();

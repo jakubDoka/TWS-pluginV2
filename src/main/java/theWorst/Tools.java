@@ -304,6 +304,20 @@ public class Tools {
     }
 
     //map related
+
+    public static int getFreeTiles(boolean countBreakable){
+        int res = 0;
+        for(int y = 0; y < world.height(); y++){
+            for(int x = 0; x < world.width(); x++){
+                Tile t = world.tile(x,y);
+                if(countBreakable && t.breakable()) continue;
+                if(t.solid() && !t.breakable() && t.floor().drownTime > 0f ) continue;
+                res ++;
+            }
+        }
+        return res;
+    }
+
     public static int colorFor(Floor floor, Block wall, Block ore, Team team){
         if(wall.synthetic()){
             return team.color.rgba();
@@ -416,14 +430,14 @@ public class Tools {
             if (reason == null) reason = "Reason not provided.";
             Rank prevRank = Tools.getRank(pd);
             Database.setRank(pd, r, null);
-            Bot.onRankChange(pd.originalName, pd.serverId, prevRank.name(), r.name(), by, reason);
+            Bot.onRankChange(cleanColors(pd.originalName), pd.serverId, prevRank.name(), r.name(), by, reason);
             logInfo("rank-change", pd.originalName, pd.rank);
             sendMessage("rank-change", pd.originalName, Tools.getRank(pd).getName());
         } else {
             if (rank.equals("restart")) {
                 pd.specialRank = null;
                 sendMessage("rank-restart", pd.originalName);
-                Log.info("rank-restart", pd.originalName);
+                logInfo("rank-restart", pd.originalName);
             }
             else if (!Database.ranks.containsKey(rank)) return Res.invalid;
             else {
@@ -510,7 +524,7 @@ public class Tools {
                 break;
             default:
                 for(PlayerD pd : all){
-                    if(pd.originalName.startsWith(args[0])) res.add(pdToLine(pd));
+                    if(cleanColors(pd.originalName).startsWith(args[0])) res.add(pdToLine(pd));
                 }
                 break;
         }

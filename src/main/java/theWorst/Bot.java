@@ -1,36 +1,23 @@
 package theWorst;
 
 import arc.Events;
-import arc.util.Log;
-import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import org.javacord.api.DiscordApi;
-import org.javacord.api.entity.channel.TextChannel;
-import org.javacord.api.entity.permission.Role;
-import org.javacord.api.entity.server.Server;
-import org.javacord.api.entity.user.User;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
-import theWorst.database.Rank;
 import theWorst.database.Setting;
 import theWorst.discord.BotConfig;
 import theWorst.discord.Command;
 import theWorst.discord.DiscordCommands;
 
-import javax.swing.event.DocumentEvent;
-import java.awt.*;
 import java.util.HashMap;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
 
 import static mindustry.Vars.playerGroup;
+import static mindustry.Vars.world;
 import static theWorst.Tools.*;
-import static theWorst.Tools.logInfo;
 
 public class Bot {
     public static String dir = Config.configDir + "bot/";
@@ -52,19 +39,29 @@ public class Bot {
 
     public Bot(){
         Events.on(EventType.PlayerChatEvent.class,e->{
-            if(api == null || Tools.isCommandRelated(e.message)  || !config.channels.containsKey("linked")) return;
-            config.channels.get("linked").sendMessage("**"+Tools.cleanName(e.player.name)+"** : "+e.message.substring(e.message.indexOf("]")+1));
+            if(Tools.isCommandRelated(e.message)) return;
+            sendToLinkedChat("**"+Tools.cleanName(e.player.name)+"** : "+e.message.substring(e.message.indexOf("]")+1));
         });
+
+        Events.on(EventType.PlayEvent.class, e->{
+           sendToLinkedChat("===*Playing on " + world.getMap().name() + "*===");
+        });
+
 
         Events.on(EventType.PlayerChatEvent.class,e->{
             if(api == null || !config.channels.containsKey("commandLog")) return;
             if(!Tools.isCommandRelated(e.message)) return;
             PlayerD pd = Database.getData(e.player);
             config.channels.get("commandLog").sendMessage(String.format("**%s** - %s (%d): %s",
-                    pd.originalName,pd.rank,pd.serverId,e.message));
+                    cleanColors(pd.originalName), pd.rank, pd.serverId, e.message));
         });
         loadRestrictions();
         connect();
+    }
+
+    public static void sendToLinkedChat(String message){
+        if(api == null || !config.channels.containsKey("linked")) return;
+        config.channels.get("linked").sendMessage(message);
     }
 
     public static void onRankChange(String name, long serverId, String prev, String now, String by, String reason) {

@@ -33,7 +33,7 @@ public class MapManager {
         Events.on(EventType.PlayEvent.class, e-> {
             played = getData(world.getMap());
             played.started = Time.millis();
-            Hud.addAd(played.hasNoAirWave() ? "map-no-air-wave" : "map-first-air-wave",30,"" + played.defaultAirWave);
+            Hud.addAd(played.hasNoAirWave() ? "map-no-air-wave" : "map-first-air-wave", 30, "" + played.firstAirWave);
         });
     }
 
@@ -41,7 +41,7 @@ public class MapManager {
         List<MapD> mapDS = data.findAll(MapD.class);
         for(MapD mapD : mapDS){
             File mapFile = new File("config/maps/" + mapD.filename);
-            if(mapFile.exists()){
+            if(!mapFile.exists()){
                 data.remove(mapD);
                 continue;
             }

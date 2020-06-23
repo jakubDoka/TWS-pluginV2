@@ -36,7 +36,7 @@ public class Hud {
 
 
     public Hud(){
-        //this is necessary, if local player is null, team core damage will not be triggered
+        //this is necessary, if local player is null, team core damage event will not be triggered
         player = new Player();
         Events.on(EventType.Trigger.teamCoreDamage,()->{
             if(!showCoreAlert) return;
@@ -55,6 +55,9 @@ public class Hud {
     void update(){
         update=Timer.schedule(()-> {
             try {
+                for(Displayable d: displayable){
+                    d.onTick();
+                }
                 for (Player p : playerGroup) {
                     //player has hud disabled so hide the hud
                     if (!Database.hasEnabled(p, Setting.hud)) {
@@ -77,7 +80,9 @@ public class Hud {
                     }
                     Call.setHudText(p.con, b.toString().substring(0,b.length()-1)); //get rid of \n character
                 }
-            } catch (Exception ex) {ex.printStackTrace();}
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             },0,1);
 
 

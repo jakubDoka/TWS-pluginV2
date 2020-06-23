@@ -4,5 +4,6 @@ public enum Setting {
     hud,
     chat,
     inspect,
-    translate
+    translate,
+    ability
 }

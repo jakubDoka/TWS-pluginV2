@@ -1,26 +1,16 @@
 package theWorst.helpers;
 
-import arc.struct.Array;
-import arc.struct.ArrayMap;
-import arc.util.Log;
-import arc.util.Time;
-import arc.util.Timer;
 import mindustry.entities.type.Player;
 import org.json.simple.JSONArray;
 import theWorst.Config;
-import theWorst.Main;
 import theWorst.Tools;
 import theWorst.database.Database;
-import theWorst.database.Perm;
 import theWorst.database.PlayerD;
 import theWorst.database.Rank;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Locale;
 
 import static theWorst.Tools.sendErrMessage;

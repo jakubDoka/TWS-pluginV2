@@ -1,6 +1,9 @@
 package theWorst.helpers;
 
 import arc.math.Mathf;
+import mindustry.entities.type.Player;
+import mindustry.game.Team;
+import mindustry.gen.Call;
 import mindustry.world.Block;
 import mindustry.world.Tile;
 
@@ -9,10 +12,11 @@ import java.util.ArrayList;
 import static mindustry.Vars.world;
 import static mindustry.Vars.content;
 
-public class Builder {
-    public static Block getBlockByName(String name){
+public class Terraformer {
+
+    public static Block getBlockByName(String name, boolean filter){
         for(Block b : content.blocks()){
-            if(b.isFloor() || (b.solid && !b.breakable)) continue;
+            if(filter && (b.isFloor() || b.isOverlay() || (b.solid && !b.breakable))) continue;
             if(b.name.equals(name)){
                 return b;
             }
@@ -20,15 +24,23 @@ public class Builder {
         return null;
     }
 
-    public static void dropMeteor(Block block, int x, int y, int size){
+    public static boolean buildBlock(Team team, Block block, Tile tile){
+        Call.onConstructFinish(tile, block, 0, (byte)0, team, true);
+        return tile.block() == block;
+    }
+
+    public static void dropMeteor(Block block, Tile tile, int size){
         if(size == -1) size = Mathf.random(10,30);
-        ArrayList<Tile> possible = new ArrayList<Tile>(){{ add(world.tile(x,y)); }};
+        ArrayList<Tile> possible = new ArrayList<Tile>(){{ add(tile); }};
         while(size > 0) {
             for(Tile t : new ArrayList<>(possible)){
                 possible.remove(t);
-                if(t.overlay().id == block.id || size == 0) continue;
-                t.setOverlay(block);
+
+                if(block != null && size > 0){
+                    t.setOverlay(block);
+                }
                 if(t.block().solid) t.removeNet();
+                if(size <= 0) return;
                 size--;
                 possible.add(world.tile(t.x, t.y-1));
                 possible.add(world.tile(t.x, t.y+1));

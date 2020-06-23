@@ -7,6 +7,7 @@ import mindustry.entities.type.Player;
 import org.bson.Document;
 import theWorst.Tools;
 
+import javax.persistence.criteria.CriteriaBuilder;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,8 +18,9 @@ import static theWorst.Tools.getTranslation;
 import static theWorst.Tools.logInfo;
 
 public class SpecialRank implements Serializable {
-    public String name;
-    public String color="";
+    static final long hour = 1000 * 60 * 60;
+    public String name = "noName";
+    public String color = "red";
 
     public int value=0;
     public HashSet<String> permissions = new HashSet<String>(){{ add(Perm.normal.name());}};
@@ -36,26 +38,18 @@ public class SpecialRank implements Serializable {
             @JsonProperty("linked") HashSet<String> linked,
             @JsonProperty("quests") HashMap<String, HashMap<String,Integer>> quests,
             @JsonProperty("pets")ArrayList<String> pets){
-        this.name = name;
-        if(name == null){
-            this.name = "noName";
-            logInfo("missing-name","special rank");
-        }
-        this.color = color;
-        if(color == null){
-            this.color = "red";
-            logInfo("special-missing-color",name);
-        }
-        if(description != null) this.description = description;
+
+        if(name == null) logInfo("missing-name","special rank");
+        else this.name = name;
+        if(color == null) logInfo("special-missing-color",name);
+        else this.color = color;
+        this.description = description;
         this.value = value;
         if(permissions != null) this.permissions = permissions;
         this.linked = linked;
         this.quests = quests;
         this.pets = pets;
     }
-
-    public SpecialRank() { }
-
 
     @JsonIgnore public boolean isPermanent(){
         return quests == null && linked == null;
@@ -64,49 +58,90 @@ public class SpecialRank implements Serializable {
     public boolean condition(PlayerD tested){
         if(linked != null && !linked.isEmpty()) {
             for (String l : linked){
-                SpecialRank other = Database.ranks.get(l);
-                if(other == null) {
-                    logInfo("special-rank-error-missing-rank");
-                    return false;
-                }
-                if(!other.condition(tested)) return false;
+                if(!Database.ranks.get(l).condition(tested)) return false;
             }
         }
         if(quests == null && linked == null) return false;
         Document rawData = Database.getRawMeta(tested.uuid);
         for(String stat : quests.keySet()){
             HashMap<String,Integer> quest = quests.get(stat);
-            if(quest.containsKey("required")){
+            if(quest.containsKey(Mod.required.name())){
                 Long val = (Long)rawData.get(stat);
-                if( val < quest.get("required")) return false;
-                if(quest.containsKey("frequency") && quest.get("frequency") > val/(tested.playTime/(1000*60*60))) return false;
+                if( val < quest.get(Mod.required.name())) return false;
+                if(quest.containsKey(Mod.frequency.name()) && quest.get(Mod.frequency.name()) > val/(tested.playTime/hour)) return false;
             }
-            if(quest.containsKey("best")){
-                int place = 1;
-                for(Document d : Database.getAllRawMeta()){
-                    if((Long)d.get(stat) > (Long)rawData.get(stat)) place ++;
-                }
-                if(place > quest.get("best")) return false;
+            if(quest.containsKey(Mod.best.name())){
+                if(getPlace(stat, rawData) > quest.get(Mod.best.name())) return false;
             }
         }
         return true;
     }
 
+    int getPlace(String stat, Document rawData){
+        int place = 1;
+        for(Document d : Database.getAllRawMeta()){
+            if((Long)d.get(stat) > (Long)rawData.get(stat)) place ++;
+        }
+        return place;
+    }
 
     @JsonIgnore public String getSuffix(){
         return "["+color+"]<"+name+">[]";
     }
 
     public String getDescription(PlayerD pd) {
-        String desc = description.get(Tools.getCountryCode(pd.bundle.getLocale()));
-        if(desc == null) desc = description.get("default");
-        if(desc == null) desc = getTranslation(pd, "special-missing-description");
-        String condition = "";
-        if(isPermanent()) condition = getTranslation(pd,"special-is-permanent");
+        String desc = getTranslation(pd, "special-missing-description");
+        if(description != null){
+            String resolved = description.getOrDefault(Tools.getCountryCode(pd.bundle.getLocale()), description.get("default"));
+            if(resolved != null) desc = resolved;
+        }
+        StringBuilder condition = new StringBuilder();
+        if(isPermanent()) condition = new StringBuilder(getTranslation(pd, "special-is-permanent"));
         else {
-            if(linked != null) condition += getTranslation(pd, "special-is-linked") + linked + "\n";
-            if(quests != null) condition += getTranslation(pd,"special-other-conditions") + "\n" + quests.toString();
+            if(linked != null){
+                condition.append(getTranslation(pd, "special-links")).append("\n");
+                for(String l : linked){
+                    String color = Database.ranks.get(l).condition(pd) ? "green" : "scarlet";
+                    condition.append("[").append(color).append("]").append(l).append("[],");
+                }
+                condition.append("\n");
+            }
+            if(quests != null){
+                Document rawData = Database.getRawMeta(pd.uuid);
+                condition.append(getTranslation(pd, "special-requirements")).append("\n");
+                for(String s : quests.keySet()){
+                    condition.append("[orange]").append(getTranslation(pd, "special-" + s)).append(":[]\n");
+                    HashMap<String, Integer> quest = quests.get(s);
+                    for(String l : quest.keySet()){
+                        int req = quest.get(l);
+                        int val = 0;
+                        String color = "green";
+                        switch (Mod.valueOf(l)){
+                            case best:
+                                val = getPlace(s, rawData);
+                                if (val > req) color = "scarlet";
+                                break;
+                            case required:
+                                val = ((Long) rawData.get(s)).intValue();
+                                if (val < req) color = "scarlet";
+                                break;
+                            case frequency:
+                                val = ((Long)((Long)rawData.get(s)/(pd.playTime/hour))).intValue();
+                                if (val < req) color = "scarlet";
+                        }
+                        condition.append("[").append(color).append("]");
+                        condition.append(getTranslation(pd, "special-" + l)).append(":");
+                        condition.append(val).append("/").append(req).append("[]\n");
+                    }
+                }
+            }
         }
         return getSuffix() + "\n[gray]" + desc + "\n" + condition + "\n";
+    }
+
+    enum Mod{
+        best,
+        required,
+        frequency
     }
 }

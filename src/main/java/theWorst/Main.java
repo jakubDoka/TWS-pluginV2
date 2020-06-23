@@ -16,6 +16,7 @@ import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Hud;
 import theWorst.helpers.MapManager;
+import theWorst.helpers.gameChangers.Loadout;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,6 +33,7 @@ public class Main extends Plugin {
     static Administration administration =  new Administration();
     static ArrayList<Destroyable> destroyable = new ArrayList<>();
     static Hud hud = new Hud();
+    static InGameCommands inGameCommands = new InGameCommands();
     public Main() {
         Config.load();
         new Database();
@@ -137,7 +139,7 @@ public class Main extends Plugin {
                 "loads test questions.", args -> {
             switch (args[0]){
                 case "help":
-                    logInfo("show-modes","ranks,pets,general,discord,discordrolerestrict");
+                    logInfo("show-modes","ranks,pets,general,discord,discordrolerestrict,loadout");
                     return;
                 case "ranks":
                     Database.loadRanks();
@@ -154,6 +156,9 @@ public class Main extends Plugin {
                     return;
                 case "discordrolerestrict":
                     Bot.loadRestrictions();
+                    return;
+                case "loadout":
+                    Loadout.loadConfig();
                     return;
                 default:
                     logInfo("invalid-mode");
@@ -253,6 +258,6 @@ public class Main extends Plugin {
     @Override
     public void registerClientCommands(CommandHandler handler) {
         //just to split it a little it
-        new InGameCommands(handler);
+        inGameCommands.register(handler);
     }
 }
