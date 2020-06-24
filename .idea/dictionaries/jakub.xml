@@ -22,12 +22,14 @@
       <w>msav</w>
       <w>reloadmaps</w>
       <w>setrank</w>
+      <w>skipwave</w>
       <w>terraformer</w>
       <w>textcolor</w>
       <w>unkick</w>
       <w>unmuted</w>
       <w>unmutes</w>
       <w>wconfig</w>
+      <w>wload</w>
       <w>worsthelp</w>
     </words>
   </dictionary>

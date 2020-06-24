@@ -6,6 +6,7 @@ import arc.struct.Array;
 import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Tmp;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.scene.effect.Effect;
 import mindustry.content.Blocks;
 import mindustry.content.Fx;
@@ -264,19 +265,19 @@ public class Tools {
         void run(JSONObject data);
     }
 
-    public static void loadJson(String filename, RunLoad load, Runnable save){
+    public static void loadJson(String filename, RunLoad load, Runnable save) {
         try (FileReader fileReader = new FileReader(filename)) {
             JSONParser jsonParser = new JSONParser();
             Object obj = jsonParser.parse(fileReader);
             JSONObject saveData = (JSONObject) obj;
             load.run(saveData);
             fileReader.close();
-            Log.info("Data from "+filename+" loaded.");
+            Log.info("Data from " + filename + " loaded.");
         } catch (FileNotFoundException ex) {
-            Log.info("No "+filename+" found.Default one wos created.");
+            Log.info("No " + filename + " found.Default one wos created.");
             save.run();
         } catch (ParseException ex) {
-            Log.info("Json file "+filename+" is invalid.");
+            Log.info("Json file " + filename + " is invalid.");
         } catch (IOException ex) {
             Log.info("Error when loading data from " + filename + ".");
         }
@@ -292,6 +293,36 @@ public class Tools {
             Log.info("Error when creating/updating "+filename+".");
             ex.printStackTrace();
         }
+    }
+
+    public static <T> T loadJackson(String filename, Class<T> type){
+        ObjectMapper mapper = new ObjectMapper();
+        File f = new File(filename);
+        try {
+            if (!f.exists()){
+                return saveJackson(filename,type);
+            }
+            return mapper.readValue(f, type);
+        } catch (IOException ex){
+            Log.info("Json file " + filename + " is invalid.");
+            return null;
+        }
+    }
+
+    public static <T> T saveJackson(String filename, Class<T> type){
+        ObjectMapper mapper = new ObjectMapper();
+        File f = new File(filename);
+        try {
+            mapper.writeValue(f, type);
+            return type.newInstance();
+        } catch (IOException ex){
+            Log.info("Error when creating/updating "+filename+".");
+        } catch (IllegalAccessException | InstantiationException e) {
+            Log.info("Please report this error.");
+            e.printStackTrace();
+            Log.info("Please report this error.");
+        }
+        return null;
     }
 
     public static void makeFullPath(String filename){

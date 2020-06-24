@@ -1,13 +1,13 @@
 package theWorst.helpers.gameChangers;
 
-import arc.struct.Array;
+import arc.math.Mathf;
 import arc.util.Log;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import mindustry.Vars;
 import mindustry.type.Item;
 import mindustry.type.ItemStack;
 import mindustry.type.ItemType;
-import mindustry.world.modules.ItemModule;
+import mindustry.world.blocks.storage.CoreBlock;
 import org.json.simple.JSONObject;
 import theWorst.Config;
 import theWorst.Tools;
@@ -17,17 +17,17 @@ import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import static theWorst.Tools.*;
+import static theWorst.Tools.logInfo;
+import static theWorst.Tools.sendMessage;
 
 public class Loadout implements Displayable, Destroyable {
     public static final String[] itemIcons = {"\uF838", "\uF837", "\uF836", "\uF835", "\uF832", "\uF831", "\uF82F", "\uF82E", "\uF82D", "\uF82C"};
     private final HashMap<Item, Integer> items = new HashMap<>();
-    static final String saveFile = Config.saveDir + "loadoutRes.json";
+    static final String saveFile = Config.saveDir + "loadout.json";
     static final String configFile = Config.configDir + "loadoutConfig.json";
     public static LoadoutConfig config = new LoadoutConfig();
     public ArrayList<Ship> ships = new ArrayList<>();
@@ -63,7 +63,7 @@ public class Loadout implements Displayable, Destroyable {
     @Override
     public void destroy() {
         for(Ship s : new ArrayList<>(ships)){
-            sendMessage("loadout-going-back", stackToString(s.stack));//todo
+            sendMessage("loadout-ships-going-back", stackToString(s.stack));
             ships.remove(s);
         }
     }
@@ -84,6 +84,15 @@ public class Loadout implements Displayable, Destroyable {
         loadConfig();
     }
 
+    public String info(){
+        StringBuilder sb = new StringBuilder("[orange]==LOADOUT==[]\n\n");
+        for(Item i : items.keySet()){
+            sb.append(stackToString(new ItemStack(i, items.get(i))));
+            sb.append("\n");
+        }
+        return sb.toString();
+    }
+
     public static String stackToString(ItemStack stack){
         int idx = 0;
         for(Item i: Vars.content.items()){
@@ -92,22 +101,23 @@ public class Loadout implements Displayable, Destroyable {
             if( i == stack.item) break;
             idx++;
         }
-        return "[orange]" + stack.amount + "[]" + itemIcons[idx];
+        return stack.amount + itemIcons[idx];
+    }
+
+    public void launchAll(){
+        CoreBlock.CoreEntity core = Tools.getCore();
+        if(core == null) return;
+        for(Item i : Vars.content.items()){
+            if(i.type == ItemType.resource) continue;
+            add(new ItemStack(i, core.items.get(i)));
+        }
+        core.items.clear();
+        Hud.addAd("loadout-all-launched", 10, "!green", "!gray");
     }
 
     public static void loadConfig(){
-        ObjectMapper mapper = new ObjectMapper();
-        File f = new File(configFile);
-        try {
-            if(!f.exists()){
-                mapper.writeValue(f, config);
-                logInfo("files-default-config-created","loadout");
-                return;
-            }
-            config = mapper.readValue(f,LoadoutConfig.class);
-        } catch (IOException e) {
-            logInfo("config-load-failed", "loadout");//todo
-        }
+        config = Tools.loadJackson(configFile, LoadoutConfig.class);
+        if( config == null) config = new LoadoutConfig();
     }
 
     public static Item getItemByName(String name){
@@ -165,21 +175,17 @@ public class Loadout implements Displayable, Destroyable {
     }
 
     public ItemStack canWithdraw(ItemStack stack){
-        int stored = getAmount(stack.item);
-        int underflow = stored - stack.amount;
-        if(underflow < 0){
-            stack.amount += underflow;
-        }
-        return stack;
+        return new ItemStack(stack.item, Mathf.clamp(stack.amount, 0, getAmount(stack.item)));
     }
 
     public ItemStack canAdd(ItemStack stack){
         int stored = getAmount(stack.item);
         int overflow = stored + stack.amount - config.capacity;
+        ItemStack copy = stack.copy();
         if(overflow > 0){
-           stack.amount -= overflow;
+           copy.amount -= overflow;
         }
-        return stack;
+        return copy;
     }
 
     public ArrayList<ItemStack> canAdd(ArrayList<ItemStack> stacks){

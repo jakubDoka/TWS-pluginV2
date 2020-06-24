@@ -20,6 +20,7 @@ import mindustry.type.ItemType;
 import mindustry.world.blocks.storage.CoreBlock;
 import theWorst.database.*;
 import theWorst.helpers.*;
+import theWorst.helpers.gameChangers.Factory;
 import theWorst.helpers.gameChangers.Loadout;
 import theWorst.votes.Vote;
 import theWorst.votes.VoteData;
@@ -35,6 +36,7 @@ public class InGameCommands {
     public static Vote vote = new Vote("vote-y-n");
     public static Vote voteKick = new Vote("vote-/vote-y-/vote-n");
     public static Loadout loadout;
+    public static Factory factory;
     interface Command {
         VoteData run(String[] args, Player player);
     }
@@ -58,14 +60,13 @@ public class InGameCommands {
 
         Events.on(EventType.ServerLoadEvent.class, e->{
             loadout = new Loadout();
+            factory = new Factory(loadout);
         });
     }
 
 
     public void register(CommandHandler handler) {
         handler.removeCommand("help");
-
-        //todo /serverstats : fps, game length, player count, space left, count of players in database,
 
         handler.<Player>register("help","[page]","Shows all available commands and how to use them.",(args,player)->{
             ArrayList<String> res = new ArrayList<>();
@@ -365,11 +366,7 @@ public class InGameCommands {
                         }
                         @Override
                         public void run() {
-                            if(finalMap ==null){
-                                Events.fire(new EventType.GameOverEvent(Team.crux));
-                                return;
-                            }
-
+                            loadout.launchAll();
                             Array<Player> players = new Array<>();
                             for(Player player : playerGroup.all()) {
                                 players.add(player);
@@ -398,7 +395,7 @@ public class InGameCommands {
                         @Override
                         public void run() {
                             Events.fire(new EventType.GameOverEvent(Team.crux));
-                            //todo launch all resources
+                            loadout.launchAll();
                         }
                     };
                     break;
@@ -549,13 +546,13 @@ public class InGameCommands {
                     return;
                 case "block":
                     if(Terraformer.buildBlock(player.getTeam(), Terraformer.getBlockByName(args[1], true), player.tileOn())){
-                        //todo
+
                         player.sendMessage("succes");
                     }
                     return;
                 case "meteor":
                     if(!args[1].startsWith("ore")) {
-                        //todo
+
                         return;
                     }
                     Terraformer.dropMeteor(Terraformer.getBlockByName(args[1] , false), player.tileOn(), 100);
@@ -604,12 +601,21 @@ public class InGameCommands {
         handler.<Player>register("l","<put/use/info/help> [amount] [item/all]","More info via /l help.", (args, player)-> {
 
             if (args.length == 1) {
-                player.sendMessage("nothing");
+                switch (args[0]){
+                    case "info":
+                        Call.onInfoMessage(player.con, loadout.info());
+                        return;
+                    case "help":
+                        sendInfoPopup(player,"loadout-help"); //todo
+                        return;
+                    default:
+                        sendErrMessage(player, "invalid-mode");
+                }
             } else if (args.length == 3) {
-                VoteData data = null;
+                VoteData data;
                 CoreBlock.CoreEntity core = Tools.getCore();
                 if(core == null){
-                    sendErrMessage(player,"loadout-no-cores");//todo
+                    sendErrMessage(player,"loadout-no-cores");
                     return;
                 }
                 if(!Strings.canParsePostiveInt(args[1])){
@@ -633,16 +639,16 @@ public class InGameCommands {
                                 stacks.add(new ItemStack(i, Mathf.clamp(amount, 0 ,am)));
                             }
                             if(total == 0){
-                                sendMessage(player,"loadout-nothing-to-transport");//todo
+                                sendMessage(player,"loadout-nothing-to-transport");
                                 return;
                             }
                         } else if( item == null){
-                            sendErrMessage(player, "loadout-item-not-found", args[2]);//todo
+                            sendErrMessage(player, "loadout-item-not-found", args[2]);
                             return;
                         } else {
                             stack = new ItemStack(item, Mathf.clamp(amount, 0, core.items.get(item)));
                             if(stack.amount == 0){
-                                sendErrMessage(player,"loadout-nothing-to-transport");//todo
+                                sendErrMessage(player,"loadout-nothing-to-transport");
                                 return;
                             }
                             arg = Loadout.stackToString(stack);
@@ -650,7 +656,7 @@ public class InGameCommands {
                         ItemStack finalStack = stack;
                         data = new VoteData() {
                             {
-                                reason = "loadout-put"; //todo
+                                reason = "loadout-put";
                             }
                             @Override
                             public void run() {
@@ -669,21 +675,21 @@ public class InGameCommands {
                         break;
                     case "get":
                         if (loadout.ships.size() == Loadout.config.shipCount) {
-                            sendErrMessage(player, "loadout-no-ships");//todo
+                            sendErrMessage(player, "loadout-no-ships");
                             return;
                         }
                         if (args[2].equals("all")){
-                            sendErrMessage(player, "loadout-cannot-all");//todo
+                            sendErrMessage(player, "loadout-cannot-all");
                             return;
                         } if( item == null){
-                            sendErrMessage(player, "loadout-item-not-found", args[2]);//todo
+                            sendErrMessage(player, "loadout-item-not-found", args[2]);
                             return;
                         } else {
                             stack = new ItemStack(item, Mathf.clamp(amount, 0, loadout.getAmount(item)));
                             int shipSpace = (Loadout.config.shipCount - loadout.ships.size()) * Loadout.config.shipCapacity;
                             stack.amount = Mathf.clamp(stack.amount, 0, shipSpace);
                             if(stack.amount == 0){
-                                sendErrMessage(player,"loadout-nothing-to-transport");//todo
+                                sendErrMessage(player,"loadout-nothing-to-transport");
                                 return;
                             }
                             arg = Loadout.stackToString(stack);
@@ -691,7 +697,7 @@ public class InGameCommands {
                         finalStack = stack;
                         data = new VoteData() {
                             {
-                                reason = "loadout-use"; //todo
+                                reason = "loadout-get";
                             }
                             @Override
                             public void run() {
@@ -709,7 +715,7 @@ public class InGameCommands {
                                         @Override
                                         public void onArrival() {
                                             core.items.add(stack.item, stack.amount);
-                                            Hud.addAd("loadout-ship-arrived", 10, "!green", "!gray");
+                                            Hud.addAd("loadout-ship-arrived", 10, arg, "!green", "!gray");
                                         }
                                     });
                                 }
@@ -726,6 +732,28 @@ public class InGameCommands {
             } else {
                 wrongArgAmount(player, args, 3);
             }
+        });
+
+        handler.<Player>register("skipwave", "[1-5]", "Skips amount of waves.",(args, player)->{
+            if(args.length == 1 && !Strings.canParsePostiveInt(args[0])){
+                sendErrMessage(player, "refuse-not-integer", "1");
+                return;
+            }
+
+            vote.aVote(new VoteData() {
+                {
+                    by = player;
+                    reason = "skipwave";
+                }
+                @Override
+                public void run() {
+                    int amount = args.length == 1 ? Integer.parseInt(args[0]) : 1;
+                    amount = Mathf.clamp(amount, 1, 5);
+                    for(int i = 0; i < amount; i++) {
+                        logic.runWave();
+                    }
+                }
+            }, 6);
         });
     }
 }

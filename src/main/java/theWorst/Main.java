@@ -165,6 +165,26 @@ public class Main extends Plugin {
             }
         });
 
+        handler.register("wload","<target/help>", "Applies the factory configuration,settings and " +
+                "loads test questions.", args -> {
+            switch (args[0]){
+                case "help":
+                    logInfo("show-modes","subnet,loadout,factory");
+                    return;
+                case "factory":
+                    InGameCommands.factory.loadUnits();
+                    return;
+                case "subnet":
+                    Database.loadSubnet();
+                    return;
+                case "loadout":
+                    InGameCommands.loadout.loadRes();
+                    return;
+                default:
+                    logInfo("invalid-mode");
+            }
+        });
+
         handler.register("worsthelp","<target/help>", "Applies the factory configuration,settings and " +
                 "loads test questions.", args -> {
             HashSet<String> banned = new HashSet<String>(){{
