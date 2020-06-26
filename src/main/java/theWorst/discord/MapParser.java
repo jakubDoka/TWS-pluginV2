@@ -10,7 +10,6 @@ import mindustry.ctype.MappableContent;
 import mindustry.game.Team;
 import mindustry.world.Block;
 import mindustry.world.blocks.Floor;
-import theWorst.Tools;
 
 import java.awt.image.BufferedImage;
 import java.io.DataInput;
@@ -21,6 +20,7 @@ import java.util.Arrays;
 import java.util.zip.InflaterInputStream;
 
 import static mindustry.Vars.content;
+import static theWorst.Tools.Maps.colorFor;
 
 public class MapParser {
 
@@ -75,7 +75,7 @@ public class MapParser {
         for(int x = 0; x < img.getWidth(); x++){
             for(int y = 0; y < img.getHeight(); y++){
                 Mtile tile = tiles[x][y];
-                img.setRGB(x, img.getHeight() - 1 - y, Tmp.c1.set(Tools.colorFor((Floor)tile.floor, tile.wall, tile.ore, Team.derelict)).argb8888());
+                img.setRGB(x, img.getHeight() - 1 - y, Tmp.c1.set(colorFor((Floor)tile.floor, tile.wall, tile.ore, Team.derelict)).argb8888());
             }
         }
 

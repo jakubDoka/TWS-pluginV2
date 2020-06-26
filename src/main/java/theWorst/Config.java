@@ -6,6 +6,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 
+import static theWorst.Tools.Json.loadJson;
+import static theWorst.Tools.Json.saveJson;
+
 public class Config {
     public static final String dir = "config/mods/The_Worst/";
     public static final String saveDir = dir + "saves/";
@@ -17,7 +20,7 @@ public class Config {
     public static HashMap<String, String > welcomeMessage = new HashMap<>();
 
     public static void load(){
-        Tools.loadJson(file,data -> {
+        loadJson(file,data -> {
             if(data.containsKey("dbName")) dbName = (String) data.get("dbName");
             if(data.containsKey("grieferAntiSpamTime")) grieferAntiSpamTime = (Long) data.get("grieferAntiSpamTime");
             if(data.containsKey("rules")) {
@@ -47,7 +50,7 @@ public class Config {
                     e.printStackTrace();
                 }
             }
-            Tools.saveJson(file, data.toJSONString());
+            saveJson(file, data.toJSONString());
         });
     }
 

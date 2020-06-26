@@ -17,7 +17,12 @@ import java.util.HashMap;
 
 import static mindustry.Vars.playerGroup;
 import static mindustry.Vars.world;
-import static theWorst.Tools.*;
+import static theWorst.Tools.Commands.isCommandRelated;
+import static theWorst.Tools.Commands.logInfo;
+import static theWorst.Tools.Formatting.*;
+import static theWorst.Tools.Json.loadJson;
+import static theWorst.Tools.Json.saveJson;
+import static theWorst.Tools.Maps.hasMapAttached;
 
 public class Bot {
     public static String dir = Config.configDir + "bot/";
@@ -39,8 +44,8 @@ public class Bot {
 
     public Bot(){
         Events.on(EventType.PlayerChatEvent.class,e->{
-            if(Tools.isCommandRelated(e.message)) return;
-            sendToLinkedChat("**"+Tools.cleanName(e.player.name)+"** : "+e.message.substring(e.message.indexOf("]")+1));
+            if(isCommandRelated(e.message)) return;
+            sendToLinkedChat("**"+cleanName(e.player.name)+"** : "+e.message.substring(e.message.indexOf("]")+1));
         });
 
         Events.on(EventType.PlayEvent.class, e->{
@@ -50,7 +55,7 @@ public class Bot {
 
         Events.on(EventType.PlayerChatEvent.class,e->{
             if(api == null || !config.channels.containsKey("commandLog")) return;
-            if(!Tools.isCommandRelated(e.message)) return;
+            if(!isCommandRelated(e.message)) return;
             PlayerD pd = Database.getData(e.player);
             config.channels.get("commandLog").sendMessage(String.format("**%s** - %s (%d): %s",
                     cleanColors(pd.originalName), pd.rank, pd.serverId, e.message));
@@ -78,7 +83,7 @@ public class Bot {
 
         api.addMessageCreateListener((event)->{
             if(!config.channels.containsKey("linked") || event.getChannel() != config.channels.get("linked")) return;
-            String content=Tools.cleanEmotes(event.getMessageContent());
+            String content = cleanEmotes(event.getMessageContent());
             if(event.getMessageAuthor().isBotUser() || content.startsWith(config.prefix)) return;
             //if there wos only emote in message it got removed and we don't want to show blank message
             if(content.replace(" ","").isEmpty()) return;

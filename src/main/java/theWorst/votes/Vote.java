@@ -3,35 +3,34 @@ package theWorst.votes;
 import arc.Events;
 import arc.math.Mathf;
 import arc.util.Time;
-import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
-import mindustry.gen.Call;
-import theWorst.Tools;
 import theWorst.database.*;
+import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
 
 
-import java.awt.*;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
 import static mindustry.Vars.player;
 import static mindustry.Vars.playerGroup;
-import static theWorst.Tools.sendErrMessage;
+import static theWorst.Tools.Formatting.*;
+import static theWorst.Tools.General.getRank;
+import static theWorst.Tools.Players.getTranslation;
+import static theWorst.Tools.Players.sendErrMessage;
 
 public class Vote implements Displayable, Destroyable {
-    final long minPlayTime = 1000 * 60 * 60 * 3;
+    final long minPlayTime = 1000 * 60 * 60;
     VoteData voteData;
     String message;
     String[] args;
     final String mode;
 
     Set<String> voted = new HashSet<>();
-    Tools.RecentMap recent = new Tools.RecentMap(60, "vote-can-egan");
+    Administration.RecentMap recent = new Administration.RecentMap(60, "vote-can-egan");
 
     boolean canVote = true;
     public boolean voting = false;
@@ -61,13 +60,13 @@ public class Vote implements Displayable, Destroyable {
             sendErrMessage(player, "vote-in-process");
             return;
         }
-        if (Tools.getRank(Database.getData(player)).equals(Rank.griefer)) {
+        if (getRank(Database.getData(player)).equals(Rank.griefer)) {
             sendErrMessage(player, "griefer-no-perm");
             return;
         }
         if (recent.containsKey(player.uuid)) {
             int time = recent.get(player.uuid);
-            sendErrMessage(player, "vote-is-recent", Tools.secToTime(time));
+            sendErrMessage(player, "vote-is-recent", secToTime(time));
             return;
         }
         this.voteData = voteData;
@@ -108,6 +107,9 @@ public class Vote implements Displayable, Destroyable {
     }
 
     public void addVote(Player player, String vote) {
+        if(!voting){
+            sendErrMessage(player, "vote-not-active");
+        }
         PlayerD pd=Database.getData(player);
         pd.onAction(player);
         long totalPT = pd.playTime + Time.timeSinceMillis(pd.connected);
@@ -116,7 +118,7 @@ public class Vote implements Displayable, Destroyable {
             return;
         }
         if(totalPT < minPlayTime){
-            sendErrMessage(player, "vote-low-play-time", Tools.milsToTime(totalPT));
+            sendErrMessage(player, "vote-low-play-time", milsToTime(totalPT));
             return;
         }
         if(pd.rank.equals(Rank.griefer.name())){
@@ -154,9 +156,9 @@ public class Vote implements Displayable, Destroyable {
     public String getMessage(PlayerD pd) {
         if(!voting) return null;
         String color = time % 2 == 0 ? "gray" : "white";
-        String md = Tools.getTranslation(pd,mode);
-        String fMessage = Tools.format(Tools.getTranslation(pd,message),args);
-        String req = Tools.getTranslation(pd,"vote-req");
+        String md = getTranslation(pd,mode);
+        String fMessage = format(getTranslation(pd,message),args);
+        String req = getTranslation(pd,"vote-req");
         return String.format("[%s]%s %s %02ds [green]%d[] : [scarlet]%d[] [gray]%s %d[][]",
                 color,fMessage,md,time,yes,no,req,getRequired());
     }

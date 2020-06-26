@@ -4,7 +4,6 @@ import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.permission.Role;
 import org.json.simple.JSONObject;
-import theWorst.Tools;
 
 import java.util.HashMap;
 import java.util.Optional;
@@ -12,6 +11,8 @@ import java.util.Optional;
 import static theWorst.Bot.api;
 import static theWorst.Bot.dir;
 import static java.lang.System.out;
+import static theWorst.Tools.Json.loadJson;
+import static theWorst.Tools.Json.saveJson;
 
 public class BotConfig {
     public String prefix = "%";
@@ -25,7 +26,7 @@ public class BotConfig {
 
     public BotConfig(){
             //loading json config
-            Tools.loadJson(datafile,(data)-> {
+            loadJson(datafile,(data)-> {
                 if(data.containsKey("prefix")) prefix = (String) data.get("prefix");
                 if(data.containsKey("token")) token = (String) data.get("token");
                 //connecting to discord
@@ -69,7 +70,7 @@ public class BotConfig {
     }
 
     private void defaultConfig(){
-        Tools.saveJson(datafile,
+        saveJson(datafile,
                 "{\n" +
                 "\t\"comment\": \"IDs of channels and roles has to me in quotation marks!!\",\n" +
                 "\t\"token\": \"Your bot token goes here\",\n" +

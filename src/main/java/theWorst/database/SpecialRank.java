@@ -3,19 +3,16 @@ package theWorst.database;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import mindustry.entities.type.Player;
 import org.bson.Document;
-import theWorst.Tools;
 
-import javax.persistence.criteria.CriteriaBuilder;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Locale;
 
-import static theWorst.Tools.getTranslation;
-import static theWorst.Tools.logInfo;
+import static theWorst.Tools.Commands.logInfo;
+import static theWorst.Tools.Players.getCountryCode;
+import static theWorst.Tools.Players.getTranslation;
 
 public class SpecialRank implements Serializable {
     static final long hour = 1000 * 60 * 60;
@@ -92,7 +89,7 @@ public class SpecialRank implements Serializable {
     public String getDescription(PlayerD pd) {
         String desc = getTranslation(pd, "special-missing-description");
         if(description != null){
-            String resolved = description.getOrDefault(Tools.getCountryCode(pd.bundle.getLocale()), description.get("default"));
+            String resolved = description.getOrDefault(getCountryCode(pd.bundle.getLocale()), description.get("default"));
             if(resolved != null) desc = resolved;
         }
         StringBuilder condition = new StringBuilder();

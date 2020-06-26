@@ -9,15 +9,15 @@ import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.Query;
-import theWorst.Main;
-import theWorst.Tools;
+import theWorst.Tools.Formatting;
 import theWorst.database.PlayerD;
 
 import java.util.HashMap;
-import java.util.HashSet;
 
-import static mindustry.Vars.maps;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
+import static theWorst.Tools.Formatting.format;
+import static theWorst.Tools.Formatting.milsToTime;
+import static theWorst.Tools.Players.getTranslation;
 
 @Document
 public class MapD {
@@ -81,15 +81,15 @@ public class MapD {
 
     public String toString(Map map, PlayerD pd) {
         Rules rules = map.rules();
-        return Tools.format(Tools.getTranslation(pd,"map-info"),
+        return format(getTranslation(pd,"map-info"),
                 name,
                 map.author(),
                 firstAirWave==defaultAirWave ? "no air waves" : ""+firstAirWave,
                 "" + timesPlayed,
                 "" + timesWon,
                 "" + waveRecord,
-                Tools.milsToTime(Time.timeSinceMillis(born)),
-                Tools.milsToTime(playtime),
+                milsToTime(Time.timeSinceMillis(born)),
+                milsToTime(playtime),
                 String.format("%.1f/10",getRating()),
                 rules.mode().name(),
                 String.format("%.2f",rules.buildCostMultiplier),

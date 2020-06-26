@@ -9,13 +9,15 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import theWorst.Config;
-import theWorst.Tools;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.ResourceBundle;
 
-import static theWorst.Tools.*;
+import static theWorst.Tools.Bundle.*;
+import static theWorst.Tools.Formatting.format;
+import static theWorst.Tools.Formatting.milsToTime;
+import static theWorst.Tools.Players.*;
 import static theWorst.database.Database.getData;
 
 @Document
@@ -57,7 +59,7 @@ public class PlayerD {
 
 
     @Transient PlayerD oldMeta;
-    @Transient public ResourceBundle bundle = Tools.defaultBundle;
+    @Transient public ResourceBundle bundle = defaultBundle;
 
     //empty instance used only when player joins for the firs time
     protected PlayerD(){
@@ -79,7 +81,7 @@ public class PlayerD {
         if(afk){
             afk=false;
             Database.updateName(player,this);
-            Tools.sendMessage("afk-is-not",originalName,Database.AFK);
+            sendMessage("afk-is-not",originalName,Database.AFK);
         }
     }
 
@@ -91,11 +93,11 @@ public class PlayerD {
         PlayerD meta = Database.getMeta(uuid);
         //It takes about 3 seconds to figure out bundle for player, thread gets rid of the delay.
         new Thread(()->{
-            bundle=ResourceBundle.getBundle(Tools.bundlePath,Tools.getLocale(ip,Tools.getLocData(ip)));
+            bundle=ResourceBundle.getBundle(bundlePath,getLocale(ip,getLocData(ip)));
             String welcomeMessage = Config.welcomeMessage.getOrDefault(
                     getCountryCode(getData(player).bundle.getLocale()),Config.welcomeMessage.get("default"));
             if(meta == null && welcomeMessage != null){
-                Tools.sendMessage(player, welcomeMessage);
+                sendMessage(player, welcomeMessage);
             }
         } ).start();
         //no data about player so this is new player

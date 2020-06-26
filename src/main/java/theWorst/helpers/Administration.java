@@ -7,16 +7,16 @@ import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
 import theWorst.Config;
-import theWorst.Tools;
 import theWorst.database.*;
 
-import java.awt.*;
 import java.util.HashMap;
 import java.util.HashSet;
 
 import static mindustry.Vars.netServer;
 import static mindustry.Vars.world;
-import static theWorst.Tools.*;
+import static theWorst.Tools.Formatting.*;
+import static theWorst.Tools.Players.*;
+import static theWorst.Tools.General.getRank;
 
 public class Administration implements Displayable{
     public static Emergency emergency = new Emergency(0); // Its just placeholder because time is 0
@@ -74,7 +74,7 @@ public class Administration implements Displayable{
             if (e.breaking) {
                 ti.lock = 0;
             } else {
-                if (Tools.getRank(Database.getData(e.player)).permission.getValue() >= Perm.high.getValue()) {
+                if (getRank(Database.getData(e.player)).permission.getValue() >= Perm.high.getValue()) {
                     ti.lock = 1;
                 }
             }
@@ -129,7 +129,7 @@ public class Administration implements Displayable{
                 PlayerD pd=Database.getData(player);
                 if (pd == null) return false;
                 pd.onAction(player);
-                Rank rank = Tools.getRank(pd);
+                Rank rank = getRank(pd);
                 //taping on tiles is ok.
                 if(act.type == mindustry.net.Administration.ActionType.tapTile) return true;
                 //this is against Ag client messing up game
@@ -146,15 +146,15 @@ public class Administration implements Displayable{
                 TileInfo ti=data[act.tile.y][act.tile.x];
                 //if there is emergency
                 if(emergency.isActive() && rank.permission.getValue()<Perm.high.getValue()) {
-                    Tools.sendErrMessage(player,"at-least-verified",Rank.verified.getName());
+                    sendErrMessage(player,"at-least-verified",Rank.verified.getName());
                     return false;
                 }
                 //if player has to low permission to interact
                 if(!(rank.permission.getValue()>=ti.lock)){
                     if(rank==Rank.griefer){
-                        Tools.sendErrMessage(player,"griefer-no-perm");
+                        sendErrMessage(player,"griefer-no-perm");
                     }else {
-                        Tools.sendErrMessage(player,"at-least-verified",Rank.verified.getName());
+                        sendErrMessage(player,"at-least-verified",Rank.verified.getName());
                     }
                     return false;
 
@@ -197,12 +197,12 @@ public class Administration implements Displayable{
             used+=1;
             if(used>=commandUseLimit){
                 netServer.admins.addSubnetBan(player.con.address.substring(0,player.con.address.lastIndexOf(".")));
-                Tools.kick(player,"kick-spamming");
+                kick(player,"kick-spamming");
                 terminate();
                 return;
             }
             if (used>=2){
-                Tools.sendMessage(player,"warming-spam",String.valueOf(commandUseLimit-used));
+                sendMessage(player,"warming-spam",String.valueOf(commandUseLimit-used));
             }
         }
 
@@ -239,13 +239,13 @@ public class Administration implements Displayable{
 
         public String getReport(PlayerD pd){
             if(permanent){
-                return Tools.format(Tools.getTranslation(pd,"emergency-permanent"),Rank.verified.getName());
+                return format(getTranslation(pd,"emergency-permanent"),Rank.verified.getName());
             }
             if(time <= 0){
                 return null;
             }
-            String left = Tools.secToTime(time);
-            return Tools.format(Tools.getTranslation(pd,"emergency"),left,left);
+            String left = secToTime(time);
+            return format(getTranslation(pd,"emergency"),left,left);
         }
 
         public void onTick(){
@@ -255,5 +255,35 @@ public class Administration implements Displayable{
         }
     }
 
+    public static class RecentMap extends HashMap<String, Integer>{
+        int penalty;
+        String endMessage;
 
+        public RecentMap(int penalty, String endMessage){
+            this.penalty = penalty;
+            this.endMessage = endMessage;
+        }
+
+        public void add(Player player){
+            String uuid = player.uuid;
+            put(uuid,penalty);
+            Timer.schedule(new Timer.Task() {
+                @Override
+                public void run() {
+                    Integer time = get(uuid);
+                    if(time <= 0){
+                        remove(uuid);
+                        sendMessage(player, endMessage);
+                        cancel();
+                        return;
+                    }
+                    put(uuid, time-1);
+                }
+            }, 1, 1);
+        }
+
+        public Integer contains(Player player){
+            return get(player.uuid);
+        }
+    }
 }

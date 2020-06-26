@@ -1,13 +1,11 @@
 package theWorst;
 
+import arc.Core;
 import arc.Events;
-import arc.math.Mat;
 import arc.math.Mathf;
 import arc.struct.Array;
 import arc.util.CommandHandler;
-import arc.util.Log;
 import arc.util.Strings;
-import arc.util.Time;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.game.Gamemode;
@@ -29,8 +27,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import static mindustry.Vars.*;
-import static theWorst.Tools.*;
+import static theWorst.Tools.Commands.*;
+import static theWorst.Tools.Formatting.*;
+import static theWorst.Tools.General.*;
+import static theWorst.Tools.Maps.findMap;
+import static theWorst.Tools.Maps.getFreeTiles;
+import static theWorst.Tools.Players.*;
 import static theWorst.database.Database.getData;
+
 
 public class InGameCommands {
     public static Vote vote = new Vote("vote-y-n");
@@ -41,15 +45,13 @@ public class InGameCommands {
         VoteData run(String[] args, Player player);
     }
 
-
+    //todo/ranks special bug
 
     public InGameCommands(){
         Events.on(EventType.PlayerChatEvent.class,e->{
             getData(e.player).onAction(e.player);
             if(e.message.equalsIgnoreCase("y") || e.message.equalsIgnoreCase("n")) {
-                if(vote.voting){
-                    vote.addVote(e.player,e.message.toLowerCase());
-                } else sendErrMessage(e.player,"vote-not-active");
+                vote.addVote(e.player,e.message.toLowerCase());
             }
         });
 
@@ -86,7 +88,7 @@ public class InGameCommands {
             int totalFreeSpace = getFreeTiles(false);
             int currentFreeSpace = getFreeTiles(true);
             sendInfoPopup(player, "server-status",
-                    "" + (int) (1 / Time.delta()),
+                    "" + (Core.graphics.getFramesPerSecond()),
                     "" + playerGroup.size(),
                     "" + Database.getDatabaseSize(),
                     "" + currentFreeSpace,
@@ -138,6 +140,7 @@ public class InGameCommands {
 
             if(player.isAdmin){
                 voteData.run();
+                sendMessage("mkgf-admin-marked", getData(player).originalName, pd.originalName);
                 return null;
             }
         /*if(playerGroup.size()<3){
@@ -198,7 +201,7 @@ public class InGameCommands {
                     wrongArgAmount(player,args,2);
                     return;
                 }
-                Tools.sendInfoPopup(player,"set-help");
+                sendInfoPopup(player,"set-help");
                 return;
             }
             if(args[0].equals("textcolor")) {
@@ -229,7 +232,7 @@ public class InGameCommands {
                         sendErrMessage(player, "set-color-no-perm");
                         return;
                     }
-                    String preview = Tools.smoothColors("Colors go brrrrr!!", args[1].split("/"));
+                    String preview = smoothColors("Colors go brrrrr!!", args[1].split("/"));
                     sendMessage(player, "set-color-preview", preview);
                 } else {
                     //checking if player is verified
@@ -242,7 +245,7 @@ public class InGameCommands {
                 pd.textColor = args[1];
                 return;
             }
-            if(!Tools.enumContains(Setting.values(),args[0])){
+            if(!enumContains(Setting.values(),args[0])){
                 sendErrMessage(player,"set-invalid");
                 return;
             }
@@ -338,7 +341,7 @@ public class InGameCommands {
             MapD md = MapManager.played;
             if(args.length>1){
                 if(!args[1].equalsIgnoreCase("this")) {
-                    map = Tools.findMap(args[1]);
+                    map = findMap(args[1]);
                     if(map != null){
                         md = MapManager.getData(map);
                     }
@@ -346,7 +349,7 @@ public class InGameCommands {
             }
             switch (args[0]){
                 case "help":
-                    Tools.sendInfoPopup(player,"map-help");
+                    sendInfoPopup(player,"map-help");
                     return;
                 case "change":
                     what = "map-change";
@@ -408,8 +411,8 @@ public class InGameCommands {
                         }
                         page = Integer.parseInt(args[1]);
                     }
-                    Call.onInfoMessage(player.con, Tools.formPage(
-                            MapManager.getMapList(),page,Tools.getTranslation(pd,"map-list"),20));
+                    Call.onInfoMessage(player.con, formPage(
+                            MapManager.getMapList(),page,getTranslation(pd,"map-list"),20));
                     return;
                 case "info":
                     if( md == null || map == null) {
@@ -419,7 +422,7 @@ public class InGameCommands {
                     Call.onInfoMessage(player.con,md.toString(map,pd));
                     return;
                 case "rate":
-                    if(Tools.wrongArgAmount(player,args,3)) return;
+                    if(wrongArgAmount(player,args,3)) return;
                     if(!Strings.canParsePostiveInt(args[2])){
                         sendErrMessage(player,"refuse-not-integer","3");
                         return;
@@ -446,7 +449,7 @@ public class InGameCommands {
                 sendErrMessage(player,"refuse-not-admin");
                 return;
             }
-            switch (Tools.setEmergencyViaCommand(args)) {
+            switch (setEmergencyViaCommand(args)) {
                 case success:
                     sendMessage(player,"emergency-started");
                     break;
@@ -468,7 +471,7 @@ public class InGameCommands {
         });
 
         handler.<Player>register("search","<searchKey/sort/rank> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
-            ArrayList<String> res = Tools.search(args);
+            ArrayList<String> res = search(args);
             if (res == null) {
                 sendErrMessage(player, "search-invalid-mode",Arrays.toString(Stat.values()));
                 return;
@@ -478,7 +481,7 @@ public class InGameCommands {
             int size = res.size();
             int begin = Math.max(0,size-showing);
             for (int i = begin; i <size; i++) {
-                mb.insert(0,Tools.cleanColors(res.get(i))+"\n");
+                mb.insert(0,cleanColors(res.get(i))+"\n");
             }
             if (res.isEmpty()) {
                 sendErrMessage(player, "search-no-results");
@@ -508,7 +511,7 @@ public class InGameCommands {
                         return;
                     }
                     if (penalty != null) {
-                        sendErrMessage(player, "test-is-recent", Tools.secToTime(penalty));
+                        sendErrMessage(player, "test-is-recent", secToTime(penalty));
                         return;
                     }
                     if (isTested) {
@@ -595,10 +598,10 @@ public class InGameCommands {
                     sendErrMessage(player,"invalid-mode");
                     return;
             }
-            Call.onInfoMessage(player.con, Tools.formPage(res, page, args[0] + "ranks", 20));
+            Call.onInfoMessage(player.con, formPage(res, page, args[0] + " ranks", 20));
         });
 
-        handler.<Player>register("l","<put/use/info/help> [amount] [item/all]","More info via /l help.", (args, player)-> {
+        handler.<Player>register("l","<put/get/info/help> [amount] [item/all]","More info via /l help.", (args, player)-> {
 
             if (args.length == 1) {
                 switch (args[0]){
@@ -613,7 +616,7 @@ public class InGameCommands {
                 }
             } else if (args.length == 3) {
                 VoteData data;
-                CoreBlock.CoreEntity core = Tools.getCore();
+                CoreBlock.CoreEntity core = getCore();
                 if(core == null){
                     sendErrMessage(player,"loadout-no-cores");
                     return;
@@ -627,6 +630,7 @@ public class InGameCommands {
                 ItemStack stack = null;
                 String arg;
                 switch (args[0]) {
+                    case "fill":
                     case "put":
                         ArrayList<ItemStack> stacks = new ArrayList<>();
                         if(args[2].equals("all")){
@@ -673,6 +677,7 @@ public class InGameCommands {
                             }
                         };
                         break;
+                    case "use":
                     case "get":
                         if (loadout.ships.size() == Loadout.config.shipCount) {
                             sendErrMessage(player, "loadout-no-ships");
@@ -728,7 +733,7 @@ public class InGameCommands {
                 }
                 data.by = player;
                 data.target = stack;
-                vote.aVote(data, 3, arg);
+                vote.aVote(data, 3, arg, secToTime(Loadout.config.shipSpeed));
             } else {
                 wrongArgAmount(player, args, 3);
             }
@@ -739,7 +744,9 @@ public class InGameCommands {
                 sendErrMessage(player, "refuse-not-integer", "1");
                 return;
             }
-
+            int amount = args.length == 1 ? Integer.parseInt(args[0]) : 1;
+            amount = Mathf.clamp(amount, 1, 5);
+            int finalAmount = amount;
             vote.aVote(new VoteData() {
                 {
                     by = player;
@@ -747,13 +754,23 @@ public class InGameCommands {
                 }
                 @Override
                 public void run() {
-                    int amount = args.length == 1 ? Integer.parseInt(args[0]) : 1;
-                    amount = Mathf.clamp(amount, 1, 5);
-                    for(int i = 0; i < amount; i++) {
+
+                    for(int i = 0; i < finalAmount; i++) {
                         logic.runWave();
                     }
                 }
-            }, 6);
+            }, 6, "" + amount);
+        });
+        handler.removeCommand("vote");
+        handler.<Player>register("vote", "<y/n>", "One way of voting.",(args, player)->{
+            switch (args[0]) {
+                case "y":
+                case "n":
+                    voteKick.addVote(player, args[0]);
+                    break;
+                default:
+                    sendErrMessage(player, "invalid-mode");
+            }
         });
     }
 }

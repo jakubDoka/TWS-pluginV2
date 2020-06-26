@@ -30,7 +30,6 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import theWorst.Bot;
 import theWorst.Config;
-import theWorst.Tools;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -44,7 +43,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static mindustry.Vars.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
-import static theWorst.Tools.*;
+import static theWorst.Tools.Commands.logInfo;
+import static theWorst.Tools.Formatting.cleanColors;
+import static theWorst.Tools.Formatting.cleanEmotes;
+import static theWorst.Tools.General.*;
+import static theWorst.Tools.Json.loadJson;
+import static theWorst.Tools.Json.saveJson;
+import static theWorst.Tools.Players.sendErrMessage;
+import static theWorst.Tools.Players.sendMessage;
 
 public class Database {
     public static final String playerCollection = "playerD";
@@ -78,21 +84,21 @@ public class Database {
         Events.on(EventType.PlayerConnect.class,e->{
             //remove fake ranks
             String originalName = e.player.name;
-            e.player.name = Tools.cleanEmotes(e.player.name);
+            e.player.name = cleanEmotes(e.player.name);
             if(!originalName.equals(e.player.name)){
                 //name cannot be blank
                 if(e.player.name.replace(" ","").isEmpty()){
                     e.player.name = e.player.id +"&#@";
                 }
                 //let player know
-                Tools.sendErrMessage(e.player,"name-modified");
+                sendErrMessage(e.player,"name-modified");
             }
             PlayerD pd = new PlayerD(e.player);
             online.put(e.player.uuid, pd);
             //marked subnet so mark player aromatically
-            if(subnet.contains(getSubnet(pd)) && Tools.getRank(pd) != Rank.griefer){
+            if(subnet.contains(getSubnet(pd)) && getRank(pd) != Rank.griefer){
                 setRank(pd, Rank.griefer, e.player);
-                Tools.sendMessage("griefer-subnet",e.player.name);
+                sendMessage("griefer-subnet",e.player.name);
             }
             //resolving special rank
             SpecialRank sr = getSpecialRank(pd);
@@ -110,11 +116,11 @@ public class Database {
             addPets(pd, sr);
             //modify name based of rank
             updateName(e.player,pd);
-            Tools.sendMessage("player-connected",e.player.name,String.valueOf(pd.serverId));
+            sendMessage("player-connected",e.player.name,String.valueOf(pd.serverId));
             Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes connected.", cleanColors(e.player.name), pd.serverId));
             if (Bot.api == null || Bot.config.serverId == null || pd.rank.equals(Rank.griefer.name())) return;
             if (Bot.pendingLinks.containsKey(pd.serverId)){
-                Tools.sendMessage(e.player,"discord-pending-link",Bot.pendingLinks.get(pd.serverId).name);
+                sendMessage(e.player,"discord-pending-link",Bot.pendingLinks.get(pd.serverId).name);
             }
             if (pd.discordLink == null) return;
             CompletableFuture<User> optionalUser = Bot.api.getUserById(pd.discordLink);
@@ -132,7 +138,7 @@ public class Database {
                             SpecialRank finalDl = null;
                             for (Role r : user.getRoles(server.get())) {
                                 String roleName = r.getName();
-                                if(Tools.enumContains(Rank.values(),roleName)){
+                                if(enumContains(Rank.values(),roleName)){
                                     Rank rank = Rank.valueOf(r.getName());
                                     if (Rank.valueOf(pd.rank).getValue() < rank.getValue()) {
                                         finalR = rank;
@@ -163,7 +169,7 @@ public class Database {
         Events.on(EventType.PlayerLeave.class,e->{
             PlayerD pd = online.remove(e.player.uuid);
             if(pd == null) return;
-            Tools.sendMessage("player-disconnected",e.player.name,String.valueOf(pd.serverId));
+            sendMessage("player-disconnected",e.player.name,String.valueOf(pd.serverId));
             Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes disconnected.", cleanColors(e.player.name), pd.serverId));
             pd.disconnect();
         });
@@ -183,7 +189,7 @@ public class Database {
         Events.on(EventType.BuildSelectEvent.class, e-> {
             if (!(e.builder instanceof Player)) return;
             Player player = (Player) e.builder;
-            CoreBlock.CoreEntity core = Tools.getCore();
+            CoreBlock.CoreEntity core = getCore();
             if (core == null) return;
             BuilderTrait.BuildRequest request = player.buildRequest();
             if (request == null) return;
@@ -276,7 +282,7 @@ public class Database {
     }
 
     public static void setRank(PlayerD pd,Rank rank,Player player){
-        Rank current = Tools.getRank(pd);
+        Rank current = getRank(pd);
         boolean wosGrifer= current == Rank.griefer;
         boolean wosAdmin = current.isAdmin;
         pd.rank=rank.name();
@@ -313,12 +319,12 @@ public class Database {
             array.add(s);
         }
         data.put("subnet",array);
-        Tools.saveJson(subnetFile,data.toJSONString());
+        saveJson(subnetFile,data.toJSONString());
     }
 
     public static void loadSubnet(){
         subnet.clear();
-        Tools.loadJson(subnetFile,(data)->{
+        loadJson(subnetFile,(data)->{
             for(Object o : (JSONArray) data.get("subnet")){
                 subnet.add((String) o);
             }
@@ -328,7 +334,7 @@ public class Database {
     public static void loadRanks() {
         ranks.clear();
         AtomicBoolean res = new AtomicBoolean(true);
-        Tools.loadJson(rankFile,data -> {
+        loadJson(rankFile,data -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 SpecialRank[] srs = mapper.readValue(((JSONArray)data.get("ranks")).toJSONString(),SpecialRank[].class);
@@ -368,7 +374,7 @@ public class Database {
                 logInfo("special-rank-file-invalid");
             }
         },()->{
-            Tools.saveJson(rankFile, "{\n" +
+            saveJson(rankFile, "{\n" +
                     "    \"ranks\":[\n" +
                     "        {\n" +
                     "            \"name\":\"kamikaze\",\n" +
@@ -399,7 +405,7 @@ public class Database {
                     "        }\n" +
                     "    ]\n" +
                     "}");
-            Tools.logInfo("files-default-config-created","special ranks", rankFile);
+            logInfo("files-default-config-created","special ranks", rankFile);
         });
         res.get();
     }
@@ -407,7 +413,7 @@ public class Database {
     public static void loadPets(){
         pets.clear();
         AtomicBoolean res = new AtomicBoolean(true);
-        Tools.loadJson(petFile,data -> {
+        loadJson(petFile,data -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
                 Pet[] pets = mapper.readValue(((JSONArray)data.get("pets")).toJSONString(),Pet[].class);
@@ -426,8 +432,8 @@ public class Database {
                 JSONArray array = new JSONArray();
                 array.add(pet);
                 data.put("pets",array);
-                Tools.saveJson(petFile, data.toJSONString());
-                Tools.logInfo("files-default-config-created","pets", petFile);
+                saveJson(petFile, data.toJSONString());
+                logInfo("files-default-config-created","pets", petFile);
             } catch (JsonProcessingException | ParseException e) {
                 e.printStackTrace();
             }
@@ -470,10 +476,10 @@ public class Database {
             }
             player.name += rank.getSuffix();
         } else {
-            player.name += Tools.getRank(pd).getSuffix();
+            player.name += getRank(pd).getSuffix();
         }
         //name changes for some reason removes admin tag so this is necessary
-        player.isAdmin = Tools.getRank(pd).isAdmin;
+        player.isAdmin = getRank(pd).isAdmin;
     }
 
     static void updateMeta(PlayerD pd){
@@ -617,13 +623,13 @@ public class Database {
                     if(pd.afk && Time.timeSinceMillis(pd.lastAction)<requiredTime){
                         pd.afk = false;
                         updateName(p,pd);
-                        Tools.sendMessage("afk-is-not",pd.originalName,AFK);
+                        sendMessage("afk-is-not",pd.originalName,AFK);
                         return;
                     }
                     if (!pd.afk && Time.timeSinceMillis(pd.lastAction)>requiredTime){
                         pd.afk = true;
                         updateName(p,pd);
-                        Tools.sendMessage("afk-is",pd.originalName,AFK);
+                        sendMessage("afk-is",pd.originalName,AFK);
                     }
                 }
             },0,updateRate);

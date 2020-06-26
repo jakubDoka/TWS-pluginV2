@@ -16,8 +16,6 @@ import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.entity.user.User;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Rank;
@@ -39,7 +37,10 @@ import java.util.concurrent.CompletableFuture;
 
 import static mindustry.Vars.*;
 import static theWorst.Bot.*;
-import static theWorst.Tools.*;
+import static theWorst.Tools.Commands.*;
+import static theWorst.Tools.Formatting.cleanColors;
+import static theWorst.Tools.Json.makeFullPath;
+import static theWorst.Tools.Maps.*;
 
 public class BotCommands {
 
@@ -124,7 +125,7 @@ public class BotCommands {
                             .addInlineField("players",String.valueOf(playerGroup.size()))
                             .addInlineField("wave",String.valueOf(state.wave))
                             .addInlineField("enemies",String.valueOf(state.enemies))
-                            .setImage(Tools.getMiniMapImg())
+                            .setImage(getMiniMapImg())
                             .setColor(Color.green);
                 } else {
                     eb.setColor(Color.red).setDescription("Server is not hosting at the moment.");
@@ -184,7 +185,7 @@ public class BotCommands {
             }
             public void run(CommandContext ctx) {
 
-                Map found = Tools.findMap(ctx.args[0]);
+                Map found = findMap(ctx.args[0]);
 
                 if (found == null) {
                     ctx.reply("Map not found!");
@@ -222,7 +223,7 @@ public class BotCommands {
             }
             @Override
             public void run(CommandContext ctx) {
-                ArrayList<String> res = Tools.search(ctx.args);
+                ArrayList<String> res = search(ctx.args);
                 if (res == null) {
                     ctx.reply("Sorry i don't know this sort type. Choose from these : " + Arrays.toString(Stat.values()));
                     return;
@@ -268,7 +269,7 @@ public class BotCommands {
                 MessageAttachment a = message.getAttachments().get(0);
 
                 String path = Config.dir + "postedMaps/" + a.getFileName();
-                Tools.makeFullPath(path);
+                makeFullPath(path);
                 try {
                     Files.copy(a.downloadAsInputStream(), Paths.get(path), StandardCopyOption.REPLACE_EXISTING);
                     Fi mapFile = new Fi(path);
@@ -327,7 +328,7 @@ public class BotCommands {
             }
             @Override
             public void run(CommandContext ctx) {
-                Map removed = Tools.findMap(ctx.args[0]);
+                Map removed = findMap(ctx.args[0]);
 
                 if(removed==null){
                     ctx.reply("Map not found.");
@@ -361,7 +362,7 @@ public class BotCommands {
             }
             @Override
             public void run(CommandContext ctx) {
-                switch (Tools.setEmergencyViaCommand(ctx.args)) {
+                switch (setEmergencyViaCommand(ctx.args)) {
                     case success:
                         ctx.reply("Emergency started.");
                         break;

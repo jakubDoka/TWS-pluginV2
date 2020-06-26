@@ -2,7 +2,6 @@ package theWorst.helpers.gameChangers;
 
 import arc.math.Mathf;
 import arc.util.Log;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import mindustry.Vars;
 import mindustry.type.Item;
 import mindustry.type.ItemStack;
@@ -10,19 +9,19 @@ import mindustry.type.ItemType;
 import mindustry.world.blocks.storage.CoreBlock;
 import org.json.simple.JSONObject;
 import theWorst.Config;
-import theWorst.Tools;
 import theWorst.database.PlayerD;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import static theWorst.Tools.logInfo;
-import static theWorst.Tools.sendMessage;
+import static theWorst.Tools.Formatting.secToTime;
+import static theWorst.Tools.General.getCore;
+import static theWorst.Tools.Json.*;
+import static theWorst.Tools.Players.sendMessage;
+
 
 public class Loadout implements Displayable, Destroyable {
     public static final String[] itemIcons = {"\uF838", "\uF837", "\uF836", "\uF835", "\uF832", "\uF831", "\uF82F", "\uF82E", "\uF82D", "\uF82C"};
@@ -39,7 +38,7 @@ public class Loadout implements Displayable, Destroyable {
             String f = "[gray]" + new String[]{"-->", "->-", ">--"}[s.time % 3] + "[]";
             sb.append("[gray]<[]");
             sb.append(stackToString(s.stack));
-            sb.append(f).append(Tools.secToTime(s.time)).append(f);
+            sb.append(f).append(secToTime(s.time)).append(f);
             sb.append("\uf869");
             sb.append("[gray]>[]");
         }
@@ -105,7 +104,7 @@ public class Loadout implements Displayable, Destroyable {
     }
 
     public void launchAll(){
-        CoreBlock.CoreEntity core = Tools.getCore();
+        CoreBlock.CoreEntity core = getCore();
         if(core == null) return;
         for(Item i : Vars.content.items()){
             if(i.type == ItemType.resource) continue;
@@ -116,7 +115,7 @@ public class Loadout implements Displayable, Destroyable {
     }
 
     public static void loadConfig(){
-        config = Tools.loadJackson(configFile, LoadoutConfig.class);
+        config = loadJackson(configFile, LoadoutConfig.class);
         if( config == null) config = new LoadoutConfig();
     }
 
@@ -128,7 +127,7 @@ public class Loadout implements Displayable, Destroyable {
     }
 
     public void loadRes(){
-        Tools.loadJson(saveFile, data -> {
+        loadJson(saveFile, data -> {
             for(Item i : items.keySet()){
                 items.put(i, ((Long) data.get(i.name)).intValue());
             }
@@ -140,7 +139,7 @@ public class Loadout implements Displayable, Destroyable {
         for(Item i : items.keySet()){
             data.put(i.name, items.get(i));
         }
-        Tools.saveJson(saveFile,data.toJSONString());
+        saveJson(saveFile,data.toJSONString());
     }
 
     public boolean has(ItemStack stack){

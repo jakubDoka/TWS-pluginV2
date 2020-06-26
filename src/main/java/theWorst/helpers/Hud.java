@@ -2,8 +2,6 @@ package theWorst.helpers;
 
 import arc.Events;
 import arc.struct.Array;
-import arc.util.Log;
-import arc.util.Time;
 import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
@@ -11,17 +9,19 @@ import mindustry.gen.Call;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import theWorst.Config;
-import theWorst.Main;
-import theWorst.Tools;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Setting;
-import theWorst.votes.Vote;
 
 import java.util.ArrayList;
 
 import static mindustry.Vars.player;
 import static mindustry.Vars.playerGroup;
+import static theWorst.Tools.Commands.logInfo;
+import static theWorst.Tools.Formatting.format;
+import static theWorst.Tools.Json.loadJson;
+import static theWorst.Tools.Json.saveJson;
+import static theWorst.Tools.Players.getTranslation;
 
 public class Hud {
     final static String messageFile = Config.configDir + "hudMessages.json";
@@ -117,7 +117,7 @@ public class Hud {
                idx++;
                idx%=colors.size();
            }
-           return "["+currentColor+"]" + Tools.format(Tools.getTranslation(pd , message),args.toArray(new String[0])) + "[]";
+           return "["+currentColor+"]" + format(getTranslation(pd , message),args.toArray(new String[0])) + "[]";
        }
     }
 
@@ -127,7 +127,7 @@ public class Hud {
 
     public static void loadMessages(){
         speed = 3;
-        Tools.loadJson(messageFile,data->{
+        loadJson(messageFile,data->{
             if(data.containsKey("messages")){
                 for(Object o : (JSONArray)data.get("messages")){
                     messages.add((String) o);
@@ -155,8 +155,8 @@ public class Hud {
         array.add("And this.");
         data.put("messages",array);
         data.put("speed",1);
-        Tools.saveJson(messageFile,data.toJSONString());
-        Tools.logInfo("files-default-config-created","hud messages", messageFile);
+        saveJson(messageFile,data.toJSONString());
+        logInfo("files-default-config-created","hud messages", messageFile);
     }
 
 }

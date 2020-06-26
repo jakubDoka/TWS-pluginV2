@@ -3,7 +3,6 @@ package theWorst.helpers;
 import mindustry.entities.type.Player;
 import org.json.simple.JSONArray;
 import theWorst.Config;
-import theWorst.Tools;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Rank;
@@ -13,20 +12,22 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 
-import static theWorst.Tools.sendErrMessage;
-import static theWorst.Tools.sendMessage;
+import static theWorst.Tools.Json.loadJson;
+import static theWorst.Tools.Json.saveJson;
+import static theWorst.Tools.Players.sendErrMessage;
+import static theWorst.Tools.Players.sendMessage;
 
 public class Tester {
     private static final String testFile = Config.configDir+"test.json";
     public static HashMap<String,Test> tests = new HashMap<>();
-    public static Tools.RecentMap recent = new Tools.RecentMap(15*60,"test-can-egan");
+    public static Administration.RecentMap recent = new Administration.RecentMap(15*60,"test-can-egan");
 
     public static HashMap<String, ArrayList<String>> loadQuestions(Locale loc){
         HashMap<String, ArrayList<String>> questions = new HashMap<>();
         String bundle = testFile + "_" + loc.getLanguage() + "_" + loc.getCountry();
         File fi = new File(bundle);
         if(!fi.exists() || fi.isDirectory()) bundle = testFile;
-        Tools.loadJson(bundle,(test)->{
+        loadJson(bundle,(test)->{
             for(Object o:test.keySet()){
                 JSONArray options=(JSONArray) test.get(o);
                 ArrayList<String> opt=new ArrayList<>();
@@ -40,7 +41,7 @@ public class Tester {
     }
 
     private static void createExample() {
-            Tools.saveJson(testFile,"{\n" +
+            saveJson(testFile,"{\n" +
                     "\t\"some question?\":[\n" +
                     "\t\t\"option\",\n" +
                     "\t\t\"other option\",\n" +

@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import static arc.util.Log.info;
 import static mindustry.Vars.*;
 import static mindustry.Vars.maps;
-import static theWorst.Tools.*;
+import static theWorst.Tools.Commands.*;
 
 public class Main extends Plugin {
     static Administration administration =  new Administration();
@@ -245,7 +245,7 @@ public class Main extends Plugin {
         });
 
         handler.register("emergency","<time/permanent/stop>","Emergency control.",args->{
-            switch (Tools.setEmergencyViaCommand(args)) {
+            switch (setEmergencyViaCommand(args)) {
                 case success:
                     logInfo("emergency-started");
                     break;

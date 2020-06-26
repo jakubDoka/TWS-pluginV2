@@ -3,10 +3,8 @@ package theWorst.database;
 import arc.graphics.Color;
 import arc.math.Mathf;
 import arc.math.geom.Vec2;
-import arc.util.Log;
 import arc.util.Time;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.content.Bullets;
 import mindustry.content.Fx;
@@ -17,12 +15,11 @@ import mindustry.entities.bullet.BulletType;
 import mindustry.entities.traits.TargetTrait;
 import mindustry.entities.type.Player;
 import mindustry.gen.Call;
-import theWorst.Tools;
 
-import javax.print.attribute.standard.MediaSize;
 import java.util.ArrayList;
 
-import static theWorst.Tools.logInfo;
+import static theWorst.Tools.Commands.getPropertyByName;
+import static theWorst.Tools.Commands.logInfo;
 
 public class Pet {
     Vec2 pos = new Vec2(), vel = new Vec2();
@@ -65,7 +62,7 @@ public class Pet {
         this.accuracy = accuracy;
         this.shot = Mathf.clamp(shot, 1, 20);
         if(trailName != null){
-            Effects.Effect resolved = (Effects.Effect) Tools.getPropertyByName(Fx.class,trailName,null);
+            Effects.Effect resolved = (Effects.Effect) getPropertyByName(Fx.class,trailName,null);
             if(resolved != null){
                 trail = resolved;
             } else {
@@ -74,7 +71,7 @@ public class Pet {
         }
         if(bulletName == null) bullet = null;
         else{
-            bullet = (BulletType) Tools.getPropertyByName(Bullets.class, bulletName,null);
+            bullet = (BulletType) getPropertyByName(Bullets.class, bulletName,null);
             if(bullet == null) logInfo("pet-invalid-bullet", name, bulletName);
         }
         color = Color.valueOf(colorCode);

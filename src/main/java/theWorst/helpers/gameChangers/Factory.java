@@ -1,13 +1,10 @@
 package theWorst.helpers.gameChangers;
 
 import arc.math.Mathf;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import mindustry.Vars;
 import mindustry.type.UnitType;
 import org.json.simple.JSONObject;
 import theWorst.Config;
-import theWorst.Tools;
-import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
@@ -15,6 +12,8 @@ import theWorst.helpers.Hud;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import static theWorst.Tools.Json.*;
 
 public class Factory implements Destroyable, Displayable {
     static final String configFile = Config.configDir + "factoryConfig.json";
@@ -66,7 +65,7 @@ public class Factory implements Destroyable, Displayable {
     }
 
     public void loadConfig(){
-        config = Tools.loadJackson(configFile, FactoryConfig.class);
+        config = loadJackson(configFile, FactoryConfig.class);
         if( config == null) config = new FactoryConfig();
     }
 
@@ -85,7 +84,7 @@ public class Factory implements Destroyable, Displayable {
     }
 
     public void loadUnits(){
-        Tools.loadJson(saveFile, data -> {
+        loadJson(saveFile, data -> {
             for(UnitType u : Vars.content.units()){
                 units.put(u, ((Long) data.get(u.name)).intValue());
             }
@@ -97,6 +96,6 @@ public class Factory implements Destroyable, Displayable {
         for(UnitType u : Vars.content.units()){
             data.put(u, units.get(u));
         }
-        Tools.saveJson(saveFile,data.toJSONString());
+        saveJson(saveFile,data.toJSONString());
     }
 }
