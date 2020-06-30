@@ -2,6 +2,7 @@ package theWorst.helpers;
 
 import arc.Events;
 import arc.files.Fi;
+import arc.math.Mathf;
 import arc.struct.Array;
 import arc.util.Time;
 import mindustry.Vars;
@@ -66,17 +67,22 @@ public class MapManager {
     public static Array<String> statistics(){
         Array<String> res=new Array<>();
         List<MapD> maps= data.findAll(MapD.class);
+        if(maps.isEmpty()){
+            res.add("No info to show");
+            return res;
+        }
         double bestRatio=0;
-        for (MapD m:maps){
-            double r=m.getPlayRatio();
+        for (MapD m : maps){
+            double r = m.getPlayRatio();
             if (r>bestRatio) bestRatio=r;
         }
-        for (int i=0;i<maps.size();i++){
-            MapD m=maps.get(i);
-            int ra=(int)(m.getPlayRatio()/bestRatio*10);
-            res.add(i+" | "+m.name+" | "+String.format("%.1f/10",m.getRating())+" | "+
-                "<"+new String(new char[ra]).replace("\0", "=")+
-                    new String(new char[10-ra]).replace("\0", "-")+">\n");
+        for (int i = 0;i<maps.size();i++) {
+            MapD m = maps.get(i);
+            int ra = (int) (m.getPlayRatio() / bestRatio * 10);
+            ra = Mathf.clamp(ra, 0, 10);
+            res.add(i + " | " + m.name + " | " + String.format("%.1f/10", m.getRating()) + " | " +
+                    "<" + new String(new char[ra]).replace("\0", "=") +
+                    new String(new char[10 - ra]).replace("\0", "-") + ">\n");
         }
         return res;
     }

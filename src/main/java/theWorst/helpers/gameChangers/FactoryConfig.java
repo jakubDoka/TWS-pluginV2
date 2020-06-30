@@ -1,19 +1,27 @@
 package theWorst.helpers.gameChangers;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import mindustry.Vars;
+import mindustry.content.UnitTypes;
 import mindustry.type.Item;
 import mindustry.type.ItemType;
+import mindustry.type.UnitType;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class FactoryConfig {
     public int shipCount = 3;
     public int shipCapacity = 3000;
     public int shipSpeed = 60 * 3;
-    public HashMap<String,HashMap<String,Integer>> prices = new HashMap<String,HashMap<String,Integer>>(){{
-            put("eruptor", createPrice());
+    public int dropZoneRadius = 40;
+    @JsonSerialize(contentAs = PriceData.class)
+    public HashMap<UnitType, PriceData> prices = new HashMap<UnitType, PriceData>(){{
+        put(UnitTypes.eruptor, new PriceData());
     }};
 
     public FactoryConfig(){}
@@ -23,23 +31,49 @@ public class FactoryConfig {
             @JsonProperty("shipCapacity") int shipCapacity,
             @JsonProperty("shipCount") int shipCount,
             @JsonProperty("shipSpeed") int shipSpeed,
-            @JsonProperty("prices") HashMap<String,HashMap<String,Integer>> prices
-    ){
+            @JsonProperty("dropZoneRadius") int dropZoneRadius,
+            @JsonProperty("prices") HashMap<String, PriceData> prices){
         this.shipCapacity = shipCapacity;
         this.shipCount = shipCount;
         this.shipSpeed = shipSpeed;
-        this.prices = prices;
+        this.dropZoneRadius = dropZoneRadius;
+        this.prices.clear();
+        for(String p : prices.keySet()){
+            this.prices.put(Factory.getUnitByName(p), prices.get(p));
+        }
     }
 
-    private HashMap<String, Integer> createPrice(){
-        HashMap<String, Integer> price = new HashMap<>();
-        for(Item i : Vars.content.items()){
-            if(i.type == ItemType.resource) continue;
-            price.put(i.name, 0);
+    public static class PriceData {
+        @JsonIgnore public ArrayList<ItemStack> items = new ArrayList<>();
+        public float buildTime;
+        public int size;
+
+        public PriceData() {
+            for(Item i : Vars.content.items()){
+                if(i.type == ItemType.resource) continue;
+                items.add(new ItemStack(i, 10));
+            }
+            buildTime = 20;
+            size = 2;
         }
-        price.put("buildTime", 10);
-        price.put("speedMultiplier", 4);
-        price.put("unitSize", 2);
-        return price;
+
+        @JsonCreator public PriceData(
+                @JsonProperty("items") HashMap<String, Integer> items,
+                @JsonProperty("buildTime") float buildTime,
+                @JsonProperty("size") int size){
+            this.size = size;
+            this.buildTime = buildTime;
+            for(String s : items.keySet()){
+                this.items.add(new ItemStack(Loadout.getItemByName(s), items.get(s)));
+            }
+        }
+
+        @JsonGetter public HashMap<String, Integer> getItems(){
+            HashMap<String, Integer> res = new HashMap<>();
+            for(ItemStack i : items) {
+                res.put(i.item.name, i.amount);
+            }
+            return res;
+        }
     }
 }

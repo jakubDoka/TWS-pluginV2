@@ -3,9 +3,13 @@ package theWorst;
 import arc.Core;
 import arc.Events;
 import arc.math.Mathf;
+import arc.math.geom.Vec2;
 import arc.struct.Array;
 import arc.util.CommandHandler;
 import arc.util.Strings;
+import arc.util.Timer;
+import jdk.internal.org.objectweb.asm.Handle;
+import mindustry.entities.type.BaseUnit;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.game.Gamemode;
@@ -13,18 +17,23 @@ import mindustry.game.Team;
 import mindustry.gen.Call;
 import mindustry.maps.Map;
 import mindustry.type.Item;
-import mindustry.type.ItemStack;
 import mindustry.type.ItemType;
+import mindustry.type.UnitType;
+import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
+import theWorst.Tools.Players;
 import theWorst.database.*;
-import theWorst.helpers.*;
-import theWorst.helpers.gameChangers.Factory;
-import theWorst.helpers.gameChangers.Loadout;
+import theWorst.helpers.Hud;
+import theWorst.helpers.MapD;
+import theWorst.helpers.MapManager;
+import theWorst.helpers.Tester;
+import theWorst.helpers.gameChangers.*;
 import theWorst.votes.Vote;
 import theWorst.votes.VoteData;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 import static mindustry.Vars.*;
 import static theWorst.Tools.Commands.*;
@@ -41,6 +50,8 @@ public class InGameCommands {
     public static Vote voteKick = new Vote("vote-/vote-y-/vote-n");
     public static Loadout loadout;
     public static Factory factory;
+    public HashMap<String, String> dms = new HashMap<>();
+
     interface Command {
         VoteData run(String[] args, Player player);
     }
@@ -108,7 +119,8 @@ public class InGameCommands {
         });
 
         Command mkgfCommand = (args,player)->{
-            PlayerD pd = Database.findData(args[0]);
+            //todo this does not work on players with rank fix it
+            PlayerD pd = Database.findData(cleanName(args[0]));
             if(pd == null){
                 sendErrMessage(player, "player-not-found");
                 return null;
@@ -143,11 +155,10 @@ public class InGameCommands {
                 sendMessage("mkgf-admin-marked", getData(player).originalName, pd.originalName);
                 return null;
             }
-        /*if(playerGroup.size()<3){
+        if(playerGroup.size()<3){
             sendErrMessage(player,"mkgf-not-enough");
             return null;
-            todo
-        }*/
+        }
             return voteData;
         };
 
@@ -158,8 +169,18 @@ public class InGameCommands {
         });
 
         handler.<Player>register("voteKick","<name/id>","Opens vote for marking player a griefer.",(args,player)->{
+            if(voteKick.voting ) {
+                PlayerD pd = Database.findData(cleanName(args[0]));
+                if (pd == null){
+                    sendErrMessage(player, "vote-in-process");
+                    return;
+                }
+                if(((PlayerD)voteKick.voteData.target).serverId == pd.serverId) voteKick.addVote(player, "y");
+                return;
+            }
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
+            //todo make this count as y if player uses hammer
             voteKick.aVote(voteData,5, ((PlayerD)voteData.target).originalName);
         });
 
@@ -666,11 +687,11 @@ public class InGameCommands {
                             public void run() {
                                 if(finalStack != null){
                                     ItemStack transported = loadout.canAdd(finalStack);
-                                    core.items.remove(transported);
+                                    core.items.remove(transported.item, transported.amount);
                                     loadout.add(transported);
                                 } else {
                                     for(ItemStack s : loadout.canAdd(stacks)){
-                                        core.items.remove(s);
+                                        core.items.remove(s.item, s.amount);
                                         loadout.add(s);
                                     }
                                 }
@@ -739,6 +760,143 @@ public class InGameCommands {
             }
         });
 
+        handler.<Player>register("f","<help/build/call/priceof/info> [amount] [unit]","More info via /f help.",(args, player)->{
+            if(args.length == 1){
+                switch (args[0]) {
+                    case "help":
+                        sendInfoPopup(player, "factory-help");
+                        return;
+                    case "info":
+                        Call.onInfoMessage(player.con, factory.info());
+                        return;
+                    default:
+                        sendErrMessage(player, "invalid-mode");
+                }
+            } else if(args.length == 3){
+                VoteData data;
+                if(!Strings.canParsePostiveInt(args[1])){
+                    sendErrMessage(player, "refuse-not-integer", "2");
+                    return;
+                }
+                int amount = Integer.parseInt(args[1]);
+                UnitType unit = Factory.getUnitByName(args[2]);
+                if(unit == null || !Factory.config.prices.containsKey(unit)){
+                    sendErrMessage(player, "factory-does-not-build-this", args[2]);//todo
+                    return;
+                }
+                UnitStack unitStack = new UnitStack(unit, amount);
+                String arg = "";
+                String arg2 = "";
+                switch (args[0]) {
+                    case "priceof":
+                        Call.onInfoMessage(player.con,factory.price(unitStack));
+                        return;
+                    case "build":
+                        UnitStack affordable = factory.canAfford(unitStack.unit);
+                        if (affordable.amount == 0) {
+                            sendErrMessage(player, "factory-cannot-afford");//todo
+                            return;
+                        }
+                        unitStack.amount = Math.min(affordable.amount, unitStack.amount);
+                        arg = unitStack.toString();
+                        data = new VoteData() {
+                            {
+                                reason = "factory-build";//todo
+                            }
+
+                            @Override
+                            public void run() {
+                                factory.build(unitStack);
+                                factory.threads.add(new Factory.Thread() {
+                                    {
+                                        stack = unitStack;
+                                        time = (int) (Factory.config.prices.get(unit).buildTime * unitStack.amount);
+                                        building = true;
+                                    }
+
+                                    @Override
+                                    public void onFinish() {
+                                        factory.add(stack);
+                                        Hud.addPositiveAdd("factory-build-finish", 10);//todo
+                                    }
+                                });
+                            }
+                        };
+                        break;
+                    case "call":
+                        Tile tile = world.tile((int)player.x/8,(int)player.x/8);
+                        if(tile == null || tile.solid()){
+                            sendErrMessage(player, "factory-cannot-drop-units");//todo
+                            return;
+                        }
+                        arg2 = tile.x + "," + tile.x;
+                        UnitStack available = factory.canWithdraw(unitStack);
+                        if(available.amount == 0){
+                            sendErrMessage(player, "factory-no-unis-available");//todo
+                            return;
+                        }
+                        UnitStack transportable = new UnitStack(unit,0);
+                        FactoryConfig.PriceData priceData = Factory.config.prices.get(unit);
+                        int space = (Factory.config.shipCount - factory.threads.size());
+                        for(int i = 0; i < space; i++){
+                            int total = 0;
+                            while (true) {
+                                total += priceData.size;
+                                if(total > Factory.config.shipCapacity){
+                                    break;
+                                }
+                                transportable.amount++;
+                            }
+                        }
+                        transportable.amount = Mathf.clamp(transportable.amount, 0, available.amount);
+                        arg = transportable.toString();
+                        factory.withdraw(transportable);
+                        String finalArg = arg;
+                        String finalArg1 = arg2;
+                        data = new VoteData() {
+                            {
+                                reason = "factory-call";//todo
+                            }
+                            @Override
+                            public void run() {
+                                int usedThreads = Mathf.ceil((float)transportable.amount * priceData.size / Factory.config.shipCapacity);
+                                for( int i = 0; i< usedThreads; i++){
+                                    int perShip = Mathf.clamp(transportable.amount , 0, Factory.config.shipCapacity / priceData.size);
+                                    UnitStack fStack = new UnitStack(unit, perShip);
+                                    transportable.amount -= perShip;
+                                    factory.threads.add(new Factory.Thread() {
+                                        {
+                                            stack = fStack;
+                                            time = Factory.config.shipSpeed;
+                                            building = false;
+                                            pos = new Vec2(player.x, player.y);
+                                        }
+                                        @Override
+                                        public void onFinish() {
+                                            for(int i = 0; i < stack.amount; i++){
+                                                BaseUnit bu = stack.unit.create(player.getTeam());
+                                                bu.set(pos.x, pos.y);
+                                                bu.add();
+                                            }
+                                            Hud.addAd("factory-units-arrived", 10, finalArg, finalArg1, "!green", "!gray");//todo
+                                        }
+                                    });
+                                }
+                            }
+                        };
+                        break;
+                    default:
+                        sendErrMessage(player,"invalid-mode");
+                        return;
+                }
+                data.target = unitStack;
+                data.by = player;
+                vote.aVote(data, 3, arg, arg2);
+            } else {
+                wrongArgAmount(player, args, 3);
+            }
+        });
+
         handler.<Player>register("skipwave", "[1-5]", "Skips amount of waves.",(args, player)->{
             if(args.length == 1 && !Strings.canParsePostiveInt(args[0])){
                 sendErrMessage(player, "refuse-not-integer", "1");
@@ -761,6 +919,7 @@ public class InGameCommands {
                 }
             }, 6, "" + amount);
         });
+
         handler.removeCommand("vote");
         handler.<Player>register("vote", "<y/n>", "One way of voting.",(args, player)->{
             switch (args[0]) {
@@ -771,6 +930,43 @@ public class InGameCommands {
                 default:
                     sendErrMessage(player, "invalid-mode");
             }
+        });
+
+        handler.<Player>register("suicide","Kill your self.",(arg, player) -> {
+            if(!Database.hasSpecialPerm(player,Perm.suicide)){
+                sendErrMessage(player, "suicide-no-perm");//todo
+                return;
+            }
+            player.onDeath();
+            player.kill();
+            sendMessage("suicide-committed", player.name);//todo
+        });
+
+        handler.<Player>register("dm","<player/id/help/message...>","more info via /dm help",(args,player)->{
+            if(args[0].equals("help")) {
+                sendMessage(player, "dm-help");//todo
+            } else if(args[0].startsWith("!")){
+                Player found = findPlayer(args[0].substring(1));
+                if(found == null){
+                    sendErrMessage(player, "player-not-found");//todo
+                    return;
+                }
+                dms.put(player.uuid, found.uuid);
+                sendMessage(player, "dm-channel-set");//todo
+            } else {
+                if(dms.containsKey(player.uuid)) {
+                    sendErrMessage(player, "dm-no-channel-set");//todo
+                    return;
+                }
+                Player found = playerGroup.find(p -> p.uuid.equals(dms.get(player.uuid)));
+                if(found == null){
+                    sendErrMessage(player, "dm-target-offline");//todo
+                    return;
+                }
+                player.sendMessage("[#ffdfba][[[#" + found.color + "]" + found.name + "[]]:[white]" + args[0]);
+                found.sendMessage("[#ffdfba][[[#" + found.color + "]" + player.name + "[]]:[white]" + args[0]);
+            }
+
         });
     }
 }

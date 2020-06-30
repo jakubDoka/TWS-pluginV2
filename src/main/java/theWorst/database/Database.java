@@ -44,8 +44,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static mindustry.Vars.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static theWorst.Tools.Commands.logInfo;
-import static theWorst.Tools.Formatting.cleanColors;
-import static theWorst.Tools.Formatting.cleanEmotes;
+import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.General.*;
 import static theWorst.Tools.Json.loadJson;
 import static theWorst.Tools.Json.saveJson;
@@ -527,7 +526,7 @@ public class Database {
         }
         if(pd == null){
             for(PlayerD data : online.values()){
-                if(data.originalName.equals(key)) return data;
+                if(cleanName(data.originalName).equals(key)) return data;
             }
             return null;
         }

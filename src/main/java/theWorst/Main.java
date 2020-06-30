@@ -16,6 +16,7 @@ import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Hud;
 import theWorst.helpers.MapManager;
+import theWorst.helpers.gameChangers.Factory;
 import theWorst.helpers.gameChangers.Loadout;
 
 import java.util.ArrayList;
@@ -59,6 +60,7 @@ public class Main extends Plugin {
         Main.destroyable.add(destroyable);
     }
 
+    //todo make event command that takes json as argument
     @Override
     public void registerServerCommands(CommandHandler handler) {
         handler.register("dbdrop","Do not touch this if you don't want to erase database.",args->{
@@ -139,7 +141,7 @@ public class Main extends Plugin {
                 "loads test questions.", args -> {
             switch (args[0]){
                 case "help":
-                    logInfo("show-modes","ranks,pets,general,discord,discordrolerestrict,loadout");
+                    logInfo("show-modes","ranks, pets, general, discord, discordrolerestrict, loadout, factory");
                     return;
                 case "ranks":
                     Database.loadRanks();
@@ -159,6 +161,9 @@ public class Main extends Plugin {
                     return;
                 case "loadout":
                     Loadout.loadConfig();
+                    return;
+                case "factory":
+                    Factory.loadConfig();
                     return;
                 default:
                     logInfo("invalid-mode");

@@ -44,8 +44,7 @@ public class Formatting {
     public static String cleanName(String name){
         name=cleanColors(name);
         name=cleanEmotes(name);
-        name=name.replace(" ","_");
-        return name;
+        return name.replace(" ","_");
     }
 
     public static String format(String string, String ... args){

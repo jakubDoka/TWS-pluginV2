@@ -24,7 +24,7 @@ import static theWorst.Tools.Players.sendErrMessage;
 
 public class Vote implements Displayable, Destroyable {
     final long minPlayTime = 1000 * 60 * 60;
-    VoteData voteData;
+    public VoteData voteData;
     String message;
     String[] args;
     final String mode;

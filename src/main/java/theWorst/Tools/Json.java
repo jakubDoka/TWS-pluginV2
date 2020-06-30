@@ -61,8 +61,9 @@ public class Json {
         ObjectMapper mapper = new ObjectMapper();
         File f = new File(filename);
         try {
-            mapper.writeValue(f, type);
-            return type.newInstance();
+            T obj = type.newInstance();
+            mapper.writeValue(f, obj);
+            return obj;
         } catch (IOException ex){
             Log.info("Error when creating/updating "+filename+".");
         } catch (IllegalAccessException | InstantiationException e) {

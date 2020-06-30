@@ -178,9 +178,9 @@ public class Commands {
         }
         if(args.length == 3){
             int size = res.size();
-            ArrayList<String> reversed = new ArrayList<>(size);
-            for(int i =0; i < res.size(); i++){
-                reversed.set(i, res.get(size - 1 - i));
+            ArrayList<String> reversed = new ArrayList<>();
+            for(int i = 0; i < size; i++){
+                reversed.add(res.get(size - 1 - i));
             }
             return reversed;
         }

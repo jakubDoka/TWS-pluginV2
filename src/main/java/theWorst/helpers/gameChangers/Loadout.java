@@ -4,7 +4,7 @@ import arc.math.Mathf;
 import arc.util.Log;
 import mindustry.Vars;
 import mindustry.type.Item;
-import mindustry.type.ItemStack;
+import theWorst.helpers.gameChangers.ItemStack;
 import mindustry.type.ItemType;
 import mindustry.world.blocks.storage.CoreBlock;
 import org.json.simple.JSONObject;
@@ -95,7 +95,6 @@ public class Loadout implements Displayable, Destroyable {
     public static String stackToString(ItemStack stack){
         int idx = 0;
         for(Item i: Vars.content.items()){
-            Log.info(i.name);
             if(i.type != ItemType.material) continue;
             if( i == stack.item) break;
             idx++;
@@ -180,7 +179,7 @@ public class Loadout implements Displayable, Destroyable {
     public ItemStack canAdd(ItemStack stack){
         int stored = getAmount(stack.item);
         int overflow = stored + stack.amount - config.capacity;
-        ItemStack copy = stack.copy();
+        ItemStack copy = new ItemStack(stack.item, stack.amount);
         if(overflow > 0){
            copy.amount -= overflow;
         }

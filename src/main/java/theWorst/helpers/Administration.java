@@ -114,7 +114,7 @@ public class Administration implements Displayable{
                 String[] colors = pd.textColor.split("/");
                 if (Database.hasSpecialPerm(player, Perm.colorCombo) && colors.length > 1) {
                     message = smoothColors(message,colors);
-                } else message = "[#" + color + "]" + message;
+                } else message = "[" + color + "]" + message;
                 //updating stats
                 pd.lastMessage = Time.millis();
                 pd.messageCount++;

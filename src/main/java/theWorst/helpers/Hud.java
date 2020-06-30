@@ -9,6 +9,7 @@ import mindustry.gen.Call;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import theWorst.Config;
+import theWorst.Tools.Players;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Setting;
@@ -103,6 +104,11 @@ public class Hud {
                     colors.add(arg.replace("!",""));
                 } else this.args.add(arg);
             }
+            for(Player p : playerGroup){
+                if(!Database.hasEnabled(player, Setting.hud)){
+                    p.sendMessage(getMessage(Database.getData(p)));
+                }
+            }
             expiration = Timer.schedule(()->{
                 adQueue.remove(this);
             },liveTime);
@@ -123,6 +129,14 @@ public class Hud {
 
     public static void addAd(String  message,int time,String ... args){
         adQueue.add(new Ad(message,args,time));
+    }
+
+    public static void addPositiveAdd(String message, int time) {
+        addAd(message, time, "!green", "!gray");
+    }
+
+    public static void addNegativeAdd(String message, int time) {
+        addAd(message, time, "!scarlet", "!gray");
     }
 
     public static void loadMessages(){
