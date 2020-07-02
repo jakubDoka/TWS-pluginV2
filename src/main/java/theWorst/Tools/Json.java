@@ -8,6 +8,8 @@ import org.json.simple.parser.ParseException;
 
 import java.io.*;
 
+import static theWorst.Tools.Commands.logInfo;
+
 public class Json {
     public interface RunLoad{
         void run(JSONObject data);
@@ -50,7 +52,9 @@ public class Json {
             if (!f.exists()){
                 return saveJackson(filename,type);
             }
-            return mapper.readValue(f, type);
+            T val = mapper.readValue(f, type);
+            Log.info("data from " + filename + "loaded");
+            return val;
         } catch (IOException ex){
             Log.info("Json file " + filename + " is invalid.");
             return null;
@@ -59,6 +63,7 @@ public class Json {
 
     public static <T> T saveJackson(String filename, Class<T> type){
         ObjectMapper mapper = new ObjectMapper();
+        makeFullPath(filename);
         File f = new File(filename);
         try {
             T obj = type.newInstance();

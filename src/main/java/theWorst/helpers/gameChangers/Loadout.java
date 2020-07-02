@@ -119,6 +119,7 @@ public class Loadout implements Displayable, Destroyable {
     public static void loadConfig(){
         config = loadJackson(configFile, LoadoutConfig.class);
         if( config == null) config = new LoadoutConfig();
+
     }
 
     public static Item getItemByName(String name){

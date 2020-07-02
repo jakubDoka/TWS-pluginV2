@@ -160,6 +160,8 @@ public class Main extends Plugin {
                 case "factory":
                     Factory.loadConfig();
                     return;
+                case "weapons":
+                    ShootingBooster.loadWeapons();
                 default:
                     logInfo("invalid-mode");
             }
