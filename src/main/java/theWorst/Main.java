@@ -18,6 +18,8 @@ import theWorst.helpers.Hud;
 import theWorst.helpers.MapManager;
 import theWorst.helpers.gameChangers.Factory;
 import theWorst.helpers.gameChangers.Loadout;
+import theWorst.helpers.gameChangers.Pet;
+import theWorst.helpers.gameChangers.ShootingBooster;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,38 +31,31 @@ import static arc.util.Log.info;
 import static mindustry.Vars.*;
 import static mindustry.Vars.maps;
 import static theWorst.Tools.Commands.*;
+import static theWorst.Tools.General.getPropertyNameList;
 
 public class Main extends Plugin {
     static Administration administration =  new Administration();
     static ArrayList<Destroyable> destroyable = new ArrayList<>();
     static Hud hud = new Hud();
     static InGameCommands inGameCommands = new InGameCommands();
+
     public Main() {
-        Config.load();
-        new Database();
-        new MapManager();
-        new Bot();
         Events.on(EventType.WorldLoadEvent.class,e-> destroyable.forEach(Destroyable::destroy));
 
-        Events.on(EventType.Trigger.update, () -> CompletableFuture.runAsync(() -> playerGroup.all().forEach(player -> {
-            PlayerD pd = Database.getData(player);
-            if (!pd.pets.isEmpty()) {
-                for(Pet p : pd.pets){
-                    p.update(player, pd.pets);
-                }
-            }
-        })));
-
         Events.on(EventType.ServerLoadEvent.class, e->{
+            Config.load();
+            new ShootingBooster();
+            new Database();
+            new MapManager();
+            new Bot();
             MapManager.cleanMaps();
         });
     }
 
-    public void addDestroyable(Destroyable destroyable){
+    public static void addDestroyable(Destroyable destroyable){
         Main.destroyable.add(destroyable);
     }
 
-    //todo make event command that takes json as argument
     @Override
     public void registerServerCommands(CommandHandler handler) {
         handler.register("dbdrop","Do not touch this if you don't want to erase database.",args->{

@@ -5,6 +5,7 @@ import arc.math.Mathf;
 import arc.util.Time;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
+import theWorst.Main;
 import theWorst.database.*;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
@@ -44,6 +45,7 @@ public class Vote implements Displayable, Destroyable {
     public Vote(String mode){
         this.mode = mode;
         Hud.addDisplayable(this);
+        Main.addDestroyable(this);
         Events.on(EventType.GameOverEvent.class, e->canVote = false);
         Events.on(EventType.PlayEvent.class, e->canVote = true);
 

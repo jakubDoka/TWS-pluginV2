@@ -13,6 +13,7 @@ import theWorst.discord.BotConfig;
 import theWorst.discord.Command;
 import theWorst.discord.DiscordCommands;
 
+import java.util.Collections;
 import java.util.HashMap;
 
 import static mindustry.Vars.playerGroup;
@@ -120,9 +121,7 @@ public class Bot {
             for (Command c : handler.commands.values()) {
                 JSONArray roles = new JSONArray();
                 if(c.role != null) {
-                    for (String role : c.role) {
-                        roles.add(role);
-                    }
+                    Collections.addAll(roles, c.role);
                 }
                 data.put(c.name, roles);
 

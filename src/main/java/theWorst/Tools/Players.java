@@ -68,7 +68,7 @@ public class Players {
         if(pd != null && pd.bundle != null && pd.bundle.containsKey(key) && pd.settings.contains(Setting.translate.name())){
             return pd.bundle.getString(key);
         }
-        if(!defaultBundle.containsKey(key)) return "error: bundle " + key + "is missing. Please report it.";
+        if(!defaultBundle.containsKey(key)) return "error: bundle " + key + " is missing. Please report it.";
         return defaultBundle.getString(key);
     }
 

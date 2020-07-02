@@ -13,6 +13,7 @@ import mindustry.gen.Call;
 import mindustry.type.UnitType;
 import org.json.simple.JSONObject;
 import theWorst.Config;
+import theWorst.Main;
 import theWorst.Tools.Formatting;
 import theWorst.Tools.Players;
 import theWorst.database.PlayerD;
@@ -65,6 +66,7 @@ public class Factory implements Destroyable, Displayable {
         loadUnits();
         loadConfig();
         Hud.addDisplayable(this);
+        Main.addDestroyable(this);
     }
 
     public static UnitType getUnitByName(String name) {
@@ -207,7 +209,7 @@ public class Factory implements Destroyable, Displayable {
     public String info(){
         StringBuilder sb = new StringBuilder();
         sb.append("[orange]==FACTORY INFO==[]\n\n");
-        for(UnitType u : units.keySet()){
+        for(UnitType u : config.prices.keySet()){
             sb.append(new UnitStack(u, units.get(u)).toString()).append("\n");
         }
         return sb.toString();

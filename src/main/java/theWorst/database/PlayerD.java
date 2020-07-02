@@ -9,6 +9,7 @@ import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import theWorst.Config;
+import theWorst.helpers.gameChangers.Pet;
 
 import java.util.ArrayList;
 import java.util.HashSet;

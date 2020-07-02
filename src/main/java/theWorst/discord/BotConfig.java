@@ -62,7 +62,7 @@ public class BotConfig {
                             continue;
                         }
                         this.roles.put(key, optional.get());
-                        serverId = optional.get().getServer().getId();
+                        if(serverId == null) serverId = optional.get().getServer().getId();
                     }
                 }
 

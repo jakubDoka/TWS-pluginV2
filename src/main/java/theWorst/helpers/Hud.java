@@ -105,7 +105,7 @@ public class Hud {
                 } else this.args.add(arg);
             }
             for(Player p : playerGroup){
-                if(!Database.hasEnabled(player, Setting.hud)){
+                if(!Database.hasEnabled(p, Setting.hud)){
                     p.sendMessage(getMessage(Database.getData(p)));
                 }
             }

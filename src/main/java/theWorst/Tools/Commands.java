@@ -41,24 +41,6 @@ public class Commands {
         return message.startsWith("/") || message.equalsIgnoreCase("y") || message.equalsIgnoreCase("n");
     }
 
-    public static <T> Object getPropertyByName(Class<T> tClass, String propertyName, Object object) {
-        try {
-            Field field = tClass.getDeclaredField(propertyName);
-            return field.get(object);
-        } catch (IllegalAccessException | NoSuchFieldException e) {
-            return null;
-        }
-    }
-
-    public static <T> String[] getPropertyNameList(Class<T> tClass){
-        Field[] fields = tClass.getDeclaredFields();
-        String[] res = new String[fields.length];
-        for(int i = 0; i < res.length; i++){
-            res[i] = fields[i].getName();
-        }
-        return res;
-    }
-
     //beautiful spaghetti in deed
     public static Res setRankViaCommand(Player player, String target, String rank, String reason) {
 

@@ -4,6 +4,7 @@ import arc.math.Mathf;
 import arc.util.Log;
 import mindustry.Vars;
 import mindustry.type.Item;
+import theWorst.Main;
 import theWorst.helpers.gameChangers.ItemStack;
 import mindustry.type.ItemType;
 import mindustry.world.blocks.storage.CoreBlock;
@@ -74,13 +75,15 @@ public class Loadout implements Displayable, Destroyable {
     }
 
     public Loadout(){
-        Hud.addDisplayable(this);
+
         for(Item i : Vars.content.items()){
             if(i.type != ItemType.material) continue;
             items.put(i, 0);
         }
         loadRes();
         loadConfig();
+        Hud.addDisplayable(this);
+        Main.addDestroyable(this);
     }
 
     public String info(){

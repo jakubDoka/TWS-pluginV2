@@ -7,8 +7,6 @@ import arc.math.geom.Vec2;
 import arc.struct.Array;
 import arc.util.CommandHandler;
 import arc.util.Strings;
-import arc.util.Timer;
-import jdk.internal.org.objectweb.asm.Handle;
 import mindustry.entities.type.BaseUnit;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
@@ -21,7 +19,6 @@ import mindustry.type.ItemType;
 import mindustry.type.UnitType;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
-import theWorst.Tools.Players;
 import theWorst.database.*;
 import theWorst.helpers.Hud;
 import theWorst.helpers.MapD;
@@ -56,7 +53,6 @@ public class InGameCommands {
         VoteData run(String[] args, Player player);
     }
 
-    //todo/ranks special bug
 
     public InGameCommands(){
         Events.on(EventType.PlayerChatEvent.class,e->{
@@ -75,6 +71,14 @@ public class InGameCommands {
             loadout = new Loadout();
             factory = new Factory(loadout);
         });
+    }
+
+    private boolean handleHammer(Vote vote, PlayerD pd,Player player) {
+        if(vote.voting && vote.voteData.target instanceof PlayerD && ((PlayerD)vote.voteData.target).uuid == pd.uuid){
+            vote.addVote(player, "y");
+            return true;
+        }
+        return false;
     }
 
 
@@ -118,28 +122,28 @@ public class InGameCommands {
             Call.onInfoMessage(player.con,"[orange]==RULES==[]\n\n"+rules);
         });
 
-        Command mkgfCommand = (args,player)->{
-            //todo this does not work on players with rank fix it
+        Command mkgfCommand = (args,player)-> {
             PlayerD pd = Database.findData(cleanName(args[0]));
-            if(pd == null){
+            if (pd == null) {
                 sendErrMessage(player, "player-not-found");
                 return null;
             }
-            if(pd.uuid.equals(player.uuid)){
-                sendErrMessage(player,"mkgf-self");
+            if (pd.uuid.equals(player.uuid)) {
+                sendErrMessage(player, "mkgf-self");
                 return null;
             }
-            if(getRank(pd).isAdmin){
-                sendErrMessage(player,"mkgf-target-admin");
+            if (getRank(pd).isAdmin) {
+                sendErrMessage(player, "mkgf-target-admin");
                 return null;
             }
 
-            VoteData voteData = new VoteData(){
+            VoteData voteData = new VoteData() {
                 {
                     by = player;
                     target = pd;
                     reason = pd.rank.equals(Rank.griefer.name()) ? "mkgf-remove" : "mkgf-add";
                 }
+
                 @Override
                 public void run() {
                     if (pd.rank.equals(Rank.griefer.name())) {
@@ -150,15 +154,20 @@ public class InGameCommands {
                 }
             };
 
-            if(player.isAdmin){
+            if (player.isAdmin) {
                 voteData.run();
                 sendMessage("mkgf-admin-marked", getData(player).originalName, pd.originalName);
                 return null;
             }
-        if(playerGroup.size()<3){
-            sendErrMessage(player,"mkgf-not-enough");
-            return null;
-        }
+
+            if(handleHammer(vote, pd, player) || handleHammer(voteKick, pd, player)){
+                return null;
+            }
+
+            if (playerGroup.size() < 3) {
+                sendErrMessage(player, "mkgf-not-enough");
+                return null;
+            }
             return voteData;
         };
 
@@ -169,18 +178,8 @@ public class InGameCommands {
         });
 
         handler.<Player>register("voteKick","<name/id>","Opens vote for marking player a griefer.",(args,player)->{
-            if(voteKick.voting ) {
-                PlayerD pd = Database.findData(cleanName(args[0]));
-                if (pd == null){
-                    sendErrMessage(player, "vote-in-process");
-                    return;
-                }
-                if(((PlayerD)voteKick.voteData.target).serverId == pd.serverId) voteKick.addVote(player, "y");
-                return;
-            }
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            //todo make this count as y if player uses hammer
             voteKick.aVote(voteData,5, ((PlayerD)voteData.target).originalName);
         });
 
@@ -622,20 +621,19 @@ public class InGameCommands {
             Call.onInfoMessage(player.con, formPage(res, page, args[0] + " ranks", 20));
         });
 
-        handler.<Player>register("l","<put/get/info/help> [amount] [item/all]","More info via /l help.", (args, player)-> {
-
+        handler.<Player>register("l","<put/get/info/help> [amount] [item/all] [condition]","More info via /l help.", (args, player)-> {
             if (args.length == 1) {
                 switch (args[0]){
                     case "info":
                         Call.onInfoMessage(player.con, loadout.info());
                         return;
                     case "help":
-                        sendInfoPopup(player,"loadout-help"); //todo
+                        sendInfoPopup(player,"loadout-help");
                         return;
                     default:
                         sendErrMessage(player, "invalid-mode");
                 }
-            } else if (args.length == 3) {
+            } else if (args.length >= 3) {
                 VoteData data;
                 CoreBlock.CoreEntity core = getCore();
                 if(core == null){
@@ -653,13 +651,23 @@ public class InGameCommands {
                 switch (args[0]) {
                     case "fill":
                     case "put":
+                        int condition = 0;
                         ArrayList<ItemStack> stacks = new ArrayList<>();
                         if(args[2].equals("all")){
+
+                            if(args.length == 4){
+                                if(!Strings.canParsePostiveInt(args[3])){
+                                    sendErrMessage(player, "refuse-not-integer", "4");
+                                    return;
+                                }
+                                condition = Integer.parseInt(args[3]);
+                            }
                             arg = args[1] + "of all resources";
                             int total = 0;
                             for(Item i : content.items()){
                                 if(i.type != ItemType.material) continue;
                                 int am = core.items.get(i);
+                                if (am < condition) continue;
                                 total += am;
                                 stacks.add(new ItemStack(i, Mathf.clamp(amount, 0 ,am)));
                             }
@@ -677,6 +685,9 @@ public class InGameCommands {
                                 return;
                             }
                             arg = Loadout.stackToString(stack);
+                        }
+                        if(condition != 0) {
+                            Hud.addAd("loadout-condition", 10 ,"" + condition, "!gray", "!white");
                         }
                         ItemStack finalStack = stack;
                         data = new VoteData() {
@@ -754,6 +765,11 @@ public class InGameCommands {
                 }
                 data.by = player;
                 data.target = stack;
+                if(Database.hasSpecialPerm(player, Perm.loadout)) {
+                    data.run();
+                    Hud.addAd("loadout-player-launch", 10, player.name, "!gray");
+                    return;
+                }
                 vote.aVote(data, 3, arg, secToTime(Loadout.config.shipSpeed));
             } else {
                 wrongArgAmount(player, args, 3);
@@ -781,11 +797,11 @@ public class InGameCommands {
                 int amount = Integer.parseInt(args[1]);
                 UnitType unit = Factory.getUnitByName(args[2]);
                 if(unit == null || !Factory.config.prices.containsKey(unit)){
-                    sendErrMessage(player, "factory-does-not-build-this", args[2]);//todo
+                    sendErrMessage(player, "factory-does-not-have-this", args[2]);
                     return;
                 }
                 UnitStack unitStack = new UnitStack(unit, amount);
-                String arg = "";
+                String arg;
                 String arg2 = "";
                 switch (args[0]) {
                     case "priceof":
@@ -794,14 +810,14 @@ public class InGameCommands {
                     case "build":
                         UnitStack affordable = factory.canAfford(unitStack.unit);
                         if (affordable.amount == 0) {
-                            sendErrMessage(player, "factory-cannot-afford");//todo
+                            sendErrMessage(player, "factory-cannot-afford");
                             return;
                         }
                         unitStack.amount = Math.min(affordable.amount, unitStack.amount);
                         arg = unitStack.toString();
                         data = new VoteData() {
                             {
-                                reason = "factory-build";//todo
+                                reason = "factory-build";
                             }
 
                             @Override
@@ -817,22 +833,22 @@ public class InGameCommands {
                                     @Override
                                     public void onFinish() {
                                         factory.add(stack);
-                                        Hud.addPositiveAdd("factory-build-finish", 10);//todo
+                                        Hud.addPositiveAdd("factory-build-finish", 10);
                                     }
                                 });
                             }
                         };
                         break;
                     case "call":
-                        Tile tile = world.tile((int)player.x/8,(int)player.x/8);
+                        Tile tile = world.tile((int)player.x/8,(int)player.y/8);
                         if(tile == null || tile.solid()){
-                            sendErrMessage(player, "factory-cannot-drop-units");//todo
+                            sendErrMessage(player, "factory-cannot-drop-units");
                             return;
                         }
                         arg2 = tile.x + "," + tile.x;
                         UnitStack available = factory.canWithdraw(unitStack);
                         if(available.amount == 0){
-                            sendErrMessage(player, "factory-no-unis-available");//todo
+                            sendErrMessage(player, "factory-no-unis-available");
                             return;
                         }
                         UnitStack transportable = new UnitStack(unit,0);
@@ -853,9 +869,10 @@ public class InGameCommands {
                         factory.withdraw(transportable);
                         String finalArg = arg;
                         String finalArg1 = arg2;
+                        Vec2 aPos = new Vec2(player.x, player.y);
                         data = new VoteData() {
                             {
-                                reason = "factory-call";//todo
+                                reason = "factory-call";
                             }
                             @Override
                             public void run() {
@@ -869,7 +886,7 @@ public class InGameCommands {
                                             stack = fStack;
                                             time = Factory.config.shipSpeed;
                                             building = false;
-                                            pos = new Vec2(player.x, player.y);
+                                            pos = aPos;
                                         }
                                         @Override
                                         public void onFinish() {
@@ -878,7 +895,7 @@ public class InGameCommands {
                                                 bu.set(pos.x, pos.y);
                                                 bu.add();
                                             }
-                                            Hud.addAd("factory-units-arrived", 10, finalArg, finalArg1, "!green", "!gray");//todo
+                                            Hud.addAd("factory-units-arrived", 10, finalArg, finalArg1, "!green", "!gray");
                                         }
                                     });
                                 }
@@ -891,6 +908,11 @@ public class InGameCommands {
                 }
                 data.target = unitStack;
                 data.by = player;
+                if(Database.hasSpecialPerm(player, Perm.factory)) {
+                    data.run();
+                    Hud.addAd("factory-player-launch", 10, player.name, "!gray");
+                    return;
+                }
                 vote.aVote(data, 3, arg, arg2);
             } else {
                 wrongArgAmount(player, args, 3);
@@ -934,33 +956,33 @@ public class InGameCommands {
 
         handler.<Player>register("suicide","Kill your self.",(arg, player) -> {
             if(!Database.hasSpecialPerm(player,Perm.suicide)){
-                sendErrMessage(player, "suicide-no-perm");//todo
+                sendErrMessage(player, "suicide-no-perm");
                 return;
             }
             player.onDeath();
             player.kill();
-            sendMessage("suicide-committed", player.name);//todo
+            sendMessage(Mathf.random(100) < 2 ? "suicide-committed-special" : "suicide-committed", player.name);
         });
 
-        handler.<Player>register("dm","<player/id/help/message...>","more info via /dm help",(args,player)->{
+        handler.<Player>register("dm","<player/id/help/message...>","More info via /dm help.",(args,player)->{
             if(args[0].equals("help")) {
-                sendMessage(player, "dm-help");//todo
+                sendMessage(player, "dm-help");
             } else if(args[0].startsWith("!")){
                 Player found = findPlayer(args[0].substring(1));
                 if(found == null){
-                    sendErrMessage(player, "player-not-found");//todo
+                    sendErrMessage(player, "player-not-found");
                     return;
                 }
                 dms.put(player.uuid, found.uuid);
-                sendMessage(player, "dm-channel-set");//todo
+                sendMessage(player, "dm-channel-set", player.name);
             } else {
                 if(dms.containsKey(player.uuid)) {
-                    sendErrMessage(player, "dm-no-channel-set");//todo
+                    sendErrMessage(player, "dm-no-channel-set");
                     return;
                 }
                 Player found = playerGroup.find(p -> p.uuid.equals(dms.get(player.uuid)));
                 if(found == null){
-                    sendErrMessage(player, "dm-target-offline");//todo
+                    sendErrMessage(player, "dm-target-offline");
                     return;
                 }
                 player.sendMessage("[#ffdfba][[[#" + found.color + "]" + found.name + "[]]:[white]" + args[0]);

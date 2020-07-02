@@ -64,7 +64,7 @@ public abstract class Command {
     public boolean hasPerm(CommandContext ctx) {
         if (ctx.event.isPrivateMessage()) return false;
         // role is null so everyone can use command
-        if (role == null) return true;
+        if (role == null || role.length == 0) return true;
         // i am simply not going to touch this
         List<Role> roles = ctx.event.getMessageAuthor().asUser().get().getRoles(ctx.event.getServer().get());
         for(String r : role){

@@ -30,6 +30,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import theWorst.Bot;
 import theWorst.Config;
+import theWorst.helpers.gameChangers.Pet;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -63,7 +64,7 @@ public class Database {
     static MongoOperations data = new MongoTemplate(client, Config.dbName);
     static HashMap<String,PlayerD> online = new HashMap<>();
     public static HashMap<String,SpecialRank> ranks=new HashMap<>();
-    public static HashMap<String,Pet> pets=new HashMap<>();
+    public static HashMap<String, Pet> pets=new HashMap<>();
     static HashSet<String> subnet = new HashSet<>();
 
     private static final PlayerD defaultPD = new PlayerD(){{
@@ -126,40 +127,39 @@ public class Database {
             Timer.schedule(new Timer.Task() {
                 @Override
                 public void run() {
-                    if (optionalUser.isDone()) {
-                        this.cancel();
-                        try {
-                            User user = optionalUser.get();
-                            if (user == null) return;
-                            Optional<Server> server = Bot.api.getServerById(Bot.config.serverId);
-                            if (!server.isPresent()) return;
-                            Rank finalR = null;
-                            SpecialRank finalDl = null;
-                            for (Role r : user.getRoles(server.get())) {
-                                String roleName = r.getName();
-                                if(enumContains(Rank.values(),roleName)){
-                                    Rank rank = Rank.valueOf(r.getName());
-                                    if (Rank.valueOf(pd.rank).getValue() < rank.getValue()) {
-                                        finalR = rank;
-                                    }
-                                } else if (ranks.containsKey(roleName)){
-                                    SpecialRank dl = ranks.get(pd.donationLevel);
-                                    SpecialRank ndl = ranks.get(roleName);
-                                    if(pd.donationLevel == null || dl == null || dl.value < ndl.value){
-                                        pd.donationLevel = roleName;
-                                        finalDl = ndl;
-                                    }
+                    if (!optionalUser.isDone()) return;
+                    this.cancel();
+                    try {
+                        User user = optionalUser.get();
+                        if (user == null) return;
+                        Optional<Server> server = Bot.api.getServerById(Bot.config.serverId);
+                        if (!server.isPresent()) return;
+                        Rank finalR = null;
+                        SpecialRank finalDl = null;
+                        for (Role r : user.getRoles(server.get())) {
+                            String roleName = r.getName();
+                            if (enumContains(Rank.values(), roleName)) {
+                                Rank rank = Rank.valueOf(roleName);
+                                if (Rank.valueOf(pd.rank).getValue() < rank.getValue()) {
+                                    finalR = rank;
+                                }
+                            }else if (ranks.containsKey(roleName)) {
+                                SpecialRank dl = ranks.get(pd.donationLevel);
+                                SpecialRank ndl = ranks.get(roleName);
+                                if (pd.donationLevel == null || dl == null || dl.value < ndl.value) {
+                                    pd.donationLevel = roleName;
+                                    finalDl = ndl;
                                 }
                             }
-                            if(pd.donationLevel != null) {
-                                updateName(e.player, pd);
-                                addPets(pd, finalDl);
-                            }
-                            if(finalR == null) return;
-                            setRank(pd, finalR, e.player);
-                        } catch (InterruptedException | ExecutionException interruptedException) {
-                            interruptedException.printStackTrace();
                         }
+                        if (pd.donationLevel != null) {
+                            updateName(e.player, pd);
+                            addPets(pd, finalDl);
+                        }
+                        if (finalR == null) return;
+                        setRank(pd, finalR, e.player);
+                    } catch (InterruptedException | ExecutionException interruptedException) {
+                        interruptedException.printStackTrace();
                     }
                 }
             }, 0, .1f);
