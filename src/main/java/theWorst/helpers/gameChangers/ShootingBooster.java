@@ -108,7 +108,7 @@ public class ShootingBooster {
                 array.add(weapon);
                 data.put("weapons",array);
                 saveJson(weaponFile, data.toJSONString());
-                logInfo("files-default-config-created","pets", weaponFile);
+                logInfo("files-default-config-created","weapons", weaponFile);
             } catch (JsonProcessingException | ParseException e) {
                 e.printStackTrace();
             }

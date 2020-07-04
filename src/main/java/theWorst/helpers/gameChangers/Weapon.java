@@ -5,6 +5,7 @@ import arc.math.geom.Position;
 import arc.math.geom.Vec2;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.content.Bullets;
 import mindustry.entities.bullet.BulletType;
@@ -24,8 +25,7 @@ public class Weapon {
     public int bulletsPerShot = 1, consumes = 1, ammoEfficiency = 1;
     boolean valid = true;
 
-    @JsonGetter
-    public String getBullet() {
+    @JsonGetter public String getBullet() {
         return "flakGlass";
     }
     @JsonGetter public String getItem() {
@@ -45,7 +45,7 @@ public class Weapon {
             @JsonProperty("accuracy") float accuracy,
             @JsonProperty("bulletsPerShot") int bulletsPerShot,
             @JsonProperty("consumes") int consumes,
-            @JsonProperty("ammoEfficiency") int ammoEfficiency ){
+            @JsonProperty("ammoEfficiency") int ammoEfficiency){
         this.bullet = (BulletType) getPropertyByName(Bullets.class, bullet, null);
         if(this.bullet == null){
             logInfo("weapon-invalid-bullet");
@@ -64,7 +64,7 @@ public class Weapon {
         this.ammoEfficiency = ammoEfficiency;
     }
 
-    public float getRange(){
+    @JsonIgnore public float getRange(){
         return bullet.speed * velMul * bullet.lifetime * liveMul;
     }
 

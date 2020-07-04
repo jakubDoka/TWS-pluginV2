@@ -4,6 +4,7 @@ import arc.graphics.Color;
 import arc.math.geom.Vec2;
 import arc.util.Time;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.content.Fx;
 import mindustry.entities.Effects;
@@ -38,7 +39,7 @@ public class Pet {
             @JsonProperty("maxSpeed") float maxSpeed,
             @JsonProperty("attraction") float attraction,
             @JsonProperty("trailName") String  trailName,
-            @JsonProperty("colorCode") String  colorCode,
+            @JsonProperty("color") String  color,
             @JsonProperty("name") String  name,
             @JsonProperty("weapon") String weapon){
         this.acceleration = acceleration;
@@ -57,8 +58,12 @@ public class Pet {
                 logInfo("pet-invalid-trail", name, trailName);
             }
         }
-        color = Color.valueOf(colorCode);
+        this.color = Color.valueOf(color);
         this.weapon = ShootingBooster.weapons.get(weapon);
+    }
+
+    @JsonGetter public String getColor() {
+        return color.toString();
     }
 
     public Pet(Pet other){
