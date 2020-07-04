@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.content.Bullets;
 import mindustry.entities.bullet.BulletType;
 import mindustry.entities.type.Player;
+import mindustry.game.Team;
 import mindustry.gen.Call;
 import mindustry.type.Item;
 
@@ -63,10 +64,26 @@ public class Weapon {
         this.ammoEfficiency = ammoEfficiency;
     }
 
-    public void shoot(Player player, float rotation, Position pos){
+    public float getRange(){
+        return bullet.speed * velMul * bullet.lifetime * liveMul;
+    }
+
+    public void shoot(Player player,float angle, Position pos){
+        Team team = player.getTeam();
+        float x = pos.getX(), y = pos.getY();
         for(int i = 0; i < bulletsPerShot; i++){
-            Call.createBullet(bullet, player.getTeam(), pos.getX(), pos.getY(),
-                    rotation + Mathf.random(-accuracy,accuracy), velMul, liveMul);
+            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy,accuracy), velMul, liveMul);
+        }
+    }
+
+    public void playerShoot(Player player){
+        float angle = player.angleTo(player.pointerX, player.pointerY);
+        Team team = player.getTeam();
+        BulletType pb = player.mech.weapon.bullet;
+        float x = player.getX(), y = player.getY();
+        for(int i = 0;i < bulletsPerShot; i++){
+            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy, accuracy),
+                    pb.speed / bullet.speed, pb.lifetime / bullet.lifetime);
         }
     }
 }

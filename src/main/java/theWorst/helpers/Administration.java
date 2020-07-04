@@ -1,6 +1,8 @@
 package theWorst.helpers;
 
 import arc.Events;
+import arc.math.Mathf;
+import arc.util.Log;
 import arc.util.Time;
 import arc.util.Timer;
 import mindustry.entities.type.Player;
@@ -66,19 +68,6 @@ public class Administration implements Displayable{
             }
             Call.onLabel(e.player.con, msg.toString(), 8, e.tile.x * 8, e.tile.y * 8);
         });
-        //updating verification of tiles
-        Events.on(EventType.BlockBuildEndEvent.class, e -> {
-            //in case this is builder drone
-            if (e.player == null) return;
-            TileInfo ti = data[e.tile.y][e.tile.x];
-            if (e.breaking) {
-                ti.lock = 0;
-            } else {
-                if (getRank(Database.getData(e.player)).permission.getValue() >= Perm.high.getValue()) {
-                    ti.lock = 1;
-                }
-            }
-        });
         //disable lock if block wos destroyed
         Events.on(EventType.BlockDestroyEvent.class, e -> data[e.tile.y][e.tile.x].lock = 0);
         //this is against spam bots
@@ -123,11 +112,11 @@ public class Administration implements Displayable{
                 return null;
             });
 
-            netServer.admins.addActionFilter((act) -> {
+            netServer.admins.addActionFilter( act -> {
                 Player player = act.player;
                 if (player == null) return true;
-                PlayerD pd=Database.getData(player);
-                if (pd == null) return false;
+                PlayerD pd = Database.getData(player);
+                if (pd == null) return true;
                 pd.onAction(player);
                 Rank rank = getRank(pd);
                 //taping on tiles is ok.
@@ -143,14 +132,14 @@ public class Administration implements Displayable{
                     }
                     recent.put(player.uuid, val+1);
                 }
-                TileInfo ti=data[act.tile.y][act.tile.x];
                 //if there is emergency
-                if(emergency.isActive() && rank.permission.getValue()<Perm.high.getValue()) {
+                if(emergency.isActive() && rank.permission.getValue() < Perm.high.getValue()) {
                     sendErrMessage(player,"at-least-verified",Rank.verified.getName());
                     return false;
                 }
+                TileInfo ti = data[act.tile.y][act.tile.x];
                 //if player has to low permission to interact
-                if(!(rank.permission.getValue()>=ti.lock)){
+                if(rank.permission.getValue() < ti.lock){
                     if(rank==Rank.griefer){
                         sendErrMessage(player,"griefer-no-perm");
                     }else {
@@ -161,6 +150,7 @@ public class Administration implements Displayable{
                 }
                 //remember tis action for inspect.
                 ti.data.put(act.type.name(),pd);
+                ti.lock = Mathf.clamp(rank.permission.getValue(), 0, 1);
                 return true;
 
             });
@@ -197,7 +187,7 @@ public class Administration implements Displayable{
             used+=1;
             if(used>=commandUseLimit){
                 netServer.admins.addSubnetBan(player.con.address.substring(0,player.con.address.lastIndexOf(".")));
-                kick(player,"kick-spamming");
+                kick(player,"kick-spamming",0);
                 terminate();
                 return;
             }

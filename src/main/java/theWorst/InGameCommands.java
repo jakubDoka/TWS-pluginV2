@@ -19,6 +19,7 @@ import mindustry.type.ItemType;
 import mindustry.type.UnitType;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
+import theWorst.Tools.Players;
 import theWorst.database.*;
 import theWorst.helpers.Hud;
 import theWorst.helpers.MapD;
@@ -917,6 +918,23 @@ public class InGameCommands {
             } else {
                 wrongArgAmount(player, args, 3);
             }
+        });
+
+        handler.<Player>register("kickafk", "Kicks all afk players",(args, player)->{
+            vote.aVote(new VoteData() {
+                {
+                    reason = "kickafk";
+                    by = player;
+                }
+                @Override
+                public void run() {
+                    for(Player p :playerGroup){
+                        if(getData(p).afk) {
+                            kick(p, "kickafk-kick", 0);
+                        }
+                    }
+                }
+            }, 4);
         });
 
         handler.<Player>register("skipwave", "[1-5]", "Skips amount of waves.",(args, player)->{

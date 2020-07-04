@@ -11,13 +11,14 @@ import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
+import theWorst.helpers.gameChangers.ItemStack;
+import theWorst.helpers.gameChangers.UnitStack;
 
 
 import java.util.HashSet;
 import java.util.Set;
 
-import static mindustry.Vars.player;
-import static mindustry.Vars.playerGroup;
+import static mindustry.Vars.*;
 import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.General.getRank;
 import static theWorst.Tools.Players.getTranslation;
@@ -147,10 +148,18 @@ public class Vote implements Displayable, Destroyable {
         if (success) {
             voteData.run();
             Hud.addAd(voteData.reason + "-done", 10, args);
+            PlayerD pd = Database.getData(voteData.by);
+            if(voteData.target instanceof ItemStack){
+                pd.loadoutVotes++;
+            } else if(voteData.target instanceof UnitStack){
+                pd.factoryVotes++;
+            }
         } else {
-            recent.add(voteData.by);
+            if(!Database.hasPerm(voteData.by, Perm.high)){
+                recent.add(voteData.by);
+                sendErrMessage(voteData.by, "vote-failed-penalty");
+            }
             Hud.addAd(voteData.reason + "-fail", 10, args);
-            sendErrMessage(voteData.by, "vote-failed-penalty");
         }
     }
 

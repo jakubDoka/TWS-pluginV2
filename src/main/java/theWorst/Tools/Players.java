@@ -58,9 +58,9 @@ public class Players {
         Call.onInfoMessage(player.con,format(getTranslation(pd,kay),args));
     }
 
-    public static void kick(Player player, String kay, String ... args ){
+    public static void kick(Player player, String kay, int duration, String ... args ){
         PlayerD pd = Database.getData(player);
-        player.con.kick(format(getTranslation(pd,kay),args));
+        player.con.kick(format(getTranslation(pd,kay),args), duration);
     }
 
 

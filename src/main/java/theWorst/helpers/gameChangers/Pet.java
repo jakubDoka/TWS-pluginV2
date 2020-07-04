@@ -21,7 +21,6 @@ import static theWorst.Tools.General.getPropertyByName;
 public class Pet {
     boolean loaded = true;
     public float acceleration = .3f, maxSpeed = 7, attraction = 1f;
-    public float range = 20f;
     public String trailName = "fire";
     public String name = "fire-pet";
     float time = 0;
@@ -38,7 +37,6 @@ public class Pet {
             @JsonProperty("acceleration") float acceleration,
             @JsonProperty("maxSpeed") float maxSpeed,
             @JsonProperty("attraction") float attraction,
-            @JsonProperty("range") float range,
             @JsonProperty("trailName") String  trailName,
             @JsonProperty("colorCode") String  colorCode,
             @JsonProperty("name") String  name,
@@ -47,7 +45,6 @@ public class Pet {
         this.maxSpeed = maxSpeed;
         this.attraction = attraction;
         this.name = name;
-        this.range = range;
         if(name == null){
             this.name = "noName";
             logInfo("missing-name","pet");
@@ -70,7 +67,6 @@ public class Pet {
         this.trail = other.trail;
         this.color = other.color;
         this.attraction = other.attraction;
-        this.range = other.range;
         this.weapon = other.weapon;
     }
 
@@ -85,14 +81,15 @@ public class Pet {
         vel.clamp(0,maxSpeed);
         Call.onEffectReliable(trail, pos.x, pos.y, vel.angle() + 180, color);
         if(weapon == null) return;
+        float range = weapon.getRange();
         if(Units.invalidateTarget(target,player.getTeam(), pos.x, pos.y, range)){
             target = Units.closestEnemy(player.getTeam(), pos.x, pos.y, range, u -> !u.isDead());
         }
         if (loaded){
             loaded = false;
             if( player.isShooting()){
-                weapon.shoot(player, pos.angleTo(player.pointerX, player.pointerY), pos);
-            } else {
+                weapon.shoot(player,pos.angleTo(player.pointerX, player.pointerY), pos);
+            } else if(target != null){
                 Vec2 shootTo = Predict.intercept(pos.x, pos.y,target.getX(), target.getY(),
                         target.getTargetVelocityX(), target.getTargetVelocityY(), weapon.bullet.speed * weapon.velMul);
                 float angle = shootTo.sub(pos).angle();

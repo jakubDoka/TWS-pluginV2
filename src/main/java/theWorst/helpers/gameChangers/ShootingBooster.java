@@ -66,18 +66,18 @@ public class ShootingBooster {
             if (!player.isShooting()) return;
 
             if (sd.ammo == 0) {
-                if(items.amount == 0){
+                if(items.amount < weapon.consumes){
                     return;
                 }
                 if(items.item != sd.item){
                     sd.item = items.item;
                 }
                 sd.ammo += weapon.ammoEfficiency;
-                items.amount--;
+                items.amount -= weapon.consumes;
             }
             sd.loaded = false;
             sd.ammo--;
-            weapon.shoot(player, player.angleTo(player.pointerX, player.pointerY), player);
+            weapon.playerShoot(player);
         }));
         loadWeapons();
     }

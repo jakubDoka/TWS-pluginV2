@@ -39,7 +39,7 @@ public class Factory implements Destroyable, Displayable {
     public Factory(Loadout loadout){
         Events.on(EventType.ServerLoadEvent.class, e-> Vars.netServer.admins.addActionFilter(act-> {
             Player player = act.player;
-            if (player == null) return false;
+            if (player == null) return true;
             for (Thread t : threads) {
                 if (t.building) continue;
                 if (new Vec2(t.pos).sub(new Vec2(act.tile.getX(), act.tile.getY())).len() < config.dropZoneRadius) {
