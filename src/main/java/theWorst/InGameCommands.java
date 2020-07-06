@@ -674,7 +674,7 @@ public class InGameCommands {
                                 }
                                 condition = Integer.parseInt(args[3]);
                             }
-                            arg = args[1] + "of all resources";
+                            arg = args[1] + " of all resources";
                             int total = 0;
                             for(Item i : content.items()){
                                 if(i.type != ItemType.material) continue;
@@ -764,7 +764,7 @@ public class InGameCommands {
                                         @Override
                                         public void onArrival() {
                                             core.items.add(stack.item, stack.amount);
-                                            Hud.addAd("loadout-ship-arrived", 10, arg, "!green", "!gray");
+                                            sendMessage("loadout-ship-arrived", arg);
                                         }
                                     });
                                 }
@@ -845,7 +845,7 @@ public class InGameCommands {
                                     @Override
                                     public void onFinish() {
                                         factory.add(stack);
-                                        Hud.addPositiveAdd("factory-build-finish", 10);
+                                        sendMessage("factory-build-finish", stack.toString());
                                     }
                                 });
                             }
@@ -907,7 +907,7 @@ public class InGameCommands {
                                                 bu.set(pos.x, pos.y);
                                                 bu.add();
                                             }
-                                            Hud.addAd("factory-units-arrived", 10, finalArg, finalArg1, "!green", "!gray");
+                                            sendMessage("factory-units-arrived", finalArg, finalArg1);
                                         }
                                     });
                                 }
