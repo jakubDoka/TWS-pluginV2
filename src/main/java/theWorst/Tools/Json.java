@@ -12,7 +12,7 @@ import static theWorst.Tools.Commands.logInfo;
 
 public class Json {
     public interface RunLoad{
-        void run(JSONObject data);
+        void run(JSONObject data) throws IOException;
     }
 
     public static void loadJson(String filename, RunLoad load, Runnable save) {
@@ -22,14 +22,14 @@ public class Json {
             JSONObject saveData = (JSONObject) obj;
             load.run(saveData);
             fileReader.close();
-            Log.info("Data from " + filename + " loaded.");
+            logInfo("files-data-loaded", filename);
         } catch (FileNotFoundException ex) {
-            Log.info("No " + filename + " found.Default one wos created.");
             save.run();
         } catch (ParseException ex) {
-            Log.info("Json file " + filename + " is invalid.");
+            logInfo("files-invalid", filename);
         } catch (IOException ex) {
-            Log.info("Error when loading data from " + filename + ".");
+            logInfo("files-invalid", filename);
+            ex.printStackTrace();
         }
     }
 
@@ -40,7 +40,7 @@ public class Json {
         try (FileWriter file = new FileWriter(filename)) {
             file.write(save);
         } catch (IOException ex) {
-            Log.info("Error when creating/updating "+filename+".");
+            logInfo("unable-to-create", filename);
             ex.printStackTrace();
         }
     }
@@ -53,10 +53,10 @@ public class Json {
                 return saveJackson(filename,type);
             }
             T val = mapper.readValue(f, type);
-            Log.info("data from " + filename + "loaded");
+            logInfo("files-data-loaded", filename);
             return val;
         } catch (IOException ex){
-            Log.info("Json file " + filename + " is invalid.");
+            logInfo("files-invalid", filename);
             return null;
         }
     }
@@ -70,11 +70,11 @@ public class Json {
             mapper.writeValue(f, obj);
             return obj;
         } catch (IOException ex){
-            Log.info("Error when creating/updating "+filename+".");
+            logInfo("unable-to-create", filename);
         } catch (IllegalAccessException | InstantiationException e) {
-            Log.info("Please report this error.");
+            logInfo("report");
             e.printStackTrace();
-            Log.info("Please report this error.");
+            logInfo("report");
         }
         return null;
     }

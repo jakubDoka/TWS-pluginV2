@@ -27,7 +27,7 @@ public class Global {
         public HashMap<String, String > rules;
         public HashMap<String, String > welcomeMessage;
 
-        Config() {}
+        public Config() {}
 
         @JsonCreator public Config(
                 @JsonProperty("alertPrefix") String alertPrefix,

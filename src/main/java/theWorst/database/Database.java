@@ -329,14 +329,9 @@ public class Database {
     public static void loadRanks() {
         ranks.clear();
         loadJson(rankFile,data -> {
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                SpecialRank[] srs = mapper.readValue(((JSONArray)data.get("ranks")).toJSONString(),SpecialRank[].class);
-                for(SpecialRank sr : srs)
-                    ranks.put(sr.name,sr);
-            } catch (IOException ex){
-                ex.printStackTrace();
-            }
+            ObjectMapper mapper = new ObjectMapper();
+            SpecialRank[] srs = mapper.readValue(((JSONArray)data.get("ranks")).toJSONString(),SpecialRank[].class);
+            for(SpecialRank sr : srs) ranks.put(sr.name,sr);
             boolean invalid = false;
             for(SpecialRank r : ranks.values()){
                 if(r.quests != null) {

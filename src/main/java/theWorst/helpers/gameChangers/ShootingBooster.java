@@ -88,15 +88,11 @@ public class ShootingBooster {
         weapons.clear();
         playerWeapons.clear();
         loadJson(weaponFile,data -> {
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                Weapon[] weapons = mapper.readValue(((JSONArray)data.get("weapons")).toJSONString(),Weapon[].class);
-                for(Weapon w : weapons) {
-                    if (w.item != null) playerWeapons.put(w.item.name, w);
-                    ShootingBooster.weapons.put(w.name, w);
-                }
-            } catch (IOException ex){
-                ex.printStackTrace();
+            ObjectMapper mapper = new ObjectMapper();
+            Weapon[] weapons = mapper.readValue(((JSONArray)data.get("weapons")).toJSONString(),Weapon[].class);
+            for(Weapon w : weapons) {
+                if (w.item != null) playerWeapons.put(w.item.name, w);
+                ShootingBooster.weapons.put(w.name, w);
             }
         },ShootingBooster::defaultWeapons);
     }

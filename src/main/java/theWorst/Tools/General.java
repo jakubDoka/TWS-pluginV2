@@ -31,7 +31,6 @@ public class General {
             Field field = tClass.getDeclaredField(propertyName);
             return field.get(object);
         } catch (IllegalAccessException | NoSuchFieldException e) {
-            e.printStackTrace();
             return null;
         }
     }
