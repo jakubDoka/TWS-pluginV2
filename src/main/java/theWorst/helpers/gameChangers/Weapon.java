@@ -65,11 +65,13 @@ public class Weapon {
         return bullet.speed * velMul * bullet.lifetime * liveMul;
     }
 
-    public void shoot(Player player,float angle, Position pos){
+    public void shoot(Player player, Position pos, float dx, float dy){
+        float angle = pos.angleTo(dx, dy);
         Team team = player.getTeam();
         float x = pos.getX(), y = pos.getY();
         for(int i = 0; i < bulletsPerShot; i++){
-            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy,accuracy), velMul, liveMul);
+            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy,accuracy), velMul,
+                    getLiveTime(pos, dx, dy, velMul, liveMul));
         }
     }
 
@@ -78,9 +80,16 @@ public class Weapon {
         Team team = player.getTeam();
         BulletType pb = player.mech.weapon.bullet;
         float x = player.getX(), y = player.getY();
+        float sMul = pb.speed / bullet.speed, lMul = pb.lifetime / bullet.lifetime;
         for(int i = 0;i < bulletsPerShot; i++){
-            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy, accuracy),
-                    pb.speed / bullet.speed, pb.lifetime / bullet.lifetime);
+            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy, accuracy), sMul,
+                    getLiveTime(player, player.pointerX, player.pointerY,sMul, lMul));
         }
+    }
+
+    public float getLiveTime(Position origin,float dx,float dy, float originalV, float originalL) {
+        if(bullet.collides) return originalL;
+        float val = origin.dst(dx, dy) / (bullet.speed * originalV * bullet.lifetime);
+        return Mathf.clamp(val, 0, originalL);
     }
 }

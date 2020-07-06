@@ -89,12 +89,11 @@ public class Pet {
         if (loaded){
             loaded = false;
             if( player.isShooting()){
-                weapon.shoot(player,pos.angleTo(player.pointerX, player.pointerY), pos);
+                weapon.shoot(player, pos, player.pointerX, player.pointerY);
             } else if(target != null){
                 Vec2 shootTo = Predict.intercept(pos.x, pos.y,target.getX(), target.getY(),
                         target.getTargetVelocityX(), target.getTargetVelocityY(), weapon.bullet.speed * weapon.velMul);
-                float angle = shootTo.sub(pos).angle();
-                weapon.shoot(player, angle, pos);
+                weapon.shoot(player, pos, shootTo.x, shootTo.y);
             }
         } else {
             time += Time.delta();
