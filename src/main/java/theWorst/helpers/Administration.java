@@ -8,7 +8,8 @@ import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
-import theWorst.Config;
+
+import theWorst.Global;
 import theWorst.database.*;
 
 import java.util.HashMap;
@@ -92,7 +93,7 @@ public class Administration implements Displayable{
                 }
                 //handle griefer messages
                 if (pd.rank.equals(Rank.griefer.name())) {
-                    if (Time.timeSinceMillis(pd.lastMessage) < Config.grieferAntiSpamTime) {
+                    if (Time.timeSinceMillis(pd.lastMessage) < Global.config.grieferAntiSpamTime) {
                         sendErrMessage(player, "griefer-too-match-messages");
                         return null;
                     }

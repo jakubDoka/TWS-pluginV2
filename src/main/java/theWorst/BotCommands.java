@@ -71,18 +71,15 @@ public class BotCommands {
             }
             @Override
             public void run(CommandContext ctx) {
-                if(!Strings.canParsePostiveInt(ctx.args[0])){
-                    ctx.reply("Server Id has to be integer.");
-                    return;
-                }
                 Optional<User> optionalUser = ctx.author.asUser();
                 if(!optionalUser.isPresent()){
                     ctx.reply("It appears that you are not a user.");
                     return;
                 }
                 User user = optionalUser.get();
-                PlayerD found = Database.query("discordLink",user.getIdAsString());
-                if(ctx.args[0].equals("disconnect")){
+                PlayerD found = Database.query("discordLink", user.getIdAsString());
+                if(ctx.args[0].equals("disconnect")) {
+
                     if( found == null){
                         ctx.reply("You don t have any linked account to disconnect.");
                     } else {
@@ -92,6 +89,11 @@ public class BotCommands {
                     }
                     return;
                 }
+                if(!Strings.canParsePostiveInt(ctx.args[0])){
+                    ctx.reply("Server Id has to be integer.");
+                    return;
+                }
+
                 if (found != null) {
                     ctx.reply("Your account is already linked to **" + cleanColors(found.originalName) +
                             "**. If you want to change the linked account use **" + config.prefix + "link disconnect**.");
@@ -104,9 +106,8 @@ public class BotCommands {
                 }
                 if(pd.discordLink != null && pd.discordLink.equals(user.getIdAsString())){
                     ctx.reply("You already have this account linked.");
-                    return;
                 }
-                String pin =String.valueOf(Mathf.random(1000,9999));
+                String pin = String.valueOf(Mathf.random(1000,9999));
                 user.sendMessage("Use /link "+pin+" command in game to confirm the linkage.");
                 pendingLinks.put(pd.serverId, new LinkData(user.getName(),pin, user.getIdAsString()));
             }
@@ -268,7 +269,7 @@ public class BotCommands {
                 Message message = ctx.event.getMessage();
                 MessageAttachment a = message.getAttachments().get(0);
 
-                String path = Config.dir + "postedMaps/" + a.getFileName();
+                String path = Global.dir + "postedMaps/" + a.getFileName();
                 makeFullPath(path);
                 try {
                     Files.copy(a.downloadAsInputStream(), Paths.get(path), StandardCopyOption.REPLACE_EXISTING);

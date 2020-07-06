@@ -2,34 +2,34 @@ package theWorst.helpers.gameChangers;
 
 import arc.math.Mathf;
 import arc.math.geom.Position;
-import arc.math.geom.Vec2;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.content.Bullets;
+import mindustry.content.Items;
 import mindustry.entities.bullet.BulletType;
 import mindustry.entities.type.Player;
 import mindustry.game.Team;
 import mindustry.gen.Call;
 import mindustry.type.Item;
 
-import static theWorst.Tools.Commands.logInfo;
+import java.io.IOException;
+
 import static theWorst.Tools.General.getPropertyByName;
 
 public class Weapon {
-    BulletType bullet;
-    Item item;
-    public String name = "noName";
-    public float velMul = 1f, liveMul = 1f, fireRate = .1f, accuracy;
-    public int bulletsPerShot = 1, consumes = 1, ammoEfficiency = 1;
-    boolean valid = true;
+    BulletType bullet = Bullets.standardCopper;
+    Item item = Items.copper;
+    public String name = "copperGun";
+    public float velMul = 1f, liveMul = 1f, fireRate = 5f, accuracy = 4;
+    public int bulletsPerShot = 2, consumes = 1, ammoMultiplier = 10;
 
     @JsonGetter public String getBullet() {
-        return "flakGlass";
+        return "standardCopper";
     }
     @JsonGetter public String getItem() {
-        return "metaglass";
+        return item.name;
     }
 
     Weapon(){}
@@ -45,13 +45,10 @@ public class Weapon {
             @JsonProperty("accuracy") float accuracy,
             @JsonProperty("bulletsPerShot") int bulletsPerShot,
             @JsonProperty("consumes") int consumes,
-            @JsonProperty("ammoEfficiency") int ammoEfficiency){
+            @JsonProperty("ammoMultiplier") int ammoMultiplier) throws IOException {
         this.bullet = (BulletType) getPropertyByName(Bullets.class, bullet, null);
         if(this.bullet == null){
-            logInfo("weapon-invalid-bullet");
-            valid = false;
-        } else {
-            valid = true;
+            throw new IOException("Invalid bullet type in weapon with name " + name + ".");
         }
         this.item = Loadout.getItemByName(item);
         this.name = name;
@@ -61,7 +58,7 @@ public class Weapon {
         this.accuracy = accuracy;
         this.bulletsPerShot = bulletsPerShot;
         this.consumes = consumes;
-        this.ammoEfficiency = ammoEfficiency;
+        this.ammoMultiplier = ammoMultiplier;
     }
 
     @JsonIgnore public float getRange(){

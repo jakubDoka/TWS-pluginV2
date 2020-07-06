@@ -6,7 +6,9 @@ import arc.math.Mathf;
 import arc.math.geom.Vec2;
 import arc.struct.Array;
 import arc.util.CommandHandler;
+import arc.util.Log;
 import arc.util.Strings;
+import mindustry.Vars;
 import mindustry.entities.type.BaseUnit;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
@@ -113,10 +115,14 @@ public class InGameCommands {
         });
 
         handler.<Player>register("rules","Shows rules of this server.",(args,player)->{
+            String rules = null;
+            if(Global.config.rules != null){
+                String dm = Global.config.rules.get("default");
+                rules = Global.config.rules.getOrDefault(getCountryCode(getData(player).bundle.getLocale()),dm);
+            }
 
-            String rules = Config.rules.getOrDefault(getCountryCode(getData(player).bundle.getLocale()),Config.rules.get("default"));
             if(rules == null){
-                sendMessage(player,"There are no rules on this server.");
+                sendErrMessage(player, "no-rules");
                 return;
             }
 
@@ -629,7 +635,12 @@ public class InGameCommands {
                         Call.onInfoMessage(player.con, loadout.info());
                         return;
                     case "help":
-                        sendInfoPopup(player,"loadout-help");
+                        StringBuilder sb = new StringBuilder();
+                        for(Item i : Vars.content.items()){
+                            if(i.type != ItemType.material) continue;
+                            sb.append("[#").append(i.color).append("]").append(i.name).append("[] ");
+                        }
+                        sendInfoPopup(player,"loadout-help", sb.toString());
                         return;
                     default:
                         sendErrMessage(player, "invalid-mode");

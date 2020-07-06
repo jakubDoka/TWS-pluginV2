@@ -26,6 +26,8 @@ public class SpecialRank implements Serializable {
     public HashMap<String, HashMap<String,Integer>> quests = null;
     public ArrayList<String> pets = null;
 
+    public SpecialRank() {}
+
     @JsonCreator public SpecialRank(
             @JsonProperty("name") String name,
             @JsonProperty("color") String color,
@@ -62,14 +64,10 @@ public class SpecialRank implements Serializable {
         Document rawData = Database.getRawMeta(tested.uuid);
         for(String stat : quests.keySet()){
             HashMap<String,Integer> quest = quests.get(stat);
-            if(quest.containsKey(Mod.required.name())){
-                Long val = (Long)rawData.get(stat);
-                if( val < quest.get(Mod.required.name())) return false;
-                if(quest.containsKey(Mod.frequency.name()) && quest.get(Mod.frequency.name()) > val/(tested.playTime/hour)) return false;
-            }
-            if(quest.containsKey(Mod.best.name())){
-                if(getPlace(stat, rawData) > quest.get(Mod.best.name())) return false;
-            }
+            Long val = (Long)rawData.get(stat);
+            if(quest.containsKey(Mod.required.name()) && val < quest.get(Mod.required.name())) return false;
+            if(quest.containsKey(Mod.frequency.name()) && quest.get(Mod.frequency.name()) > val/(tested.playTime/hour)) return false;
+            if(quest.containsKey(Mod.best.name()) && getPlace(stat, rawData) > quest.get(Mod.best.name())) return false;
         }
         return true;
     }

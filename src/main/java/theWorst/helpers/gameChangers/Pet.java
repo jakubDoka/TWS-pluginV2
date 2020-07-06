@@ -14,6 +14,7 @@ import mindustry.entities.traits.TargetTrait;
 import mindustry.entities.type.Player;
 import mindustry.gen.Call;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 import static theWorst.Tools.Commands.logInfo;
@@ -27,7 +28,6 @@ public class Pet {
     float time = 0;
 
     Vec2 pos = new Vec2(), vel = new Vec2();
-    Color color = Color.white;
     Effects.Effect trail = Fx.fire;
     TargetTrait target = null;
     Weapon weapon = null;
@@ -39,38 +39,34 @@ public class Pet {
             @JsonProperty("maxSpeed") float maxSpeed,
             @JsonProperty("attraction") float attraction,
             @JsonProperty("trailName") String  trailName,
-            @JsonProperty("color") String  color,
             @JsonProperty("name") String  name,
-            @JsonProperty("weapon") String weapon){
+            @JsonProperty("weapon") String weapon) throws IOException {
         this.acceleration = acceleration;
         this.maxSpeed = maxSpeed;
         this.attraction = attraction;
         this.name = name;
         if(name == null){
             this.name = "noName";
-            logInfo("missing-name","pet");
         }
         if(trailName != null){
             Effects.Effect resolved = (Effects.Effect) getPropertyByName(Fx.class,trailName,null);
             if(resolved != null){
                 trail = resolved;
             } else {
-                logInfo("pet-invalid-trail", name, trailName);
+                throw new IOException("Tee pet with name " + this.name + "has invalid trail");
             }
         }
-        this.color = Color.valueOf(color);
         this.weapon = ShootingBooster.weapons.get(weapon);
     }
 
-    @JsonGetter public String getColor() {
-        return color.toString();
+    public String getWeapon() {
+        return "copperGun";
     }
 
     public Pet(Pet other){
         this.name = other.name;
         this.acceleration = other.acceleration;
         this.trail = other.trail;
-        this.color = other.color;
         this.attraction = other.attraction;
         this.weapon = other.weapon;
     }
@@ -84,7 +80,7 @@ public class Pet {
             vel.add(new Vec2(p.pos).sub(pos).nor().scl(acceleration*attraction));
         }
         vel.clamp(0,maxSpeed);
-        Call.onEffectReliable(trail, pos.x, pos.y, vel.angle() + 180, color);
+        Call.onEffectReliable(trail, pos.x, pos.y, vel.angle() + 180, Color.white);
         if(weapon == null) return;
         float range = weapon.getRange();
         if(Units.invalidateTarget(target,player.getTeam(), pos.x, pos.y, range)){

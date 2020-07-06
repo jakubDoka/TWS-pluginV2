@@ -12,7 +12,7 @@ import mindustry.game.EventType;
 import mindustry.gen.Call;
 import mindustry.type.UnitType;
 import org.json.simple.JSONObject;
-import theWorst.Config;
+import theWorst.Global;
 import theWorst.Main;
 import theWorst.Tools.Formatting;
 import theWorst.Tools.Players;
@@ -28,8 +28,8 @@ import static theWorst.Tools.Formatting.secToTime;
 import static theWorst.Tools.Json.*;
 
 public class Factory implements Destroyable, Displayable {
-    static final String configFile = Config.configDir + "factoryConfig.json";
-    static final String saveFile = Config.saveDir + "factory.json";
+    static final String configFile = Global.configDir + "factoryConfig.json";
+    static final String saveFile = Global.saveDir + "factory.json";
     public static FactoryConfig config = new FactoryConfig();
     HashMap<UnitType, Integer> units = new HashMap<>();
     public ArrayList<Thread> threads = new ArrayList<>();

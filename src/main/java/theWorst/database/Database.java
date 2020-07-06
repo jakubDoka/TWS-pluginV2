@@ -1,6 +1,7 @@
 package theWorst.database;
 
 import arc.Events;
+import arc.graphics.Color;
 import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Time;
@@ -23,26 +24,21 @@ import org.javacord.api.entity.server.Server;
 import org.javacord.api.entity.user.User;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import theWorst.Bot;
-import theWorst.Config;
+import theWorst.Global;
 import theWorst.helpers.gameChangers.Pet;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import static mindustry.Vars.*;
+import static mindustry.Vars.netServer;
+import static mindustry.Vars.playerGroup;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static theWorst.Tools.Commands.logInfo;
 import static theWorst.Tools.Formatting.*;
@@ -55,20 +51,20 @@ import static theWorst.Tools.Players.sendMessage;
 public class Database {
     public static final String playerCollection = "playerD";
     public static final String AFK = "[gray]<AFK>[]";
-    static final String rankFile = Config.configDir + "specialRanks.json";
-    static final String petFile = Config.configDir + "pets.json";
-    static final String subnetFile = Config.saveDir + "subnetBuns.json";
+    static final String rankFile = Global.configDir + "specialRanks.json";
+    static final String petFile = Global.configDir + "pets.json";
+    static final String subnetFile = Global.saveDir + "subnetBuns.json";
     public static MongoClient client = MongoClients.create();
-    static MongoDatabase database = client.getDatabase(Config.dbName);
+    static MongoDatabase database = client.getDatabase(Global.config.dbName);
     static MongoCollection<Document> rawData = database.getCollection(playerCollection);
-    static MongoOperations data = new MongoTemplate(client, Config.dbName);
+    static MongoOperations data = new MongoTemplate(client, Global.config.dbName);
     static HashMap<String,PlayerD> online = new HashMap<>();
     public static HashMap<String,SpecialRank> ranks=new HashMap<>();
     public static HashMap<String, Pet> pets=new HashMap<>();
     static HashSet<String> subnet = new HashSet<>();
 
     private static final PlayerD defaultPD = new PlayerD(){{
-            oldMeta=new PlayerD();
+            oldMeta = new PlayerD();
             uuid = "default";
     }};
 
@@ -263,16 +259,16 @@ public class Database {
     }
 
     public static void reload(){
-        database = client.getDatabase(Config.dbName);
+        database = client.getDatabase(Global.config.dbName);
         rawData = database.getCollection(playerCollection);
-        data = new MongoTemplate(client, Config.dbName);
+        data = new MongoTemplate(client, Global.config.dbName);
     }
 
     //just for testing purposes
     public static void clean(){
         rawData.drop();
-        data = new MongoTemplate(client,Config.dbName);
-        rawData = MongoClients.create().getDatabase(Config.dbName).getCollection(playerCollection);
+        data = new MongoTemplate(client,Global.config.dbName);
+        rawData = MongoClients.create().getDatabase(Global.config.dbName).getCollection(playerCollection);
     }
 
     public static String getSubnet(PlayerD pd){
@@ -332,7 +328,6 @@ public class Database {
 
     public static void loadRanks() {
         ranks.clear();
-        AtomicBoolean res = new AtomicBoolean(true);
         loadJson(rankFile,data -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
@@ -372,46 +367,59 @@ public class Database {
                 ranks.clear();
                 logInfo("special-rank-file-invalid");
             }
-        },()->{
-            saveJson(rankFile, "{\n" +
-                    "    \"ranks\":[\n" +
-                    "        {\n" +
-                    "            \"name\":\"kamikaze\",\n" +
-                    "            \"color\":\"scarlet\",\n" +
-                    "            \"description\":{\n" +
-                    "               \"default\":\"Just die a lot.\"\n" +
-                    "            },\n" +
-                    "            \"value\":1,\n" +
-                    "            \"permissions\":[\"suicide\"],\n" +
-                    "            \"pets\":[\"fire-pet\"],\n" +
-                    "            \"quests\":{\n" +
-                    "                \"deaths\":{\n" +
-                    "                    \"best\":2\n" +
-                    "                }\n" +
-                    "            }\n" +
-                    "        },\n" +
-                    "        {\n" +
-                    "            \"name\":\"builder\",\n" +
-                    "            \"color\":\"green\",\n" +
-                    "            \"value\":5,\n" +
-                    "            \"permissions\":[\"build\"],\n" +
-                    "            \"quests\":{\n" +
-                    "                \"buildingsBuilt\":{\n" +
-                    "                    \"required\":10000,\n" +
-                    "                    \"frequency\":300\n" +
-                    "                }\n" +
-                    "            }\n" +
-                    "        }\n" +
-                    "    ]\n" +
-                    "}");
-            logInfo("files-default-config-created","special ranks", rankFile);
+        },Database::defaultRanks);
+    }
+
+    public static void defaultRanks(){
+        HashMap<String, ArrayList<SpecialRank>> ranks = new HashMap<>();
+        ArrayList<SpecialRank> arr = new ArrayList<>();
+        arr.add(new SpecialRank(){
+            {
+                name = "kamikaze";
+                color = "scarlet";
+                description = new HashMap<String, String>(){{
+                    put("default","put your description here.");
+                    put("en_US","Put translation like this.");
+                }};
+                value = 1;
+                permissions = new HashSet<String>(){{add(Perm.suicide.name());}};
+                quests = new HashMap<String, HashMap<String, Integer>>(){{
+                    put(Stat.deaths.name(), new HashMap<String, Integer>(){{
+                        put(Mod.best.name(), 10);
+                        put(Mod.required.name(), 100);
+                        put(Mod.frequency.name(), 20);
+                    }});
+                }};
+            }
         });
-        res.get();
+        arr.add(new SpecialRank(){{
+            name = "donor";
+            color = "#" + Color.gold.toString();
+            description = new HashMap<String, String>(){{
+                put("default","For people who support server financially.");
+            }};
+            permissions = new HashSet<String>(){{
+                add(Perm.colorCombo.name());
+                add(Perm.suicide.name());
+            }};
+            pets = new ArrayList<String>(){{
+                add("fire-pet");
+                add("fire-pet");
+            }};
+        }});
+        ranks.put("ranks", arr);
+        try {
+            saveJson(rankFile, new ObjectMapper().writeValueAsString(ranks));
+            logInfo("files-default-config-created","special ranks", rankFile);
+            loadRanks();
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            logInfo("files-default-config-failed","special ranks", rankFile);
+        }
     }
 
     public static void loadPets(){
         pets.clear();
-        AtomicBoolean res = new AtomicBoolean(true);
         loadJson(petFile,data -> {
             try {
                 ObjectMapper mapper = new ObjectMapper();
@@ -421,25 +429,21 @@ public class Database {
             } catch (IOException ex){
                 ex.printStackTrace();
             }
-        },()->{
+        },Database::defaultPets);
+    }
 
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-
-                JSONObject pet = (JSONObject) new JSONParser().parse(mapper.writeValueAsString(new Pet()));
-                JSONObject data = new JSONObject();
-                JSONArray array = new JSONArray();
-                array.add(pet);
-                data.put("pets",array);
-                saveJson(petFile, data.toJSONString());
-                logInfo("files-default-config-created","pets", petFile);
-            } catch (JsonProcessingException | ParseException e) {
-                e.printStackTrace();
-            }
-
-
-        });
-        res.get();
+    public static void defaultPets(){
+        try {
+            String data = new ObjectMapper().writeValueAsString(new HashMap<String, ArrayList<Pet>>(){{
+                put("pets",new ArrayList<Pet>(){{ add(new Pet()); }});
+            }});
+            saveJson(petFile, data);
+            logInfo("files-default-config-created","pets", petFile);
+            loadPets();
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            logInfo("files-default-config-failed","pets", petFile);
+        }
     }
 
     public static SpecialRank getSpecialRank(PlayerD pd) {
@@ -460,15 +464,15 @@ public class Database {
         player.name=pd.originalName;
         if (pd.afk){
             player.name += AFK;
-        } else if(pd.specialRank!=null) {
-            SpecialRank rank = getSpecialRank(pd);
+        } else if(pd.donationLevel != null) {
+            SpecialRank rank = getDonationLevel(pd);
             if(rank == null){
                 updateName(player,pd);
                 return;
             }
             player.name += rank.getSuffix();
-        } else if(pd.donationLevel != null) {
-            SpecialRank rank = getDonationLevel(pd);
+        } else if(pd.specialRank != null) {
+            SpecialRank rank = getSpecialRank(pd);
             if(rank == null){
                 updateName(player,pd);
                 return;

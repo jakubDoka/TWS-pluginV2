@@ -1,15 +1,13 @@
 package theWorst.helpers.gameChangers;
 
 import arc.math.Mathf;
-import arc.util.Log;
 import mindustry.Vars;
 import mindustry.type.Item;
-import theWorst.Main;
-import theWorst.helpers.gameChangers.ItemStack;
 import mindustry.type.ItemType;
 import mindustry.world.blocks.storage.CoreBlock;
 import org.json.simple.JSONObject;
-import theWorst.Config;
+import theWorst.Global;
+import theWorst.Main;
 import theWorst.database.PlayerD;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
@@ -27,8 +25,8 @@ import static theWorst.Tools.Players.sendMessage;
 public class Loadout implements Displayable, Destroyable {
     public static final String[] itemIcons = {"\uF838", "\uF837", "\uF836", "\uF835", "\uF832", "\uF831", "\uF82F", "\uF82E", "\uF82D", "\uF82C"};
     private final HashMap<Item, Integer> items = new HashMap<>();
-    static final String saveFile = Config.saveDir + "loadout.json";
-    static final String configFile = Config.configDir + "loadoutConfig.json";
+    static final String saveFile = Global.saveDir + "loadout.json";
+    static final String configFile = Global.configDir + "loadoutConfig.json";
     public static LoadoutConfig config = new LoadoutConfig();
     public ArrayList<Ship> ships = new ArrayList<>();
 

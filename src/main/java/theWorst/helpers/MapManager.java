@@ -13,7 +13,7 @@ import mindustry.maps.Map;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
-import theWorst.Config;
+import theWorst.Global;
 import theWorst.database.Database;
 
 import java.io.File;
@@ -26,7 +26,7 @@ import static org.springframework.data.mongodb.core.query.Criteria.where;
 
 public class MapManager {
     public static MapD played;
-    static MongoOperations data = new MongoTemplate(Database.client, Config.dbName);
+    static MongoOperations data = new MongoTemplate(Database.client, Global.config.dbName);
 
     public MapManager(){
         Events.on(EventType.GameOverEvent.class, e -> endGame(e.winner==Team.sharded));

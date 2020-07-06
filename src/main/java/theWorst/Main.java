@@ -6,32 +6,30 @@ import arc.util.CommandHandler;
 import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Time;
-import mindustry.content.Bullets;
-import mindustry.content.Fx;
+import mindustry.content.Blocks;
 import mindustry.core.GameState;
 import mindustry.game.EventType;
 import mindustry.plugin.Plugin;
-import theWorst.database.*;
+import mindustry.world.blocks.logic.MessageBlock;
+import theWorst.database.BackupManager;
+import theWorst.database.Database;
+import theWorst.database.PlayerD;
+import theWorst.database.Rank;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Hud;
 import theWorst.helpers.MapManager;
 import theWorst.helpers.gameChangers.Factory;
 import theWorst.helpers.gameChangers.Loadout;
-import theWorst.helpers.gameChangers.Pet;
 import theWorst.helpers.gameChangers.ShootingBooster;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.concurrent.CompletableFuture;
 
 import static arc.util.Log.info;
 import static mindustry.Vars.*;
-import static mindustry.Vars.maps;
 import static theWorst.Tools.Commands.*;
-import static theWorst.Tools.General.getPropertyNameList;
 
 public class Main extends Plugin {
     static Administration administration =  new Administration();
@@ -40,10 +38,23 @@ public class Main extends Plugin {
     static InGameCommands inGameCommands = new InGameCommands();
 
     public Main() {
+        Events.on(EventType.BlockDestroyEvent.class, e ->{
+            if(Global.config.alertPrefix == null) return;
+            if(e.tile == null) {
+                Log.info("Tile is null for some reason.");
+                return;
+            }
+            if (e.tile.entity instanceof MessageBlock.MessageBlockEntity) {
+                MessageBlock.MessageBlockEntity mb = (MessageBlock.MessageBlockEntity) e.tile.entity;
+                if (mb.message.startsWith(Global.config.alertPrefix)) {
+                    Hud.addAd("blank", 10, mb.message, "!scarlet", "!gray");
+                }
+            }
+        });
         Events.on(EventType.WorldLoadEvent.class,e-> destroyable.forEach(Destroyable::destroy));
 
         Events.on(EventType.ServerLoadEvent.class, e->{
-            Config.load();
+            Global.load();
             new ShootingBooster();
             new Database();
             new MapManager();
@@ -132,11 +143,10 @@ public class Main extends Plugin {
 
         handler.register("mapstats","Shows all maps with statistics.",args-> Log.info(MapManager.statistics()));
 
-        handler.register("wconfig","<target/help>", "Applies the factory configuration,settings and " +
-                "loads test questions.", args -> {
+        handler.register("wconfig","<target/help>", "Loads the targeted config.", args -> {
             switch (args[0]){
                 case "help":
-                    logInfo("show-modes","ranks, pets, general, discord, discordrolerestrict, loadout, factory");
+                    logInfo("show-modes","ranks, pets, general, discord, discordrolerestrict, loadout, factory, weapons");
                     return;
                 case "ranks":
                     Database.loadRanks();
@@ -145,7 +155,7 @@ public class Main extends Plugin {
                     Database.loadPets();
                     return;
                 case "general":
-                    Config.load();
+                    Global.load();
                     Database.reload();
                     return;
                 case "discord":
@@ -167,8 +177,7 @@ public class Main extends Plugin {
             }
         });
 
-        handler.register("wload","<target/help>", "Applies the factory configuration,settings and " +
-                "loads test questions.", args -> {
+        handler.register("wload","<target/help>", "Reloads the save file.", args -> {
             switch (args[0]){
                 case "help":
                     logInfo("show-modes","subnet,loadout,factory");
@@ -186,52 +195,6 @@ public class Main extends Plugin {
                     logInfo("invalid-mode");
             }
         });
-
-        handler.register("worsthelp","<target/help>", "Applies the factory configuration,settings and " +
-                "loads test questions.", args -> {
-            HashSet<String> banned = new HashSet<String>(){{
-                add("dynamicExplosion");
-                add("dropItem");
-                add("block");
-                add("shieldBreak");
-                add("incendTrail");
-                add("missileTrail");
-            }};
-            StringBuilder sb;
-            StringBuilder sb2;
-            switch (args[0]){
-                case "help":
-                    logInfo("show-modes", "ranks,pets");
-                    return;
-                case "ranks":
-                    sb = new StringBuilder();
-                    for(Perm s : Perm.values()){
-                        if(s.description == null) continue;
-                        sb.append(s.name()).append(" - ").append(s.description).append("\n");
-                    }
-                    sb2 = new StringBuilder();
-                    for(Stat s : Stat.values()){
-                        sb2.append(s.name()).append(" ");
-                    }
-                    logInfo("worsthelp-ranks",sb.toString(),sb2.toString());
-                    return;
-                case "pets":
-                    sb = new StringBuilder();
-                    for(String s : getPropertyNameList(Fx.class)){
-                        if(banned.contains(s)) continue;
-                        sb.append(s).append(" ");
-                    }
-                    sb2 = new StringBuilder();
-                    for(String s : getPropertyNameList(Bullets.class)){
-                        sb2.append(s).append(" ");
-                    }
-                    logInfo("worsthelp-pets",sb.toString(),sb2.toString());
-                    return;
-                default:
-                    logInfo("invalid-mode");
-            }
-        });
-
 
         handler.register("setrank", "<uuid/name/id> <rank/restart> [reason...]",
                 "Sets rank of the player.", args -> {

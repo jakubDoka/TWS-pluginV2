@@ -8,7 +8,7 @@ import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
-import theWorst.Config;
+import theWorst.Global;
 import theWorst.helpers.gameChangers.Pet;
 
 import java.util.ArrayList;
@@ -95,10 +95,11 @@ public class PlayerD {
         //It takes about 3 seconds to figure out bundle for player, thread gets rid of the delay.
         new Thread(()->{
             bundle=ResourceBundle.getBundle(bundlePath,getLocale(ip,getLocData(ip)));
-            String welcomeMessage = Config.welcomeMessage.getOrDefault(
-                    getCountryCode(getData(player).bundle.getLocale()),Config.welcomeMessage.get("default"));
+            if(Global.config.welcomeMessage == null) return;
+            String welcomeMessage = Global.config.welcomeMessage.getOrDefault(
+                    getCountryCode(getData(player).bundle.getLocale()),Global.config.welcomeMessage.get("default"));
             if(meta == null && welcomeMessage != null){
-                sendMessage(player, welcomeMessage);
+                player.sendMessage(welcomeMessage);
             }
         } ).start();
         //no data about player so this is new player

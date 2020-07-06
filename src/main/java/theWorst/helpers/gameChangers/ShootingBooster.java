@@ -1,24 +1,21 @@
 package theWorst.helpers.gameChangers;
 
 import arc.Events;
-import arc.util.Log;
 import arc.util.Time;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.type.Item;
 import mindustry.type.ItemStack;
 import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-import theWorst.Config;
+import theWorst.Global;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.concurrent.CompletableFuture;
 
 import static mindustry.Vars.playerGroup;
 import static theWorst.Tools.Commands.logInfo;
@@ -26,7 +23,7 @@ import static theWorst.Tools.Json.loadJson;
 import static theWorst.Tools.Json.saveJson;
 
 public class ShootingBooster {
-    static final String weaponFile = Config.configDir + "weapons.json";
+    static final String weaponFile = Global.configDir + "weapons.json";
     static HashMap<String , Weapon> weapons = new HashMap<>();
     static HashMap<String , Weapon> playerWeapons = new HashMap<>();
     HashMap<String, ShootingD> data = new HashMap<>();
@@ -34,6 +31,14 @@ public class ShootingBooster {
         Events.on(EventType.PlayerJoin.class, e-> data.put(e.player.uuid, new ShootingD()));
 
         Events.on(EventType.PlayerLeave.class, e-> data.remove(e.player.uuid));
+
+        Events.on(EventType.UnitDestroyEvent.class, e->{
+            if(e.unit instanceof Player){
+                ShootingD sd =  data.get(((Player) e.unit).uuid);
+                if(sd == null) return;
+                sd.ammo = 0;
+            }
+        });
 
         Events.on(EventType.Trigger.update,() -> playerGroup.all().forEach(player -> {
             PlayerD pd = Database.getData(player);
@@ -46,14 +51,14 @@ public class ShootingBooster {
             if(sd == null) return;
             ItemStack items = player.item();
             if (items == null || items.item == null) return;
-            if(sd.item == null){
+            if(sd.item != items.item){
                 sd.item = items.item;
+                sd.ammo = 0;
             }
+
             Weapon weapon = playerWeapons.get(sd.item.name);
-            if(weapon == null) {
-                sd.item = items.item;
-                return;
-            }
+            if(weapon == null) return;
+
             if(sd.time > weapon.fireRate){
                 sd.loaded = true;
                 sd.time = 0f;
@@ -69,10 +74,7 @@ public class ShootingBooster {
                 if(items.amount < weapon.consumes){
                     return;
                 }
-                if(items.item != sd.item){
-                    sd.item = items.item;
-                }
-                sd.ammo += weapon.ammoEfficiency;
+                sd.ammo += weapon.ammoMultiplier;
                 items.amount -= weapon.consumes;
             }
             sd.loaded = false;
@@ -90,29 +92,27 @@ public class ShootingBooster {
                 ObjectMapper mapper = new ObjectMapper();
                 Weapon[] weapons = mapper.readValue(((JSONArray)data.get("weapons")).toJSONString(),Weapon[].class);
                 for(Weapon w : weapons) {
-                    if(!w.valid) continue;
                     if (w.item != null) playerWeapons.put(w.item.name, w);
                     ShootingBooster.weapons.put(w.name, w);
                 }
             } catch (IOException ex){
                 ex.printStackTrace();
             }
-        },()->{
+        },ShootingBooster::defaultWeapons);
+    }
 
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-
-                JSONObject weapon = (JSONObject) new JSONParser().parse(mapper.writeValueAsString(new Weapon()));
-                JSONObject data = new JSONObject();
-                JSONArray array = new JSONArray();
-                array.add(weapon);
-                data.put("weapons",array);
-                saveJson(weaponFile, data.toJSONString());
-                logInfo("files-default-config-created","weapons", weaponFile);
-            } catch (JsonProcessingException | ParseException e) {
-                e.printStackTrace();
-            }
-        });
+    public static void defaultWeapons(){
+        try {
+            String data = new ObjectMapper().writeValueAsString(new HashMap<String, ArrayList<Weapon>>(){{
+                put("weapons",new ArrayList<Weapon>(){{ add(new Weapon()); }});
+            }});
+            saveJson(weaponFile, data);
+            logInfo("files-default-config-created","weapons", weaponFile);
+            loadWeapons();
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            logInfo("files-default-config-failed","weapons", weaponFile);
+        }
     }
 
     static class ShootingD {

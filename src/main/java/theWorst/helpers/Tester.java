@@ -2,7 +2,7 @@ package theWorst.helpers;
 
 import mindustry.entities.type.Player;
 import org.json.simple.JSONArray;
-import theWorst.Config;
+import theWorst.Global;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Rank;
@@ -18,7 +18,7 @@ import static theWorst.Tools.Players.sendErrMessage;
 import static theWorst.Tools.Players.sendMessage;
 
 public class Tester {
-    private static final String testFile = Config.configDir+"test.json";
+    private static final String testFile = Global.configDir + "test.json";
     public static HashMap<String,Test> tests = new HashMap<>();
     public static Administration.RecentMap recent = new Administration.RecentMap(15*60,"test-can-egan");
 

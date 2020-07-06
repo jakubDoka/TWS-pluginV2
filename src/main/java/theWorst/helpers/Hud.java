@@ -8,7 +8,8 @@ import mindustry.game.EventType;
 import mindustry.gen.Call;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import theWorst.Config;
+
+import theWorst.Global;
 import theWorst.Tools.Players;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
@@ -25,7 +26,7 @@ import static theWorst.Tools.Json.saveJson;
 import static theWorst.Tools.Players.getTranslation;
 
 public class Hud {
-    final static String messageFile = Config.configDir + "hudMessages.json";
+    final static String messageFile = Global.configDir + "hudMessages.json";
     static Timer.Task update;
     static ArrayList<Displayable> displayable = new ArrayList<>();
     static Timer.Task messageCycle = null;

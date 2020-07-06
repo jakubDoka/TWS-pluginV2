@@ -26,7 +26,7 @@ import static theWorst.Tools.Json.saveJson;
 import static theWorst.Tools.Maps.hasMapAttached;
 
 public class Bot {
-    public static String dir = Config.configDir + "bot/";
+    public static String dir = Global.configDir + "bot/";
     static final String restrictionFile = dir + "restrictions.json";
     public static BotConfig config;
     public static DiscordApi api = null;
