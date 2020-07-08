@@ -267,7 +267,7 @@ public class Administration implements Displayable{
                 @Override
                 public void run() {
                     Integer time = get(uuid);
-                    if(time <= 0){
+                    if(time == null || time <= 0){
                         remove(uuid);
                         sendMessage(player, endMessage);
                         cancel();

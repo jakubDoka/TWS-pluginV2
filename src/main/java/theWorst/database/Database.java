@@ -200,7 +200,7 @@ public class Database {
                     }
                     Call.onConstructFinish(e.tile, request.block, ((Player) e.builder).id,
                             (byte) request.rotation, player.getTeam(), false);
-                    e.tile.configure(request.config);
+                    e.tile.configureAny(request.config);
                 }
             } else return;
             //necessary because instant build or break do not trigger event

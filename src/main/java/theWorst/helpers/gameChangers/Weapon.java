@@ -81,9 +81,9 @@ public class Weapon {
         BulletType pb = player.mech.weapon.bullet;
         float x = player.getX(), y = player.getY();
         float sMul = pb.speed / bullet.speed, lMul = pb.lifetime / bullet.lifetime;
+        lMul = getLiveTime(player, player.pointerX, player.pointerY,sMul, lMul);
         for(int i = 0;i < bulletsPerShot; i++){
-            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy, accuracy), sMul,
-                    getLiveTime(player, player.pointerX, player.pointerY,sMul, lMul));
+            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy, accuracy), sMul,lMul);
         }
     }
 
