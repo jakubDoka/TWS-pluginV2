@@ -51,7 +51,7 @@ public class Loadout implements Displayable, Destroyable {
     public void onTick() {
         for(Ship s : new ArrayList<>(ships)){
             s.time--;
-            if(s.time == 0){
+            if(s.time <= 0){
                 s.onArrival();
                 ships.remove(s);
             }

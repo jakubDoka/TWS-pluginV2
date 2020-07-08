@@ -44,7 +44,7 @@ public class PlayerD {
 
     //user customization
     public String textColor = "white";
-    public String discordLink;
+    @Indexed public String discordLink;
     public HashSet<String> settings = new HashSet<>();
     public HashSet<String> mutes = new HashSet<>();
     public String donationLevel;

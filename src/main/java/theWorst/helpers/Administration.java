@@ -2,6 +2,7 @@ package theWorst.helpers;
 
 import arc.Events;
 import arc.math.Mathf;
+import arc.struct.IntArray;
 import arc.util.Log;
 import arc.util.Time;
 import arc.util.Timer;
@@ -9,9 +10,13 @@ import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
 
+import mindustry.world.Block;
+import mindustry.world.blocks.PowerBlock;
+import mindustry.world.blocks.power.PowerNode;
 import theWorst.Global;
 import theWorst.database.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 

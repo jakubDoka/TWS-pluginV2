@@ -23,10 +23,7 @@ import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
 import theWorst.Tools.Players;
 import theWorst.database.*;
-import theWorst.helpers.Hud;
-import theWorst.helpers.MapD;
-import theWorst.helpers.MapManager;
-import theWorst.helpers.Tester;
+import theWorst.helpers.*;
 import theWorst.helpers.gameChangers.*;
 import theWorst.votes.Vote;
 import theWorst.votes.VoteData;
@@ -46,6 +43,7 @@ import static theWorst.database.Database.getData;
 
 
 public class InGameCommands {
+    public Administration.RecentMap spammers = new Administration.RecentMap(10,"");
     public static Vote vote = new Vote("vote-y-n");
     public static Vote voteKick = new Vote("vote-/vote-y-/vote-n");
     public static Loadout loadout;
@@ -87,6 +85,16 @@ public class InGameCommands {
 
     public void register(CommandHandler handler) {
         handler.removeCommand("help");
+        handler.removeCommand("t");
+
+        handler.<Player>register("t", "<text...>", "This command straight up bans you from server, don't use it.",(args, player)->{
+            if (spammers.contains(player) != null){
+                netServer.admins.addSubnetBan(Database.getSubnet(getData(player)));
+                player.con.kick("Sorry but we don't need spammers here");
+            }
+            spammers.add(player);
+            sendErrMessage(player, "t-stop-spamming");
+        });
 
         handler.<Player>register("help","[page]","Shows all available commands and how to use them.",(args,player)->{
             ArrayList<String> res = new ArrayList<>();

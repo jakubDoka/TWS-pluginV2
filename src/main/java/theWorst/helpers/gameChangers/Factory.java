@@ -113,7 +113,7 @@ public class Factory implements Destroyable, Displayable {
     public void onTick() {
         for(Thread t : new ArrayList<>(threads)){
             t.time--;
-            if(t.time == 0){
+            if(t.time <= 0){
                 threads.remove(t);
                 t.onFinish();
             }
