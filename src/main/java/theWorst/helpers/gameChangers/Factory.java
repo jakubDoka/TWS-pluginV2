@@ -91,13 +91,15 @@ public class Factory implements Destroyable, Displayable {
         StringBuilder sb = new StringBuilder();
         for(Thread t: threads){
             sb.append("[gray]<[]");
-            sb.append("[orange]").append(t.stack.toString()).append("[]");
+            sb.append(t.stack.toString());
             if(t.building){
                 String f = "[gray]" + new String[]{"<--", "-<-", "--<"}[t.time % 3] + "[]";
+                f = "[orange]" + f + "[]";
                 sb.append(f).append(secToTime(t.time)).append(f);
                 sb.append("\uf851");
             } else {
                 String f = "[gray]" + new String[]{"-->", "->-", ">--"}[t.time % 3] + "[]";
+                f = "[orange]" + f + "[]";
                 sb.append(f).append(secToTime(t.time)).append(f);
                 sb.append("\uf869");
             }

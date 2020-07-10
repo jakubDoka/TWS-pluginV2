@@ -35,6 +35,7 @@ public class Loadout implements Displayable, Destroyable {
         StringBuilder sb = new StringBuilder();
         for(Ship s: ships){
             String f = "[gray]" + new String[]{"-->", "->-", ">--"}[s.time % 3] + "[]";
+            f = "[orange]" + f + "[]";
             sb.append("[gray]<[]");
             sb.append(stackToString(s.stack));
             sb.append(f).append(secToTime(s.time)).append(f);

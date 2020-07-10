@@ -20,6 +20,7 @@ import mindustry.type.ItemType;
 import mindustry.type.UnitType;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
+import theWorst.Tools.Players;
 import theWorst.database.*;
 import theWorst.helpers.*;
 import theWorst.helpers.gameChangers.*;
@@ -73,7 +74,7 @@ public class InGameCommands {
     }
 
     private boolean handleHammer(Vote vote, PlayerD pd,Player player) {
-        if(vote.voting && vote.voteData.target instanceof PlayerD && ((PlayerD)vote.voteData.target).uuid == pd.uuid){
+        if(vote.voting && vote.voteData.target instanceof PlayerD && ((PlayerD) vote.voteData.target).uuid.equals(pd.uuid)){
             vote.addVote(player, "y");
             return true;
         }
@@ -89,6 +90,8 @@ public class InGameCommands {
             if (spammers.contains(player) != null){
                 netServer.admins.addSubnetBan(Database.getSubnet(getData(player)));
                 player.con.kick("Sorry but we don't need spammers here");
+                spammers.remove(player.uuid);
+                return;
             }
             spammers.add(player);
             sendErrMessage(player, "t-stop-spamming");
@@ -770,7 +773,7 @@ public class InGameCommands {
                                         @Override
                                         public void onArrival() {
                                             core.items.add(stack.item, stack.amount);
-                                            sendMessage("loadout-ship-arrived", arg);
+                                            sendMessage("loadout-ship-arrived", stack.toString());
                                         }
                                     });
                                 }
@@ -913,7 +916,7 @@ public class InGameCommands {
                                                 bu.set(pos.x, pos.y);
                                                 bu.add();
                                             }
-                                            sendMessage("factory-units-arrived", finalArg, finalArg1);
+                                            sendMessage("factory-units-arrived", stack.toString(), finalArg1);
                                         }
                                     });
                                 }
@@ -1024,6 +1027,44 @@ public class InGameCommands {
                 found.sendMessage("[#ffdfba][[[#" + found.color + "]" + player.name + "[]]:[white]" + args[0]);
             }
 
+        });
+
+        handler.<Player>register("revert" , "<id> <amount>" , "Admin usage only.",(args, player)->{
+            if(!player.isAdmin){
+                sendErrMessage(player, "refuse-not-admin");
+                return;
+            }
+            if(!Strings.canParsePostiveInt(args[0])){
+                sendErrMessage(player, "refuse-not-integer", "1");
+                return;
+            }
+            if(!Strings.canParsePostiveInt(args[1])){
+                sendErrMessage(player, "refuse-not-integer", "2");
+                return;
+            }
+            PlayerD pd = Database.getMetaById(Integer.parseInt(args[0]));
+            if(pd == null){
+                sendErrMessage(player, "player-not-found");
+                return;
+            }
+            if(getRank(pd).isAdmin){
+                sendErrMessage(player, "revert-cannot-revert");
+                return;
+            }
+            ArrayList<Action> acts = Administration.undo.get(pd.uuid);
+            if(acts == null || acts.isEmpty()){
+                sendErrMessage(player, "revert-no-actions");
+                return;
+            }
+            int max = Integer.parseInt(args[1]);
+            int count = 0;
+            for(Action a : new ArrayList<>(acts)){
+                if(count == max) break;
+                a.Undo();
+                acts.remove(count);
+                count++;
+            }
+            sendMessage(player, "revert-reverted");
         });
     }
 }

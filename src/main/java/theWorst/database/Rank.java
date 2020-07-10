@@ -16,7 +16,7 @@ public enum Rank implements java.io.Serializable{
             displayed=false;
         }
     },
-    candidate(Items.thorium.color,Perm.high),
+    candidate(Items.thorium.color,Perm.higher),
     admin(Color.blue,Perm.higher){
         {
             displayed=true;

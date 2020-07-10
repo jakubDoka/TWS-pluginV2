@@ -24,6 +24,9 @@ public class Global {
         public String alertPrefix = "!!";
         public String dbName = "mindustryServer";
         public long grieferAntiSpamTime = 1000*10;
+        public int rateLimit = 50;
+        public long rateLimitPeriod = 1000;
+        public int countedActionsPerTile = 5;
         public HashMap<String, String > rules;
         public HashMap<String, String > welcomeMessage;
 
@@ -33,11 +36,17 @@ public class Global {
                 @JsonProperty("alertPrefix") String alertPrefix,
                 @JsonProperty("dbName") String dbName,
                 @JsonProperty("grieferAntiSpamTime") long grieferAntiSpamTime,
+                @JsonProperty("rateLimit") int rateLimit,
+                @JsonProperty("rateLimitPeriod") long rateLimitPeriod,
+                @JsonProperty("countedActionsPerTile") int countedActionsPerTile,
                 @JsonProperty("rules") HashMap<String, String > rules,
                 @JsonProperty("welcomeMessage") HashMap<String, String > welcomeMessage){
             this.alertPrefix = alertPrefix;
             this.dbName = dbName;
             this.grieferAntiSpamTime = grieferAntiSpamTime;
+            this.countedActionsPerTile = countedActionsPerTile;
+            this.rateLimit = rateLimit;
+            this.rateLimitPeriod = rateLimitPeriod;
             this.rules = rules;
             this.welcomeMessage = welcomeMessage;
         }

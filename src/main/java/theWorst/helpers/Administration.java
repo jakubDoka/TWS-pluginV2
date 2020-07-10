@@ -2,17 +2,14 @@ package theWorst.helpers;
 
 import arc.Events;
 import arc.math.Mathf;
-import arc.struct.IntArray;
-import arc.util.Log;
 import arc.util.Time;
 import arc.util.Timer;
+import mindustry.content.Blocks;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
-
 import mindustry.world.Block;
-import mindustry.world.blocks.PowerBlock;
-import mindustry.world.blocks.power.PowerNode;
+import mindustry.world.Tile;
 import theWorst.Global;
 import theWorst.database.*;
 
@@ -20,11 +17,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import static mindustry.Vars.netServer;
-import static mindustry.Vars.world;
+import static mindustry.Vars.*;
 import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.Players.*;
+import static theWorst.Tools.General.getPropertyByName;
 import static theWorst.Tools.General.getRank;
+import static theWorst.Tools.Players.*;
 
 public class Administration implements Displayable{
     public static Emergency emergency = new Emergency(0); // Its just placeholder because time is 0
@@ -32,8 +29,11 @@ public class Administration implements Displayable{
     public static Timer.Task recentThread;
     private final int maxAGFreq = 5;
     TileInfo[][] data;
+    public static HashMap<String, ArrayList<Action>> undo = new HashMap<>();
+    final int undoCache = 200;
 
     public Administration() {
+        Action.register();
         Hud.addDisplayable(this);
         //this updates recent map of deposit and withdraw events.
         if(recentThread != null) recentThread.cancel();
@@ -56,6 +56,7 @@ public class Administration implements Displayable{
                     data[y][x] = new TileInfo();
                 }
             }
+            undo.clear();
         });
         //displaying of inspect messages
         Events.on(EventType.TapEvent.class, e -> {
@@ -68,12 +69,16 @@ public class Administration implements Displayable{
             } else {
                 msg.append(ti.lock == 1 ? Rank.verified.getName() + "\n" : "");
                 for (String s : ti.data.keySet()) {
-                    PlayerD pd = ti.data.get(s);
-                    msg.append(String.format("[orange]%s : [gray]name[] - %s [gray]id[white] - %d[]\n", s, pd.originalName, pd.serverId));
+                    msg.append("[orange]").append(s).append(":");
+                    for (PlayerD pd : ti.data.get(s)){
+                        msg.append(pd.serverId).append(", ");
+                    }
+                    msg.append("\n");
                 }
             }
-            Call.onLabel(e.player.con, msg.toString(), 8, e.tile.x * 8, e.tile.y * 8);
+            Call.onLabel(e.player.con, msg.toString().substring(0, msg.length() - 1), 8, e.tile.x * 8, e.tile.y * 8);
         });
+
         //disable lock if block wos destroyed
         Events.on(EventType.BlockDestroyEvent.class, e -> data[e.tile.y][e.tile.x].lock = 0);
         //this is against spam bots
@@ -128,16 +133,6 @@ public class Administration implements Displayable{
                 //taping on tiles is ok.
                 if(act.type == mindustry.net.Administration.ActionType.tapTile) return true;
                 //this is against Ag client messing up game
-                if(act.type == mindustry.net.Administration.ActionType.depositItem ||
-                        act.type == mindustry.net.Administration.ActionType.withdrawItem){
-                    int val = recent.getOrDefault(player.uuid, 0);
-                    if(val > maxAGFreq){
-                        sendErrMessage(player , "AG-slow-down");
-                        recent.put(player.uuid,30);
-                        return false;
-                    }
-                    recent.put(player.uuid, val+1);
-                }
                 //if there is emergency
                 if(emergency.isActive() && rank.permission.getValue() < Perm.high.getValue()) {
                     sendErrMessage(player,"at-least-verified",Rank.verified.getName());
@@ -154,8 +149,107 @@ public class Administration implements Displayable{
                     return false;
 
                 }
+                if(act.tile != null  && rank.permission.getValue() < Rank.candidate.permission.getValue()){
+                    ArrayList<Action> acts = undo.computeIfAbsent(pd.uuid, k -> new ArrayList<>());
+                    boolean ignoreBuildBreak = false;
+                    long now = Time.millis();
+                    if(!acts.isEmpty()){
+                        Action prev = acts.get(0);
+                        ignoreBuildBreak = (prev instanceof Action.Build || prev instanceof Action.Break)
+                                && act.tile.pos() == prev.tile.pos() && act.block == prev.block;
+                    }
+                    player.sendMessage(act.type.name());
+                    switch (act.type){
+                        case breakBlock:
+                            if (!ignoreBuildBreak && act.tile.entity != null) {
+                                acts.add(0, new Action.Break(){
+                                    {
+                                        tile = act.tile;
+                                        block = act.tile.block();
+                                        config = act.tile.entity.config();
+                                        rotation = act.tile.rotation();
+                                        age = now;
+                                    }
+                                });
+                            }
+                            break;
+                        case placeBlock:
+                            if (!ignoreBuildBreak) {
+                                acts.add(0, new Action.Build() {
+                                    {
+                                        tile = act.tile;
+                                        block = act.block;
+                                        age = now;
+                                    }
+                                });
+                            }
+                            break;
+                        case depositItem:
+                        case withdrawItem:
+                            int val = recent.getOrDefault(player.uuid, 0);
+                            if(val > maxAGFreq){
+                                sendErrMessage(player , "AG-slow-down");
+                                recent.put(player.uuid,30);
+                                return false;
+                            }
+                            recent.put(player.uuid, val+1);
+                            break;
+                        case configure:
+                            if (act.tile.entity != null) {
+                                acts.add(0, new Action.Configure() {
+                                    {
+                                        block = act.tile.block();
+                                        config = act.tile.entity.config();
+                                        newConfig = act.config;
+                                        tile = act.tile;
+                                        age = now;
+                                    }
+                                });
+                            }
+                            break;
+                        case rotate:
+                            acts.add(0, new Action.Rotate(){
+                                {
+                                    block = act.tile.block();
+                                    rotation = act.tile.rotation();
+                                    newRotation = (byte) act.rotation;
+                                    tile = act.tile;
+                                    age = now;
+                                }
+                            });
+                    }
+                    if(acts.size() > undoCache){
+                        acts.remove(undoCache);
+                    }
+                    int burst = 0;
+                    Tile currTile = acts.get(0).tile;
+                    int actPerTile = 0;
+                    for(Action a :acts){
+                        if(Time.timeSinceMillis(a.age) < Global.config.rateLimitPeriod && !(a instanceof Action.Build || a instanceof Action.Break)) {
+                            if(a.tile == currTile){
+                                actPerTile++;
+                            } else {
+                                currTile = a.tile;
+                                actPerTile = 0;
+                            }
+                            if(actPerTile > Global.config.countedActionsPerTile){
+                                continue;
+                            }
+                            burst ++;
+                        } else {
+                            break;
+                        }
+                    }
+                    if (burst > Global.config.rateLimit){
+                        Database.setRank(pd, Rank.griefer, player);
+                        for(Action a: acts) {
+                            a.Undo();
+                        }
+                        acts.clear();
+                    }
+                }
                 //remember tis action for inspect.
-                ti.data.put(act.type.name(),pd);
+                ti.add(act.type.name(),pd);
                 ti.lock = Mathf.clamp(rank.permission.getValue(), 0, 1);
                 return true;
 
@@ -175,10 +269,7 @@ public class Administration implements Displayable{
         emergency.onTick();
     }
 
-    static class TileInfo{
-        HashMap<String ,PlayerD> data = new HashMap<>();
-        int lock= Perm.normal.getValue();
-    }
+
 
     static class CommandUser{
         static HashMap<String,CommandUser> map = new HashMap<>();
@@ -283,3 +374,4 @@ public class Administration implements Displayable{
         }
     }
 }
+

@@ -55,12 +55,14 @@ public class SpecialRank implements Serializable {
     }
 
     public boolean condition(PlayerD tested){
-        if(linked != null && !linked.isEmpty()) {
+        if(linked != null) {
             for (String l : linked){
                 if(!Database.ranks.get(l).condition(tested)) return false;
             }
         }
-        if(quests == null && linked == null) return false;
+        if(quests == null){
+            return linked != null;
+        }
         Document rawData = Database.getRawMeta(tested.uuid);
         for(String stat : quests.keySet()){
             HashMap<String,Integer> quest = quests.get(stat);
@@ -121,8 +123,11 @@ public class SpecialRank implements Serializable {
                                 if (val < req) color = "scarlet";
                                 break;
                             case frequency:
-                                val = ((Long)((Long)rawData.get(s)/(pd.playTime/hour))).intValue();
+                                long played = pd.playTime/hour;
+                                if (played == 0) played = 1;
+                                val = ((Long)((Long)rawData.get(s)/played)).intValue();
                                 if (val < req) color = "scarlet";
+
                         }
                         condition.append("[").append(color).append("]");
                         condition.append(getTranslation(pd, "special-" + l)).append(":");

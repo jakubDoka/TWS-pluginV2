@@ -148,10 +148,12 @@ public class Database {
                                 }
                             }
                         }
-                        if (pd.donationLevel != null) {
-                            updateName(e.player, pd);
+                        if (finalDl != null) {
                             addPets(pd, finalDl);
+                        } else {
+                            pd.donationLevel = null;
                         }
+                        updateName(e.player, pd);
                         if (finalR == null) return;
                         setRank(pd, finalR, e.player);
                     } catch (InterruptedException | ExecutionException interruptedException) {
@@ -480,7 +482,7 @@ public class Database {
         player.isAdmin = getRank(pd).isAdmin;
     }
 
-    static void updateMeta(PlayerD pd){
+    public static void updateMeta(PlayerD pd){
         Database.data.findAndReplace(new Query(where("_id").is(pd.uuid)),pd);
     }
 

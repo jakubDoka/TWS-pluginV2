@@ -79,6 +79,9 @@ public class Commands {
                 }
             }
         }
+        if(!pd.isOnline()) {
+            Database.updateMeta(pd);
+        }
         return Res.success;
     }
 
