@@ -99,7 +99,8 @@ public class MapD {
                 String.format("%.2f",rules.unitDamageMultiplier),
                 String.format("%.2f",rules.unitHealthMultiplier),
                 String.format("%.2f",rules.playerDamageMultiplier),
-                String.format("%.2f",rules.playerHealthMultiplier));
+                String.format("%.2f",rules.playerHealthMultiplier),
+                String.format("%.2f",rules.solarPowerMultiplier));
     }
 
     public void save() {

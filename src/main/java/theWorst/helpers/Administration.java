@@ -1,14 +1,11 @@
 package theWorst.helpers;
 
 import arc.Events;
-import arc.graphics.Gl;
 import arc.math.Mathf;
 import arc.util.Time;
 import arc.util.Timer;
-import mindustry.content.Blocks;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
-import mindustry.gen.Call;
 import mindustry.world.Tile;
 import theWorst.Bot;
 import theWorst.Global;
@@ -16,10 +13,8 @@ import theWorst.database.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 
 import static mindustry.Vars.*;
-import static mindustry.Vars.player;
 import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.General.getRank;
 import static theWorst.Tools.Players.*;
@@ -27,8 +22,13 @@ import static theWorst.Tools.Players.*;
 public class Administration implements Displayable{
 
     public static Emergency emergency = new Emergency(0); // Its just placeholder because time is 0
-    public static HashMap<String, ArrayList<Long>> recent = new HashMap<>();
-    public static HashMap<String, Long> banned = new HashMap<>();
+    public static HashMap<String, ArrayList<Long>> recentWithdraws = new HashMap<>();
+    public static RecentMap banned = new RecentMap("ag-can-withdraw-egan"){
+        @Override
+        public long getPenalty() {
+            return Global.limits.withdrawPenalty;
+        }
+    };
     public static Timer.Task recentThread;
     TileInfo[][] data;
     public static HashMap<String, ArrayList<Action>> undo = new HashMap<>();
@@ -161,21 +161,18 @@ public class Administration implements Displayable{
                             break;
                         case depositItem:
                         case withdrawItem:
-                            ArrayList<Long> draws = recent.computeIfAbsent(pd.uuid, k -> new ArrayList<>());
+                            ArrayList<Long> draws = recentWithdraws.computeIfAbsent(pd.uuid, k -> new ArrayList<>());
                             if (draws.size() > Global.limits.withdrawLimit) {
-                                Long ban = banned.get(player.uuid);
+                                Long ban = banned.contains(player);
                                 if (ban != null) {
-                                    long left = Global.limits.withdrawPenalty - Time.timeSinceMillis(ban) ;
-                                    if (left > 0) {
-                                        sendErrMessage(player, "ag-cannot-withdraw", milsToTime(left));
+                                    if (ban > 0) {
+                                        sendErrMessage(player, "ag-cannot-withdraw", milsToTime(ban));
                                         return false;
                                     } else {
-                                        banned.remove(player.uuid);
                                         draws.clear();
                                     }
                                 } else {
                                     banned.put(player.uuid, now);
-
                                     return false;
                                 }
                             } else {
@@ -357,35 +354,34 @@ public class Administration implements Displayable{
         }
     }
 
-    public static class RecentMap extends HashMap<String, Integer>{
-        int penalty;
+    public static abstract class RecentMap extends HashMap<String, Long>{
         String endMessage;
 
-        public RecentMap(int penalty, String endMessage){
-            this.penalty = penalty;
+        public RecentMap(String endMessage){
             this.endMessage = endMessage;
         }
 
+        public abstract long getPenalty();
+
         public void add(Player player){
             String uuid = player.uuid;
-            put(uuid,penalty);
-            Timer.schedule(new Timer.Task() {
-                @Override
-                public void run() {
-                    Integer time = get(uuid);
-                    if(time == null || time <= 0){
-                        remove(uuid);
-                        sendMessage(player, endMessage);
-                        cancel();
-                        return;
-                    }
-                    put(uuid, time-1);
-                }
-            }, 1, 1);
+            put(uuid,Time.millis());
+            Timer.schedule(()->{
+                if(endMessage == null) return;
+                Player found = playerGroup.find(p -> p.uuid.equals(uuid));
+                if(found == null) return;
+                sendMessage(found, endMessage);
+            }, getPenalty()/1000f);
         }
 
-        public Integer contains(Player player){
-            return get(player.uuid);
+        public Long contains(Player player){
+            Long res = get(player.uuid);
+            if(res == null) return null;
+            res = getPenalty() - Time.timeSinceMillis(res);
+            if( res < 0) {
+                remove(player.uuid);
+            }
+            return res;
         }
     }
 }

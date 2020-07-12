@@ -32,10 +32,16 @@ public class Vote implements Displayable, Destroyable {
     final String mode;
 
     Set<String> voted = new HashSet<>();
-    Administration.RecentMap recent = new Administration.RecentMap(60, "vote-can-egan");
+    Administration.RecentMap recent = new Administration.RecentMap("vote-can-egan"){
+        @Override
+        public long getPenalty() {
+            return 60 * 1000;
+        }
+    };
 
     boolean canVote = true;
     public boolean voting = false;
+    boolean special = false;
 
     Integer maxReq = null;
 
@@ -52,7 +58,7 @@ public class Vote implements Displayable, Destroyable {
 
     }
 
-    public void aVote(VoteData voteData, Integer maxReq, String ... args) {
+    public void aVote(VoteData voteData, Integer maxReq, SpecialRank sr, String ... args) {
         Player player = voteData.by;
         Database.getData(player).onAction(player);
         if (!canVote) {
@@ -67,9 +73,9 @@ public class Vote implements Displayable, Destroyable {
             sendErrMessage(player, "griefer-no-perm");
             return;
         }
-        if (recent.containsKey(player.uuid)) {
-            int time = recent.get(player.uuid);
-            sendErrMessage(player, "vote-is-recent", secToTime(time));
+        Long pen = recent.contains(player);
+        if (pen != null && pen > 0) {
+            sendErrMessage(player, "vote-is-recent", milsToTime(pen));
             return;
         }
         this.voteData = voteData;
@@ -81,6 +87,12 @@ public class Vote implements Displayable, Destroyable {
         no = 0;
         time = voteDuration;
         voting = true;
+        special = false;
+        if(sr != null && voteData.special != null && sr.permissions.contains(voteData.special.name())) {
+            time = voteDuration/2;
+            special = true;
+            Hud.addAd("vote-special", 10, sr.getSuffix(), "!white", "!gray");
+        }
         addVote(player, "y");
         notifyPlayers();
     }
@@ -137,7 +149,7 @@ public class Vote implements Displayable, Destroyable {
 
     public void revolve(){
         if(!voting) return;
-        int req=getRequired();
+        int req = getRequired();
         if (no >= req) close(false);
         else if (yes >= req) close(true);
     }
@@ -178,8 +190,12 @@ public class Vote implements Displayable, Destroyable {
     public void onTick() {
         if(!voting) return;
         time--;
-        if(time == 0){
-            close(false);
+        if(time <= 0){
+            if(special){
+                close(yes > no);
+            } else {
+                close(false);
+            }
         }
     }
 

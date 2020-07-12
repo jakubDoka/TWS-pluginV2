@@ -38,10 +38,17 @@ import static theWorst.Tools.Maps.findMap;
 import static theWorst.Tools.Maps.getFreeTiles;
 import static theWorst.Tools.Players.*;
 import static theWorst.database.Database.getData;
+import static theWorst.database.Database.getSpecialRank;
 
 
 public class InGameCommands {
-    public Administration.RecentMap spammers = new Administration.RecentMap(10,"");
+    public Administration.RecentMap spammers = new Administration.RecentMap(null){
+        @Override
+        public long getPenalty() {
+            return 10000;
+        }
+    };
+
     public static Vote vote = new Vote("vote-y-n");
     public static Vote voteKick = new Vote("vote-/vote-y-/vote-n");
     public static Loadout loadout;
@@ -86,7 +93,8 @@ public class InGameCommands {
         handler.removeCommand("t");
 
         handler.<Player>register("t", "<text...>", "This command straight up bans you from server, don't use it.",(args, player)->{
-            if (spammers.contains(player) != null){
+            Long pen = spammers.contains(player);
+            if (pen != null && pen > 0){
                 netServer.admins.addSubnetBan(Database.getSubnet(getData(player)));
                 player.con.kick("Sorry but we don't need spammers here");
                 spammers.remove(player.uuid);
@@ -154,6 +162,7 @@ public class InGameCommands {
 
             VoteData voteData = new VoteData() {
                 {
+                    special = Perm.antiGrief;
                     by = player;
                     target = pd;
                     reason = pd.rank.equals(Rank.griefer.name()) ? "mkgf-remove" : "mkgf-add";
@@ -192,13 +201,13 @@ public class InGameCommands {
         handler.<Player>register("mkgf","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            vote.aVote(voteData, 4, ((PlayerD)voteData.target).originalName);
+            vote.aVote(voteData, 4, Database.getSpecialRank(Database.getData(player)), ((PlayerD)voteData.target).originalName);
         });
 
         handler.<Player>register("votekick","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            voteKick.aVote(voteData, 4, ((PlayerD)voteData.target).originalName);
+            voteKick.aVote(voteData, 4, Database.getSpecialRank(Database.getData(player)),((PlayerD)voteData.target).originalName);
         });
 
         handler.<Player>register("info","[id]","Displays players profile.",(args, player)->{
@@ -385,6 +394,7 @@ public class InGameCommands {
             PlayerD pd = getData(player);
             Map map = world.getMap();
             MapD md = MapManager.played;
+            Perm spec = Perm.restart;
             if(args.length>1){
                 if(!args[1].equalsIgnoreCase("this")) {
                     map = findMap(args[1]);
@@ -399,6 +409,7 @@ public class InGameCommands {
                     return;
                 case "change":
                     what = "map-change";
+                    spec = Perm.change;
                     if(wrongArgAmount(player,args,2)) return;
                     if (map == null){
                         sendErrMessage(player,"map-not-found");
@@ -407,8 +418,10 @@ public class InGameCommands {
                 case "restart":
                     String finalWhat = what;
                     Map finalMap = map;
+                    Perm finalSpec = spec;
                     voteData = new VoteData() {
                         {
+                            special = finalSpec;
                             by = player;
                             target = finalMap;
                             reason = finalWhat;
@@ -440,6 +453,7 @@ public class InGameCommands {
                         {
                             by = player;
                             reason = "map-gameover";
+                            special = Perm.gameOver;
                         }
                         @Override
                         public void run() {
@@ -487,7 +501,7 @@ public class InGameCommands {
                     sendErrMessage(player,"invalid-mode");
                     return;
             }
-            vote.aVote(voteData,10,voteData.target != null ? ((Map)voteData.target).name() : "");
+            vote.aVote(voteData,10, getSpecialRank(pd),voteData.target != null ? ((Map)voteData.target).name() : "");
         });
 
         handler.<Player>register("emergency","<time/permanent/stop>","Emergency control.",(args,player)->{
@@ -540,7 +554,7 @@ public class InGameCommands {
         });
 
         handler.<Player>register("test","<start/egan/help/answer>","More info via /test help.", (args,player)-> {
-            Integer penalty = Tester.recent.contains(player);
+            Long penalty = Tester.recent.contains(player);
             PlayerD pd = Database.getData(player);
             boolean isTested = Tester.tests.containsKey(player.uuid);
             switch (args[0]) {
@@ -556,8 +570,8 @@ public class InGameCommands {
                         sendErrMessage(player, "test-no-need", Rank.verified.getName());
                         return;
                     }
-                    if (penalty != null) {
-                        sendErrMessage(player, "test-is-recent", secToTime(penalty));
+                    if (penalty != null && penalty > 0) {
+                        sendErrMessage(player, "test-is-recent", milsToTime(penalty));
                         return;
                     }
                     if (isTested) {
@@ -587,30 +601,6 @@ public class InGameCommands {
                     Tester.tests.get(player.uuid).processAnswer(player, Integer.parseInt(args[0]) - 1);
             }
         });
-
-        /*handler.<Player>register("drop","<help/block/meteor/bomb> [blockName/material]",
-                "More info via /drop help.", (args,player)->{
-            switch (args[0]){
-                case "help":
-                    return;
-                case "block":
-                    if(Terraformer.buildBlock(player.getTeam(), Terraformer.getBlockByName(args[1], true), player.tileOn())){
-
-                        player.sendMessage("succes");
-                    }
-                    return;
-                case "meteor":
-                    if(!args[1].startsWith("ore")) {
-
-                        return;
-                    }
-                    Terraformer.dropMeteor(Terraformer.getBlockByName(args[1] , false), player.tileOn(), 100);
-                case "bomb":
-                    Terraformer.dropMeteor(null, player.tileOn(), 100);
-                default:
-                    sendErrMessage(player,"invalid-mode");
-            }
-        });*/
 
         handler.<Player>register("ranks","<help/normal/special/info> [name/page]",
                 "More info via /ranks help.", (args,player)->{
@@ -723,6 +713,7 @@ public class InGameCommands {
                         ItemStack finalStack = stack;
                         data = new VoteData() {
                             {
+                                special = Perm.loadout;
                                 reason = "loadout-put";
                             }
                             @Override
@@ -765,6 +756,7 @@ public class InGameCommands {
                         finalStack = stack;
                         data = new VoteData() {
                             {
+                                special = Perm.loadout;
                                 reason = "loadout-get";
                             }
                             @Override
@@ -801,7 +793,7 @@ public class InGameCommands {
                     Hud.addAd("loadout-player-launch", 10, player.name, "!gray");
                     return;
                 }
-                vote.aVote(data, 3, arg, secToTime(Loadout.config.shipSpeed));
+                vote.aVote(data, 3, getSpecialRank(getData(player)), arg, secToTime(Loadout.config.shipSpeed));
             } else {
                 wrongArgAmount(player, args, 3);
             }
@@ -848,6 +840,7 @@ public class InGameCommands {
                         arg = unitStack.toString();
                         data = new VoteData() {
                             {
+                                special = Perm.factory;
                                 reason = "factory-build";
                             }
 
@@ -870,6 +863,7 @@ public class InGameCommands {
                             }
                         };
                         break;
+                    case "send":
                     case "call":
                         Tile tile = world.tile((int)player.x/8,(int)player.y/8);
                         if(tile == null || tile.solid()){
@@ -902,6 +896,7 @@ public class InGameCommands {
                         Vec2 aPos = new Vec2(player.x, player.y);
                         data = new VoteData() {
                             {
+                                special = Perm.factory;
                                 reason = "factory-call";
                             }
                             @Override
@@ -943,7 +938,7 @@ public class InGameCommands {
                     Hud.addAd("factory-player-launch", 10, player.name, "!gray");
                     return;
                 }
-                vote.aVote(data, 3, arg, arg2);
+                vote.aVote(data, 3, getSpecialRank(getData(player)), arg, arg2);
             } else {
                 wrongArgAmount(player, args, 3);
             }
@@ -962,7 +957,7 @@ public class InGameCommands {
                     }
                 }
             }
-        }, 4));
+        }, 4, getSpecialRank(getData(player))));
 
         handler.<Player>register("skipwave", "[1-5]", "Skips amount of waves.",(args, player)->{
             if(args.length == 1 && !Strings.canParsePostiveInt(args[0])){
@@ -974,6 +969,7 @@ public class InGameCommands {
             int finalAmount = amount;
             vote.aVote(new VoteData() {
                 {
+                    special = Perm.skip;
                     by = player;
                     reason = "skipwave";
                 }
@@ -984,7 +980,7 @@ public class InGameCommands {
                         logic.runWave();
                     }
                 }
-            }, 6, "" + amount);
+            }, 6, getSpecialRank(getData(player)), "" + amount);
         });
 
         handler.removeCommand("vote");

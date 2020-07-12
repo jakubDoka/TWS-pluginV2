@@ -19,7 +19,12 @@ import static theWorst.Tools.Players.sendMessage;
 public class Tester {
     private static final String testFile = Global.configDir + "test.json";
     public static HashMap<String,Test> tests = new HashMap<>();
-    public static Administration.RecentMap recent = new Administration.RecentMap(15*60,"test-can-egan");
+    public static Administration.RecentMap recent = new Administration.RecentMap("test-can-egan"){
+        @Override
+        public long getPenalty() {
+            return Global.limits.testPenalty;
+        }
+    };
 
     public static HashMap<String, String[]> loadQuestions(Locale loc){
         String bundle = testFile + "_" + loc.getLanguage() + "_" + loc.getCountry();
