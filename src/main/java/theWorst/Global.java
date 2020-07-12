@@ -51,11 +51,12 @@ public class Global {
     }
 
     public static class RateLimits {
-        public long grieferAntiSpamTime = 1000*10;
+        public long grieferAntiSpamTime = 1000 * 10;
         public int configLimit = 50;
         public int withdrawLimit = 50;
         public long rateLimitPeriod = 1000;
         public int countedActionsPerTile = 5;
+        public long withdrawPenalty = 30 * 1000;
 
         public RateLimits() {}
 
@@ -63,6 +64,7 @@ public class Global {
                 @JsonProperty("grieferAntiSpamTime") long grieferAntiSpamTime,
                 @JsonProperty("configLimit") int configLimit,
                 @JsonProperty("withdrawLimit") int withdrawLimit,
+                @JsonProperty("withdrawPenalty") long withdrawPenalty,
                 @JsonProperty("rateLimitPeriod") long rateLimitPeriod,
                 @JsonProperty("countedActionsPerTile") int countedActionsPerTile){
 
@@ -71,6 +73,7 @@ public class Global {
             this.configLimit = configLimit;
             this.withdrawLimit = withdrawLimit;
             this.rateLimitPeriod = rateLimitPeriod;
+            this.withdrawPenalty = withdrawPenalty;
         }
     }
 

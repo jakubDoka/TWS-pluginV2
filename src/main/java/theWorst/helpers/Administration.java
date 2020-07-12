@@ -1,6 +1,7 @@
 package theWorst.helpers;
 
 import arc.Events;
+import arc.graphics.Gl;
 import arc.math.Mathf;
 import arc.util.Time;
 import arc.util.Timer;
@@ -164,15 +165,17 @@ public class Administration implements Displayable{
                             if (draws.size() > Global.limits.withdrawLimit) {
                                 Long ban = banned.get(player.uuid);
                                 if (ban != null) {
-                                    if (Time.timeSinceMillis(ban) < 1000 * 30) {
-                                        sendErrMessage(player, "ag-cannot-withdraw");
+                                    long left = Global.limits.withdrawPenalty - Time.timeSinceMillis(ban) ;
+                                    if (left > 0) {
+                                        sendErrMessage(player, "ag-cannot-withdraw", milsToTime(left));
                                         return false;
                                     } else {
+                                        banned.remove(player.uuid);
                                         draws.clear();
                                     }
                                 } else {
                                     banned.put(player.uuid, now);
-                                    banned.remove(player.uuid);
+
                                     return false;
                                 }
                             } else {
