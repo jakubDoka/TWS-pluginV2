@@ -53,10 +53,8 @@ public class Main extends Plugin {
             float original = state.rules.respawnTime;
             float spawnBoost = .1f;
             state.rules.respawnTime = spawnBoost;
-            Call.onSetRules(state.rules);
             Timer.schedule(()->{
                 state.rules.respawnTime = original;
-                Call.onSetRules(state.rules);
             }, playerGroup.size() * spawnBoost + 1f);
         });
 
