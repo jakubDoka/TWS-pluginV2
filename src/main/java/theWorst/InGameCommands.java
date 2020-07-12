@@ -20,7 +20,6 @@ import mindustry.type.ItemType;
 import mindustry.type.UnitType;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
-import theWorst.Tools.Players;
 import theWorst.database.*;
 import theWorst.helpers.*;
 import theWorst.helpers.gameChangers.*;
@@ -162,11 +161,14 @@ public class InGameCommands {
 
                 @Override
                 public void run() {
+                    Rank old = getRank(pd);
                     if (pd.rank.equals(Rank.griefer.name())) {
                         Database.setRank(pd, Rank.newcomer, null);
                     } else {
                         Database.setRank(pd, Rank.griefer, null);
                     }
+                    Bot.onRankChange(cleanColors(pd.originalName), pd.serverId, old.name(), getRank(pd).name(), cleanName(by.name),
+                            "mkgf");
                 }
             };
 
@@ -187,16 +189,16 @@ public class InGameCommands {
             return voteData;
         };
 
-        handler.<Player>register("mkgf","<name/id>","Opens vote for marking player a griefer.",(args,player)->{
+        handler.<Player>register("mkgf","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            vote.aVote(voteData,5, ((PlayerD)voteData.target).originalName);
+            vote.aVote(voteData, 4, ((PlayerD)voteData.target).originalName);
         });
 
-        handler.<Player>register("voteKick","<name/id>","Opens vote for marking player a griefer.",(args,player)->{
+        handler.<Player>register("votekick","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            voteKick.aVote(voteData,5, ((PlayerD)voteData.target).originalName);
+            voteKick.aVote(voteData, 4, ((PlayerD)voteData.target).originalName);
         });
 
         handler.<Player>register("info","[id]","Displays players profile.",(args, player)->{
@@ -219,25 +221,25 @@ public class InGameCommands {
             Call.onInfoMessage(player.con,"[orange]==PLAYER PROFILE==[]\n\n"+data);
         });
 
-        handler.<Player>register("set","[setting/help] [on/off/argument]",
+        handler.<Player>register("set","[setting/help/info] [on/off/argument]",
                 "/set to see setting options. /set help for more info.",(args,player)->{
             PlayerD pd = getData(player);
 
             if(args.length==0) {
-                StringBuilder sb = new StringBuilder();
-                for (Setting s : Setting.values()) {
-                    sb.append(" ").append(s.name());
+                StringBuilder sb = new StringBuilder("[orange]==SETTINGS==[gray]\n\n");
+                for(Setting s : Setting.values()){
+                    String val = pd.settings.contains(s.name()) ? "[green]on[]" : "[scarlet]off[]";
+                    sb.append(s.name()).append(":").append(val).append("\n");
                 }
-                sendMessage(player, "setting");
-                player.sendMessage(sb.toString());
+                Call.onInfoMessage(player.con, sb.toString());
                 return;
             }
             if(args.length == 1){
-                if(!args[0].equals("help")){
-                    wrongArgAmount(player,args,2);
+                if (args[0].equals("help")) {
+                    sendInfoPopup(player, "set-help");
                     return;
                 }
-                sendInfoPopup(player,"set-help");
+                wrongArgAmount(player,args,2);
                 return;
             }
             if(args[0].equals("textcolor")) {
@@ -263,8 +265,7 @@ public class InGameCommands {
                         return;
                     }
                     //checking if player has permission for this
-                    SpecialRank sp = Database.getSpecialRank(pd);
-                    if ((sp == null || !sp.permissions.contains(Perm.colorCombo.name()))) {
+                    if (Database.hasSpecialPerm(player, Perm.colorCombo)) {
                         sendErrMessage(player, "set-color-no-perm");
                         return;
                     }
@@ -306,13 +307,22 @@ public class InGameCommands {
             sendMessage(player,"set-toggled",args[0],args[1]);
         });
 
-        handler.<Player>register("mute","<name/id>","Mutes or, if muted, unmutes player for you. " +
+        handler.<Player>register("mute","<name/id/info>","Mutes or, if muted, unmutes player for you. " +
                 "It can be used only on online players.",(args,player)->{
             PlayerD pd = getData(player);
             Player other = findPlayer(args[0]);
 
             if(other == null){
-                sendErrMessage(player,"player-not-found");
+                if(args[0].equals("info")){
+                    StringBuilder sb = new StringBuilder("[orange]==MUTES==[]\n\n");
+                    for(String s : pd.mutes){
+                        PlayerD o = Database.getMeta(s);
+                        sb.append(o.originalName).append(" [white](").append(o.serverId).append(")[gray],");
+                    }
+                    Call.onInfoMessage(player.con, sb.toString());
+                    return;
+                }
+                sendErrMessage(player,"player-not-found-or-offline");
                 return;
             }
             if(other == player){
@@ -705,7 +715,7 @@ public class InGameCommands {
                                 sendErrMessage(player,"loadout-nothing-to-transport");
                                 return;
                             }
-                            arg = Loadout.stackToString(stack);
+                            arg = stack.toString();
                         }
                         if(condition != 0) {
                             Hud.addAd("loadout-condition", 10 ,"" + condition, "!gray", "!white");
@@ -750,7 +760,7 @@ public class InGameCommands {
                                 sendErrMessage(player,"loadout-nothing-to-transport");
                                 return;
                             }
-                            arg = Loadout.stackToString(stack);
+                            arg = stack.toString();
                         }
                         finalStack = stack;
                         data = new VoteData() {
@@ -888,7 +898,6 @@ public class InGameCommands {
                         transportable.amount = Mathf.clamp(transportable.amount, 0, available.amount);
                         arg = transportable.toString();
                         factory.withdraw(transportable);
-                        String finalArg = arg;
                         String finalArg1 = arg2;
                         Vec2 aPos = new Vec2(player.x, player.y);
                         data = new VoteData() {
@@ -940,22 +949,20 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("kickafk", "Kicks all afk players",(args, player)->{
-            vote.aVote(new VoteData() {
-                {
-                    reason = "kickafk";
-                    by = player;
-                }
-                @Override
-                public void run() {
-                    for(Player p :playerGroup){
-                        if(getData(p).afk) {
-                            kick(p, "kickafk-kick", 0);
-                        }
+        handler.<Player>register("kickafk", "Kicks all afk players",(args, player)-> vote.aVote(new VoteData() {
+            {
+                reason = "kickafk";
+                by = player;
+            }
+            @Override
+            public void run() {
+                for(Player p :playerGroup){
+                    if(getData(p).afk) {
+                        kick(p, "kickafk-kick", 0);
                     }
                 }
-            }, 4);
-        });
+            }
+        }, 4));
 
         handler.<Player>register("skipwave", "[1-5]", "Skips amount of waves.",(args, player)->{
             if(args.length == 1 && !Strings.canParsePostiveInt(args[0])){
@@ -997,6 +1004,10 @@ public class InGameCommands {
                 sendErrMessage(player, "suicide-no-perm");
                 return;
             }
+            if(player.isDead()){
+                sendErrMessage(player, "suicide-already-dead");
+                return;
+            }
             player.onDeath();
             player.kill();
             sendMessage(Mathf.random(100) < 2 ? "suicide-committed-special" : "suicide-committed", player.name);
@@ -1008,13 +1019,17 @@ public class InGameCommands {
             } else if(args[0].startsWith("!")){
                 Player found = findPlayer(args[0].substring(1));
                 if(found == null){
-                    sendErrMessage(player, "player-not-found");
+                    sendErrMessage(player, "player-not-found-or-offline");
+                    return;
+                }
+                if(found == player){
+                    sendErrMessage(player, "dm-cannot-dm-your-self");
                     return;
                 }
                 dms.put(player.uuid, found.uuid);
                 sendMessage(player, "dm-channel-set", player.name);
             } else {
-                if(dms.containsKey(player.uuid)) {
+                if(!dms.containsKey(player.uuid)) {
                     sendErrMessage(player, "dm-no-channel-set");
                     return;
                 }
@@ -1023,8 +1038,9 @@ public class InGameCommands {
                     sendErrMessage(player, "dm-target-offline");
                     return;
                 }
-                player.sendMessage("[#ffdfba][[[#" + found.color + "]" + found.name + "[]]:[white]" + args[0]);
-                found.sendMessage("[#ffdfba][[[#" + found.color + "]" + player.name + "[]]:[white]" + args[0]);
+                String msg = "[#ffdfba]<[#" + player.color + "]" + player.name + "[]>:[white]" + args[0];
+                player.sendMessage(msg);
+                found.sendMessage(msg);
             }
 
         });
@@ -1061,7 +1077,7 @@ public class InGameCommands {
             for(Action a : new ArrayList<>(acts)){
                 if(count == max) break;
                 a.Undo();
-                acts.remove(count);
+                acts.remove(0);
                 count++;
             }
             sendMessage(player, "revert-reverted");

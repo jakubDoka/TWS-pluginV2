@@ -86,6 +86,7 @@ public class BotCommands {
                         ctx.reply("Account with user name **" + cleanColors(found.originalName) +
                                 "** wos successfully disconnected.");
                         found.discordLink = null;
+                        Database.updateMeta(found);
                     }
                     return;
                 }

@@ -67,8 +67,12 @@ public class SpecialRank implements Serializable {
         for(String stat : quests.keySet()){
             HashMap<String,Integer> quest = quests.get(stat);
             Long val = (Long)rawData.get(stat);
+            long played = tested.playTime/hour;
+            if(played == 0 ){
+                played = 1;
+            }
             if(quest.containsKey(Mod.required.name()) && val < quest.get(Mod.required.name())) return false;
-            if(quest.containsKey(Mod.frequency.name()) && quest.get(Mod.frequency.name()) > val/(tested.playTime/hour)) return false;
+            if(quest.containsKey(Mod.frequency.name()) && quest.get(Mod.frequency.name()) > val/played) return false;
             if(quest.containsKey(Mod.best.name()) && getPlace(stat, rawData) > quest.get(Mod.best.name())) return false;
         }
         return true;

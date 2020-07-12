@@ -8,8 +8,8 @@ import mindustry.content.Blocks;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
-import mindustry.world.Block;
 import mindustry.world.Tile;
+import theWorst.Bot;
 import theWorst.Global;
 import theWorst.database.*;
 
@@ -18,16 +18,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 
 import static mindustry.Vars.*;
+import static mindustry.Vars.player;
 import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.General.getPropertyByName;
 import static theWorst.Tools.General.getRank;
 import static theWorst.Tools.Players.*;
 
 public class Administration implements Displayable{
+
     public static Emergency emergency = new Emergency(0); // Its just placeholder because time is 0
-    public static HashMap<String, Integer> recent = new HashMap<>();
+    public static HashMap<String, ArrayList<Long>> recent = new HashMap<>();
+    public static HashMap<String, Long> banned = new HashMap<>();
     public static Timer.Task recentThread;
-    private final int maxAGFreq = 5;
     TileInfo[][] data;
     public static HashMap<String, ArrayList<Action>> undo = new HashMap<>();
     final int undoCache = 200;
@@ -37,16 +38,6 @@ public class Administration implements Displayable{
         Hud.addDisplayable(this);
         //this updates recent map of deposit and withdraw events.
         if(recentThread != null) recentThread.cancel();
-        recentThread = Timer.schedule(()->{
-            for(String s : new HashSet<>(recent.keySet())){
-                int val = recent.get(s);
-                if(val <= 0){
-                    recent.remove(s);
-                    continue;
-                }
-                recent.put(s, val - maxAGFreq);
-            }
-        },0,1);
 
         //crete a a new action map when map changes.
         Events.on(EventType.PlayEvent.class, e -> {
@@ -57,27 +48,18 @@ public class Administration implements Displayable{
                 }
             }
             undo.clear();
+            Action.buildBreaks.clear();
         });
+
         //displaying of inspect messages
-        Events.on(EventType.TapEvent.class, e -> {
-            //do this only id player hes inspect enabled
-            if (!Database.hasEnabled(e.player, Setting.inspect)) return;
-            StringBuilder msg = new StringBuilder();
-            TileInfo ti = data[e.tile.y][e.tile.x];
-            if (ti.data.isEmpty()) {
-                msg.append("No one interacted with this tile.");
-            } else {
-                msg.append(ti.lock == 1 ? Rank.verified.getName() + "\n" : "");
-                for (String s : ti.data.keySet()) {
-                    msg.append("[orange]").append(s).append(":");
-                    for (PlayerD pd : ti.data.get(s)){
-                        msg.append(pd.serverId).append(", ");
-                    }
-                    msg.append("\n");
-                }
-            }
-            Call.onLabel(e.player.con, msg.toString().substring(0, msg.length() - 1), 8, e.tile.x * 8, e.tile.y * 8);
+        Events.on(EventType.TapConfigEvent.class, e-> {
+            if(e.player == null) return;
+            handleInspect(e.player, e.tile);
         });
+        Events.on(EventType.TapEvent.class, e ->{
+            if(e.player == null) return;
+            handleInspect(e.player, e.tile);
+        } );
 
         //disable lock if block wos destroyed
         Events.on(EventType.BlockDestroyEvent.class, e -> data[e.tile.y][e.tile.x].lock = 0);
@@ -103,7 +85,7 @@ public class Administration implements Displayable{
                 }
                 //handle griefer messages
                 if (pd.rank.equals(Rank.griefer.name())) {
-                    if (Time.timeSinceMillis(pd.lastMessage) < Global.config.grieferAntiSpamTime) {
+                    if (Time.timeSinceMillis(pd.lastMessage) < Global.limits.grieferAntiSpamTime) {
                         sendErrMessage(player, "griefer-too-match-messages");
                         return null;
                     }
@@ -151,48 +133,56 @@ public class Administration implements Displayable{
                 }
                 if(act.tile != null  && rank.permission.getValue() < Rank.candidate.permission.getValue()){
                     ArrayList<Action> acts = undo.computeIfAbsent(pd.uuid, k -> new ArrayList<>());
-                    boolean ignoreBuildBreak = false;
                     long now = Time.millis();
-                    if(!acts.isEmpty()){
-                        Action prev = acts.get(0);
-                        ignoreBuildBreak = (prev instanceof Action.Build || prev instanceof Action.Break)
-                                && act.tile.pos() == prev.tile.pos() && act.block == prev.block;
-                    }
-                    player.sendMessage(act.type.name());
-                    switch (act.type){
+                    switch (act.type) {
                         case breakBlock:
-                            if (!ignoreBuildBreak && act.tile.entity != null) {
-                                acts.add(0, new Action.Break(){
-                                    {
-                                        tile = act.tile;
-                                        block = act.tile.block();
-                                        config = act.tile.entity.config();
-                                        rotation = act.tile.rotation();
-                                        age = now;
-                                    }
-                                });
-                            }
+                            Action.addBuildBreak(acts, new Action.Break() {
+                                {
+                                    by = pd.uuid;
+                                    tile = act.tile;
+                                    block = act.tile.block();
+                                    config = act.tile.entity.config();
+                                    rotation = act.tile.rotation();
+                                    age = now;
+                                }
+                            });
+
                             break;
                         case placeBlock:
-                            if (!ignoreBuildBreak) {
-                                acts.add(0, new Action.Build() {
-                                    {
-                                        tile = act.tile;
-                                        block = act.block;
-                                        age = now;
-                                    }
-                                });
-                            }
+                            Action.addBuildBreak(acts, new Action.Build() {
+                                {
+                                    by = pd.uuid;
+                                    tile = act.tile;
+                                    block = act.block;
+                                    age = now;
+                                }
+                            });
                             break;
                         case depositItem:
                         case withdrawItem:
-                            int val = recent.getOrDefault(player.uuid, 0);
-                            if(val > maxAGFreq){
-                                sendErrMessage(player , "AG-slow-down");
-                                recent.put(player.uuid,30);
-                                return false;
+                            ArrayList<Long> draws = recent.computeIfAbsent(pd.uuid, k -> new ArrayList<>());
+                            if (draws.size() > Global.limits.withdrawLimit) {
+                                Long ban = banned.get(player.uuid);
+                                if (ban != null) {
+                                    if (Time.timeSinceMillis(ban) < 1000 * 30) {
+                                        sendErrMessage(player, "ag-cannot-withdraw");
+                                        return false;
+                                    } else {
+                                        draws.clear();
+                                    }
+                                } else {
+                                    banned.put(player.uuid, now);
+                                    banned.remove(player.uuid);
+                                    return false;
+                                }
+                            } else {
+                                for (Long l : new ArrayList<>(draws)) {
+                                    if (Time.timeSinceMillis(l) > 1000) {
+                                        draws.remove(0);
+                                    }
+                                }
+                                draws.add(now);
                             }
-                            recent.put(player.uuid, val+1);
                             break;
                         case configure:
                             if (act.tile.entity != null) {
@@ -208,7 +198,7 @@ public class Administration implements Displayable{
                             }
                             break;
                         case rotate:
-                            acts.add(0, new Action.Rotate(){
+                            acts.add(0, new Action.Rotate() {
                                 {
                                     block = act.tile.block();
                                     rotation = act.tile.rotation();
@@ -221,31 +211,34 @@ public class Administration implements Displayable{
                     if(acts.size() > undoCache){
                         acts.remove(undoCache);
                     }
-                    int burst = 0;
-                    Tile currTile = acts.get(0).tile;
-                    int actPerTile = 0;
-                    for(Action a :acts){
-                        if(Time.timeSinceMillis(a.age) < Global.config.rateLimitPeriod && !(a instanceof Action.Build || a instanceof Action.Break)) {
-                            if(a.tile == currTile){
-                                actPerTile++;
+                    if(!acts.isEmpty()){
+                        int burst = 0;
+                        Tile currTile = acts.get(0).tile;
+                        int actPerTile = 0;
+                        for(Action a :acts){
+                            if(Time.timeSinceMillis(a.age) < Global.limits.rateLimitPeriod && !(a instanceof Action.Build || a instanceof Action.Break)) {
+                                if(a.tile == currTile){
+                                    actPerTile++;
+                                } else {
+                                    currTile = a.tile;
+                                    actPerTile = 0;
+                                }
+                                if(actPerTile > Global.limits.countedActionsPerTile){
+                                    continue;
+                                }
+                                burst ++;
                             } else {
-                                currTile = a.tile;
-                                actPerTile = 0;
+                                break;
                             }
-                            if(actPerTile > Global.config.countedActionsPerTile){
-                                continue;
+                        }
+                        if (burst > Global.limits.configLimit){
+                            Bot.onRankChange(cleanColors(pd.originalName), pd.serverId, rank.name(), Rank.griefer.name(), "Server", "auto");
+                            Database.setRank(pd, Rank.griefer, player);
+                            for(Action a: acts) {
+                                a.Undo();
                             }
-                            burst ++;
-                        } else {
-                            break;
+                            acts.clear();
                         }
-                    }
-                    if (burst > Global.config.rateLimit){
-                        Database.setRank(pd, Rank.griefer, player);
-                        for(Action a: acts) {
-                            a.Undo();
-                        }
-                        acts.clear();
                     }
                 }
                 //remember tis action for inspect.
@@ -257,6 +250,25 @@ public class Administration implements Displayable{
         });
 
 
+    }
+
+    private void handleInspect(Player player, Tile tile){
+        if (!Database.hasEnabled(player, Setting.inspect)) return;
+        StringBuilder msg = new StringBuilder();
+        TileInfo ti = data[tile.y][tile.x];
+        if (ti.data.isEmpty()) {
+            msg.append("No one interacted with this tile.");
+        } else {
+            msg.append(ti.lock == 1 ? Rank.verified.getName() + "\n" : "");
+            for (String s : ti.data.keySet()) {
+                msg.append("[orange]").append(s).append(":");
+                for (PlayerD pd : ti.data.get(s)){
+                    msg.append(pd.serverId).append("=").append(pd.originalName).append("|");
+                }
+                msg.append("\n");
+            }
+        }
+        player.sendMessage(msg.toString());
     }
 
     @Override

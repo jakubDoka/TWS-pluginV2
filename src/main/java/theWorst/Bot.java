@@ -15,14 +15,14 @@ import theWorst.discord.DiscordCommands;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import static mindustry.Vars.playerGroup;
 import static mindustry.Vars.world;
 import static theWorst.Tools.Commands.isCommandRelated;
 import static theWorst.Tools.Commands.logInfo;
 import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.Json.loadJson;
-import static theWorst.Tools.Json.saveJson;
+import static theWorst.Tools.Json.*;
 import static theWorst.Tools.Maps.hasMapAttached;
 
 public class Bot {
@@ -72,6 +72,11 @@ public class Bot {
 
     public static void onRankChange(String name, long serverId, String prev, String now, String by, String reason) {
         if(!config.channels.containsKey("log")) return;
+        if(reason == null){
+            reason = "Not provided.";
+        }else if(reason.equals("auto") && config.roles.containsKey("admin")) {
+            reason = "Oxygen account detected!!" + config.roles.get("admin").getMentionTag();
+        }
         config.channels.get("log").sendMessage(String.format("**%s** (%d) **%s** -> **%s** \n**by:** %s \n**reason:** %s",
                 name,serverId,prev,now,by,reason));
     }
@@ -105,30 +110,23 @@ public class Bot {
     }
 
     public static void loadRestrictions() {
-        loadJson(restrictionFile, data -> {
-            for (Object o : data.keySet()) {
-                String s = (String) o;
-                JSONArray ja = (JSONArray) data.get(o);
-                String[] roles = new String[ja.size()];
-                for (int i = 0; i < roles.length; i++) {
-                    roles[i] = (String) ja.get(i);
-                }
-                if (!handler.commands.containsKey(s)) continue;
-                handler.commands.get(s).role = roles;
-            }
-        }, () -> {
-            JSONObject data = new JSONObject();
-            for (Command c : handler.commands.values()) {
-                JSONArray roles = new JSONArray();
-                if(c.role != null) {
-                    Collections.addAll(roles, c.role);
-                }
-                data.put(c.name, roles);
+       HashMap<String, String[] > restricts = loadSimpleHashmap(restrictionFile, String[].class, Bot::DefaultRestrictions);
+       if(restricts == null) return;
+       for(String s : restricts.keySet()){
+           handler.commands.get(s).role = restricts.get(s);
+       }
+    }
 
+    public static void DefaultRestrictions() {
+        HashMap<String, String[]> data = new HashMap<>();
+        for (Command c : handler.commands.values()) {
+            if(c.role != null) {
+                data.put(c.name, c.role);
+            } else {
+                data.put(c.name, new String[0]);
             }
-            saveJson(restrictionFile, data.toJSONString());
-            logInfo("files-default-config-created", "command restrictions", restrictionFile);
-        });
+        }
+        saveSimple(restrictionFile, data, "command restrictions");
     }
 
     public static boolean disconnect(){

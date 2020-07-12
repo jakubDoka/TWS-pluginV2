@@ -71,19 +71,21 @@ public class BotConfig {
 
     private void defaultConfig(){
         saveJson(datafile,
-                "{\n" +
-                "\t\"comment\": \"IDs of channels and roles has to me in quotation marks!!\",\n" +
-                "\t\"token\": \"Your bot token goes here\",\n" +
-                "\t\"prefix\":\"key for commands goes here, it should be one character like ! or % so ppl can write !commandName to call command\",\n" +
-                "\t\"channels\":{\n" +
-                "\t\t\"commands\":\"channel for commands goes here\"\n" +
-                "\t},\n" +
-                "\t\"roles\":{\n" +
-                "\t\t\"manager\":\"role for ppl that manage applications goes here, it gives permission to use some commands\",\n" +
-                "\t\t\"candidate\":\"this role will be assigned to tested user after he passes the test\"\n" +
-                "\t}" +
-                "}"
-        );
+               "{\n" +
+                       "\t\"channels\":{\n" +
+                       "\t\t\"maps\":\"channel for publishing maps\",\n" +
+                       "\t\t\"commandLog\":\"shows used commands\",\n" +
+                       "\t\t\"log\":\"shows rank changes\",\n" +
+                       "\t\t\"commands\":\"chat for commands\",\n" +
+                       "\t\t\"linked\":\"in game linked chat\"\n" +
+                       "\t},\n" +
+                       "\t\"prefix\":\"!\",\n" +
+                       "\t\"roles\":{\n" +
+                       "\t\t\"admin\":\"admin role, role will be notified when something important happens\"\n" +
+                       "\t},\n" +
+                       "\t\"token\":\"token of bot goes here\"\n" +
+                       "}"
+        , "bot");
     }
 
     public TextChannel getChannel(String name) {

@@ -202,7 +202,7 @@ public class PlayerD {
                 "" + (loadoutVotes + oldMeta.buildingsBroken),
                 "" + (factoryVotes + oldMeta.factoryVotes),
                 "" + (enemiesKilled + oldMeta.enemiesKilled),
-                bundle.getLocale().getDisplayCountry(pd == null ? defaultBundle.getLocale() : pd.bundle.getLocale()),
+                bundle.getLocale().getDisplayCountry(),
                 "" + (deaths + oldMeta.deaths));
     }
 

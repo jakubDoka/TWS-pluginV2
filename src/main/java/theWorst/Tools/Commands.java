@@ -57,7 +57,6 @@ public class Commands {
             Rank r = Rank.valueOf(rank);
             //this means that this function is called from InGameCommands or BotCommands
             if (player != null && r.isAdmin) return Res.notPermitted;
-            if (reason == null) reason = "Reason not provided.";
             Rank prevRank = getRank(pd);
             Database.setRank(pd, r, null);
             Bot.onRankChange(cleanColors(pd.originalName), pd.serverId, prevRank.name(), r.name(), by, reason);
@@ -157,7 +156,7 @@ public class Commands {
                 break;
             default:
                 for(PlayerD pd : all){
-                    if(cleanColors(pd.originalName).startsWith(args[0])) res.add(pdToLine(pd));
+                    if(cleanColors(pd.originalName).toLowerCase().startsWith(args[0].toLowerCase())) res.add(pdToLine(pd));
                 }
                 break;
         }

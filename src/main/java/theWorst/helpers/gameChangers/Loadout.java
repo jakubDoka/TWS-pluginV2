@@ -34,10 +34,9 @@ public class Loadout implements Displayable, Destroyable {
     public String getMessage(PlayerD pd) {
         StringBuilder sb = new StringBuilder();
         for(Ship s: ships){
-            String f = "[gray]" + new String[]{"-->", "->-", ">--"}[s.time % 3] + "[]";
-            f = "[orange]" + f + "[]";
+            String f = "[orange]" + new String[]{"-->", "->-", ">--"}[s.time % 3] + "[]";
             sb.append("[gray]<[]");
-            sb.append(stackToString(s.stack));
+            sb.append(s.stack.toString());
             sb.append(f).append(secToTime(s.time)).append(f);
             sb.append("\uf869");
             sb.append("[gray]>[]");
@@ -62,7 +61,7 @@ public class Loadout implements Displayable, Destroyable {
     @Override
     public void destroy() {
         for(Ship s : new ArrayList<>(ships)){
-            sendMessage("loadout-ships-going-back", stackToString(s.stack));
+            sendMessage("loadout-ships-going-back", s.stack.toString());
             ships.remove(s);
         }
     }
@@ -88,20 +87,10 @@ public class Loadout implements Displayable, Destroyable {
     public String info(){
         StringBuilder sb = new StringBuilder("[orange]==LOADOUT==[]\n\n");
         for(Item i : items.keySet()){
-            sb.append(stackToString(new ItemStack(i, items.get(i))));
+            sb.append(new ItemStack(i, items.get(i)).toString());
             sb.append("\n");
         }
         return sb.toString();
-    }
-
-    public static String stackToString(ItemStack stack){
-        int idx = 0;
-        for(Item i: Vars.content.items()){
-            if(i.type != ItemType.material) continue;
-            if( i == stack.item) break;
-            idx++;
-        }
-        return stack.amount + itemIcons[idx];
     }
 
     public void launchAll(){
@@ -116,7 +105,7 @@ public class Loadout implements Displayable, Destroyable {
     }
 
     public static void loadConfig(){
-        config = loadJackson(configFile, LoadoutConfig.class);
+        config = loadJackson(configFile, LoadoutConfig.class, "loadout");
         if( config == null) config = new LoadoutConfig();
 
     }
@@ -137,11 +126,11 @@ public class Loadout implements Displayable, Destroyable {
     }
 
     public void saveRes(){
-        JSONObject data = new JSONObject();
+        HashMap<String, Integer> data = new HashMap<>();
         for(Item i : items.keySet()){
             data.put(i.name, items.get(i));
         }
-        saveJson(saveFile,data.toJSONString());
+        saveSimple(saveFile, data, null);
     }
 
     public boolean has(ItemStack stack){

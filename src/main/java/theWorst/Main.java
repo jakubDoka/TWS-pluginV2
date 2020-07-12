@@ -2,13 +2,10 @@ package theWorst;
 
 import arc.Core;
 import arc.Events;
-import arc.util.CommandHandler;
-import arc.util.Log;
-import arc.util.Strings;
-import arc.util.Time;
-import mindustry.content.Blocks;
+import arc.util.*;
 import mindustry.core.GameState;
 import mindustry.game.EventType;
+import mindustry.gen.Call;
 import mindustry.plugin.Plugin;
 import mindustry.world.blocks.logic.MessageBlock;
 import theWorst.database.BackupManager;
@@ -47,14 +44,27 @@ public class Main extends Plugin {
             if (e.tile.entity instanceof MessageBlock.MessageBlockEntity) {
                 MessageBlock.MessageBlockEntity mb = (MessageBlock.MessageBlockEntity) e.tile.entity;
                 if (mb.message.startsWith(Global.config.alertPrefix)) {
-                    Hud.addAd("blank", 10, mb.message, "!scarlet", "!gray");
+                    Hud.addAd("blank", 10, mb.message.replace(Global.config.alertPrefix, ""), "!scarlet", "!gray");
                 }
             }
         });
+
+        Events.on(EventType.PlayEvent.class, e->{
+            float original = state.rules.respawnTime;
+            float spawnBoost = .1f;
+            state.rules.respawnTime = spawnBoost;
+            Call.onSetRules(state.rules);
+            Timer.schedule(()->{
+                state.rules.respawnTime = original;
+                Call.onSetRules(state.rules);
+            }, playerGroup.size() * spawnBoost + 1f);
+        });
+
         Events.on(EventType.WorldLoadEvent.class,e-> destroyable.forEach(Destroyable::destroy));
 
         Events.on(EventType.ServerLoadEvent.class, e->{
-            Global.load();
+            Global.loadConfig();
+            Global.loadLimits();
             new ShootingBooster();
             new Database();
             new MapManager();
@@ -146,7 +156,7 @@ public class Main extends Plugin {
         handler.register("wconfig","<target/help>", "Loads the targeted config.", args -> {
             switch (args[0]){
                 case "help":
-                    logInfo("show-modes","ranks, pets, general, discord, discordrolerestrict, loadout, factory, weapons");
+                    logInfo("show-modes","ranks, pets, general, limits, discord, discordrolerestrict, loadout, factory, weapons");
                     return;
                 case "ranks":
                     Database.loadRanks();
@@ -155,8 +165,11 @@ public class Main extends Plugin {
                     Database.loadPets();
                     return;
                 case "general":
-                    Global.load();
+                    Global.loadConfig();
                     Database.reload();
+                    return;
+                case "limits":
+                    Global.loadLimits();
                     return;
                 case "discord":
                     Bot.connect();
@@ -172,6 +185,7 @@ public class Main extends Plugin {
                     return;
                 case "weapons":
                     ShootingBooster.loadWeapons();
+                    return;
                 default:
                     logInfo("invalid-mode");
             }
@@ -242,7 +256,7 @@ public class Main extends Plugin {
 
     @Override
     public void registerClientCommands(CommandHandler handler) {
-        //just to split it a little it
+        //just to split it a little 
         inGameCommands.register(handler);
     }
 }

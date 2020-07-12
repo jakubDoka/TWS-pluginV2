@@ -5,6 +5,7 @@ import arc.math.geom.Vec2;
 import arc.util.Time;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.content.Fx;
 import mindustry.entities.Effects;
@@ -28,7 +29,7 @@ public class Pet {
     float time = 0;
 
     Vec2 pos = new Vec2(), vel = new Vec2();
-    Effects.Effect trail = Fx.fire;
+    @JsonIgnore public Effects.Effect trail = Fx.fire;
     TargetTrait target = null;
     Weapon weapon = null;
 
@@ -49,12 +50,7 @@ public class Pet {
             this.name = "noName";
         }
         if(trailName != null){
-            Effects.Effect resolved = (Effects.Effect) getPropertyByName(Fx.class,trailName,null);
-            if(resolved != null){
-                trail = resolved;
-            } else {
-                throw new IOException("Tee pet with name " + this.name + "has invalid trail");
-            }
+            trail = (Effects.Effect) getPropertyByName(Fx.class,trailName,null);
         }
         this.weapon = ShootingBooster.weapons.get(weapon);
     }

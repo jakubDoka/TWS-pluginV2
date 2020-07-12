@@ -3,14 +3,12 @@ package theWorst.helpers;
 import arc.Events;
 import arc.struct.Array;
 import arc.util.Timer;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-
 import theWorst.Global;
-import theWorst.Tools.Players;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Setting;
@@ -19,23 +17,17 @@ import java.util.ArrayList;
 
 import static mindustry.Vars.player;
 import static mindustry.Vars.playerGroup;
-import static theWorst.Tools.Commands.logInfo;
 import static theWorst.Tools.Formatting.format;
-import static theWorst.Tools.Json.loadJson;
-import static theWorst.Tools.Json.saveJson;
+import static theWorst.Tools.Json.loadJackson;
 import static theWorst.Tools.Players.getTranslation;
 
 public class Hud {
     final static String messageFile = Global.configDir + "hudMessages.json";
+    static MessageCycle cycle = new MessageCycle();
     static Timer.Task update;
     static ArrayList<Displayable> displayable = new ArrayList<>();
-    static Timer.Task messageCycle = null;
     boolean showCoreAlert;
-    static Array<String> messages= new Array<>();
-    static int speed=10;
     static Array<Ad> adQueue= new Array<>();
-    static int current=0;
-
 
     public Hud(){
         //this is necessary, if local player is null, team core damage event will not be triggered
@@ -68,7 +60,7 @@ public class Hud {
                     }
                     PlayerD pd = Database.getData(p);
                     StringBuilder b = new StringBuilder().append("[#cbcbcb]");
-                    if (!messages.isEmpty()) b.append(messages.get(current)).append("\n");
+                    if (cycle.on) b.append(cycle.getMessage()).append("\n");
                     //displayable are registered in their constructors
                     for (Displayable d : displayable) {
                         String r = d.getMessage(pd);
@@ -110,9 +102,7 @@ public class Hud {
                     p.sendMessage(getMessage(Database.getData(p)));
                 }
             }
-            expiration = Timer.schedule(()->{
-                adQueue.remove(this);
-            },liveTime);
+            expiration = Timer.schedule(()-> adQueue.remove(this),liveTime);
         }
 
        String getMessage(PlayerD pd){
@@ -132,46 +122,47 @@ public class Hud {
         adQueue.add(new Ad(message,args,time));
     }
 
-    public static void addPositiveAdd(String message, int time) {
-        addAd(message, time, "!green", "!gray");
-    }
-
-    public static void addNegativeAdd(String message, int time) {
-        addAd(message, time, "!scarlet", "!gray");
-    }
-
     public static void loadMessages(){
-        speed = 3;
-        loadJson(messageFile,data->{
-            if(data.containsKey("messages")){
-                for(Object o : (JSONArray)data.get("messages")){
-                    messages.add((String) o);
-                }
-            }
-            if(data.containsKey("speed")) speed = ((Long)data.get("speed")).intValue();
-        },Hud::defaultMessages);
-        if(messageCycle != null){
-            messageCycle.cancel();
-        }
-        messageCycle=Timer.schedule(()->{
-            if(messages.isEmpty()){
-                return;
-            }
-            current+=1;
-            current%=messages.size;
-        },0,speed*60);
+        MessageCycle mc = loadJackson(messageFile, MessageCycle.class, "hud messages");
+        if(mc == null) return;
+        cycle.thread.cancel();
+        cycle = mc;
     }
 
-    private static void defaultMessages() {
-        JSONObject data = new JSONObject();
-        JSONArray array = new JSONArray();
-        array.add("To toggle thous messages modify file [orange]"+messageFile+"[].");
-        array.add("Put your messages like this.");
-        array.add("And this.");
-        data.put("messages",array);
-        data.put("speed",1);
-        saveJson(messageFile,data.toJSONString());
-        logInfo("files-default-config-created","hud messages", messageFile);
+    public static class MessageCycle {
+        public String[] messages = new String[]{
+                "To toggle thous messages modify file [orange]"+messageFile+"[].",
+                "Put your messages like this.",
+                "And this."
+        };
+        public int speed = 1;
+        public boolean on = true;
+        int idx = 0;
+        Timer.Task thread;
+
+        public MessageCycle() {start();}
+
+        @JsonCreator public MessageCycle(
+                @JsonProperty("messages") String[] messages,
+                @JsonProperty("speed") int speed) {
+            this.messages = messages;
+            this.speed = speed;
+            on = messages.length > 0;
+            if(on){
+                start();
+            }
+        }
+
+        private void start(){
+            thread = Timer.schedule(()->{
+                idx++;
+                idx %= messages.length;
+            }, 0, speed * 60);
+        }
+
+        String getMessage() {
+            return messages[idx];
+        }
     }
 
 }

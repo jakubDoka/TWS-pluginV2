@@ -93,13 +93,11 @@ public class Factory implements Destroyable, Displayable {
             sb.append("[gray]<[]");
             sb.append(t.stack.toString());
             if(t.building){
-                String f = "[gray]" + new String[]{"<--", "-<-", "--<"}[t.time % 3] + "[]";
-                f = "[orange]" + f + "[]";
+                String f = "[orange]" + new String[]{"<--", "-<-", "--<"}[t.time % 3] + "[]";
                 sb.append(f).append(secToTime(t.time)).append(f);
                 sb.append("\uf851");
             } else {
-                String f = "[gray]" + new String[]{"-->", "->-", ">--"}[t.time % 3] + "[]";
-                f = "[orange]" + f + "[]";
+                String f = "[orange]" + new String[]{"-->", "->-", ">--"}[t.time % 3] + "[]";
                 sb.append(f).append(secToTime(t.time)).append(f);
                 sb.append("\uf869");
             }
@@ -138,7 +136,7 @@ public class Factory implements Destroyable, Displayable {
     }
 
     public static void loadConfig(){
-        config = loadJackson(configFile, FactoryConfig.class);
+        config = loadJackson(configFile, FactoryConfig.class, "factory");
         if( config == null) config = new FactoryConfig();
     }
 
@@ -183,11 +181,7 @@ public class Factory implements Destroyable, Displayable {
     }
 
     private void saveUnits() {
-        JSONObject data = new JSONObject();
-        for(UnitType u : Vars.content.units()){
-            data.put(u, units.get(u));
-        }
-        saveJson(saveFile,data.toJSONString());
+        saveSimple(saveFile, units, null);
     }
 
     public String price(UnitStack stack){
@@ -199,7 +193,7 @@ public class Factory implements Destroyable, Displayable {
             int have = loadout.getAmount(i.item);
             int price = i.amount * stack.amount;
             sb.append(have < price ? "[scarlet]":"[green]");
-            sb.append(have).append("/").append(Loadout.stackToString(new ItemStack(i.item, price)));
+            sb.append(have).append("/").append(new ItemStack(i.item, price).toString());
             sb.append("[]\n");
         }
         int buildTime = (int)(stack.amount * pd.buildTime);

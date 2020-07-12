@@ -12,8 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 
-import static theWorst.Tools.Json.loadJson;
-import static theWorst.Tools.Json.saveJson;
+import static theWorst.Tools.Json.*;
 import static theWorst.Tools.Players.sendErrMessage;
 import static theWorst.Tools.Players.sendMessage;
 
@@ -22,22 +21,11 @@ public class Tester {
     public static HashMap<String,Test> tests = new HashMap<>();
     public static Administration.RecentMap recent = new Administration.RecentMap(15*60,"test-can-egan");
 
-    public static HashMap<String, ArrayList<String>> loadQuestions(Locale loc){
-        HashMap<String, ArrayList<String>> questions = new HashMap<>();
+    public static HashMap<String, String[]> loadQuestions(Locale loc){
         String bundle = testFile + "_" + loc.getLanguage() + "_" + loc.getCountry();
         File fi = new File(bundle);
         if(!fi.exists() || fi.isDirectory()) bundle = testFile;
-        loadJson(bundle,(test)->{
-            for(Object o:test.keySet()){
-                JSONArray options=(JSONArray) test.get(o);
-                ArrayList<String> opt=new ArrayList<>();
-                for(Object op:options){
-                    opt.add((String)op);
-                }
-                questions.put((String)o,opt);
-            }
-        },Tester::createExample);
-        return questions;
+        return loadSimpleHashmap(bundle, String[].class, Tester::createExample);
     }
 
     private static void createExample() {
@@ -52,15 +40,15 @@ public class Tester {
                     "\t\t\"other option\",\n" +
                     "\t\t\"#right option\"\n" +
                     "\t]\n" +
-                    "}\n");
+                    "}\n", "tests");
     }
 
     public static class Test {
         String question;
-        ArrayList<String> options;
+        String[] options;
         int progress;
         int points;
-        HashMap<String, ArrayList<String>> questions;
+        HashMap<String, String[]> questions;
 
         public Test(Player player){
             PlayerD pd = Database.getData(player);
@@ -90,20 +78,20 @@ public class Tester {
             question = (String) questions.keySet().toArray()[progress];
             sb.append(question).append("\n");
             options = questions.get(question);
-            for(int i = 0; i<options.size(); i++){
+            for(int i = 0; i<options.length; i++){
                 sb.append("[yellow]").append(i+1).append(")[gray]");
-                sb.append(options.get(i).replace("#",""));
+                sb.append(options[i].replace("#",""));
                 sb.append("\n");
             }
             player.sendMessage(sb.toString());
         }
 
         public void processAnswer(Player player,int answer){
-            if(answer>=options.size() || answer<0){
-                sendErrMessage(player,"test-invalid-answer","" + (answer + 1),"" + options.size());
+            if(answer>=options.length || answer<0){
+                sendErrMessage(player,"test-invalid-answer","" + (answer + 1),"" + options.length);
                 return;
             }
-            if(options.get(answer).startsWith("#")){
+            if(options[answer].startsWith("#")){
                 points+=1;
             }
             progress++;

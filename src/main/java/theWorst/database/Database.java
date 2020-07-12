@@ -6,8 +6,6 @@ import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Time;
 import arc.util.Timer;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
 import mindustry.entities.traits.BuilderTrait;
@@ -22,8 +20,6 @@ import org.bson.Document;
 import org.javacord.api.entity.permission.Role;
 import org.javacord.api.entity.server.Server;
 import org.javacord.api.entity.user.User;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
@@ -31,7 +27,6 @@ import theWorst.Bot;
 import theWorst.Global;
 import theWorst.helpers.gameChangers.Pet;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -43,8 +38,7 @@ import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static theWorst.Tools.Commands.logInfo;
 import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.General.*;
-import static theWorst.Tools.Json.loadJson;
-import static theWorst.Tools.Json.saveJson;
+import static theWorst.Tools.Json.*;
 import static theWorst.Tools.Players.sendErrMessage;
 import static theWorst.Tools.Players.sendMessage;
 
@@ -92,9 +86,10 @@ public class Database {
             PlayerD pd = new PlayerD(e.player);
             online.put(e.player.uuid, pd);
             //marked subnet so mark player aromatically
-            if(subnet.contains(getSubnet(pd)) && getRank(pd) != Rank.griefer){
+            Rank r = getRank(pd);
+            if(subnet.contains(getSubnet(pd)) && r != Rank.griefer){
+                Bot.onRankChange(pd.originalName, pd.serverId,r.name(), Rank.griefer.name(), "Server", "Subnet ban.");
                 setRank(pd, Rank.griefer, e.player);
-                sendMessage("griefer-subnet",e.player.name);
             }
             //resolving special rank
             SpecialRank sr = getSpecialRank(pd);
@@ -248,6 +243,7 @@ public class Database {
     }
 
     void addPets(PlayerD pd, SpecialRank sr){
+        if(!pd.settings.contains(Setting.pets.name())) return;
         if(sr != null && sr.pets != null){
             for(String pet : sr.pets){
                 Pet found = pets.get(pet);
@@ -310,65 +306,57 @@ public class Database {
     }
 
     private static void saveSubnet() {
-        JSONObject data = new JSONObject();
-        JSONArray array = new JSONArray();
-        for(String s : subnet){
-            array.add(s);
-        }
-        data.put("subnet",array);
-        saveJson(subnetFile,data.toJSONString());
+        saveSimple(subnetFile, subnet, null);
     }
 
     public static void loadSubnet(){
-        subnet.clear();
-        loadJson(subnetFile,(data)->{
-            for(Object o : (JSONArray) data.get("subnet")){
-                subnet.add((String) o);
-            }
-        },Database::saveSubnet);
+        String[] subnet = loadSimpleCollection(subnetFile, Database::saveSubnet);
+        if(subnet == null) return;
+        Database.subnet.addAll(Arrays.asList(subnet));
     }
 
     public static void loadRanks() {
         ranks.clear();
-        loadJson(rankFile,data -> {
-            ObjectMapper mapper = new ObjectMapper();
-            SpecialRank[] srs = mapper.readValue(((JSONArray)data.get("ranks")).toJSONString(),SpecialRank[].class);
-            for(SpecialRank sr : srs) ranks.put(sr.name,sr);
-            boolean invalid = false;
-            for(SpecialRank r : ranks.values()){
-                if(r.quests != null) {
-                    for(String s: r.quests.keySet()){
-                        if(!enumContains(Stat.values(),s)){
-                            logInfo("special-error-invalid-stat", r.name, s);
+        HashMap<String, SpecialRank[]> ranks = loadSimpleHashmap(rankFile, SpecialRank[].class, Database::defaultRanks);
+        if (ranks == null) return;
+        SpecialRank[] srs = ranks.get("ranks");
+        if (srs == null) return;
+        boolean invalid = false;
+        for (SpecialRank r : srs) {
+            if (r.quests != null) {
+                for (String s : r.quests.keySet()) {
+                    if (!enumContains(Stat.values(), s)) {
+                        logInfo("special-error-invalid-stat", r.name, s);
+                        invalid = true;
+                    }
+                    for (String l : r.quests.get(s).keySet()) {
+                        if (!enumContains(SpecialRank.Mod.values(), l)) {
+                            logInfo("special-error-invalid-stat-property", r.name, s, l);
                             invalid = true;
-                        }
-                        for(String l : r.quests.get(s).keySet()){
-                            if(!enumContains(SpecialRank.Mod.values(),l)){
-                                logInfo("special-error-invalid-stat-property", r.name, s, l);
-                                invalid = true;
-                            }
                         }
                     }
                 }
-                if(r.linked != null){
-                    for(String l : r.linked){
-                        if(!ranks.containsKey(l)){
-                            logInfo("special-rank-error-missing-rank" , l, r.name);
-                            invalid = true;
-                        }
+            }
+            if (r.linked != null) {
+                for (String l : r.linked) {
+                    if (!ranks.containsKey(l)) {
+                        logInfo("special-rank-error-missing-rank", l, r.name);
+                        invalid = true;
+                    }
 
-                    }
                 }
             }
-            if(invalid){
-                ranks.clear();
-                logInfo("special-rank-file-invalid");
-            }
-        },Database::defaultRanks);
+            Database.ranks.put(r.name, r);
+        }
+        if (invalid) {
+            ranks.clear();
+            logInfo("special-rank-file-invalid");
+        }
+
     }
 
     public static void defaultRanks(){
-        HashMap<String, ArrayList<SpecialRank>> ranks = new HashMap<>();
+
         ArrayList<SpecialRank> arr = new ArrayList<>();
         arr.add(new SpecialRank(){
             {
@@ -404,43 +392,35 @@ public class Database {
                 add("fire-pet");
             }};
         }});
+        HashMap<String, ArrayList<SpecialRank>> ranks = new HashMap<>();
         ranks.put("ranks", arr);
-        try {
-            saveJson(rankFile, new ObjectMapper().writeValueAsString(ranks));
-            logInfo("files-default-config-created","special ranks", rankFile);
-            loadRanks();
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            logInfo("files-default-config-failed","special ranks", rankFile);
+        saveSimple(rankFile, ranks, "special ranks");
+        for(SpecialRank sr : arr){
+            Database.ranks.put(sr.name, sr);
         }
     }
 
     public static void loadPets(){
         pets.clear();
-        loadJson(petFile,data -> {
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                Pet[] pets = mapper.readValue(((JSONArray)data.get("pets")).toJSONString(),Pet[].class);
-                for(Pet p : pets)
-                    Database.pets.put(p.name,p);
-            } catch (IOException ex){
-                ex.printStackTrace();
+        HashMap<String, Pet[]> pets = loadSimpleHashmap(petFile, Pet[].class, Database::defaultPets);
+        if(pets == null) return;
+        Pet[] pts = pets.get("pets");
+        if(pts == null) return;
+        for(Pet p : pts) {
+            if(p.trail == null) {
+                logInfo("pet-invalid-trail", p.name);
+                continue;
             }
-        },Database::defaultPets);
+            Database.pets.put(p.name,p);
+        }
+
     }
 
     public static void defaultPets(){
-        try {
-            String data = new ObjectMapper().writeValueAsString(new HashMap<String, ArrayList<Pet>>(){{
-                put("pets",new ArrayList<Pet>(){{ add(new Pet()); }});
-            }});
-            saveJson(petFile, data);
-            logInfo("files-default-config-created","pets", petFile);
-            loadPets();
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            logInfo("files-default-config-failed","pets", petFile);
-        }
+        saveSimple(petFile, new HashMap<String, ArrayList<Pet>>(){{
+            put("pets",new ArrayList<Pet>(){{ add(new Pet()); }});
+        }},"pets");
+
     }
 
     public static SpecialRank getSpecialRank(PlayerD pd) {
