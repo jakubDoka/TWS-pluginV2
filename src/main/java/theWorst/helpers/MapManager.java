@@ -7,6 +7,7 @@ import arc.struct.Array;
 import arc.util.Time;
 import mindustry.Vars;
 import mindustry.game.EventType;
+import mindustry.game.Gamemode;
 import mindustry.game.Team;
 import mindustry.io.MapIO;
 import mindustry.maps.Map;
@@ -87,11 +88,12 @@ public class MapManager {
         return res;
     }
 
-    public static ArrayList<String> getMapList() {
+    public static ArrayList<String> getMapList(Gamemode gamemode) {
         Array<Map> maps=Vars.maps.customMaps();
         ArrayList<String> res=new ArrayList<>();
         for (int i=0;i<maps.size;i++){
             Map map = maps.get(i);
+            if(gamemode != null && map.rules().mode() != gamemode) continue;
             String m = map.name();
             MapD md = getData(map);
             int r = (int)md.getRating();
@@ -118,7 +120,10 @@ public class MapManager {
 
     public void endGame(boolean won) {
         if(played==null) return;
-        played.playtime+=Time.timeSinceMillis(played.started);
+        long playtime = Time.timeSinceMillis(played.started);
+        played.playtime+= playtime;
+        if(played.longestTime < playtime) played.longestTime = playtime;
+        if(played.shortestTime > playtime) played.shortestTime = playtime;
         played.timesPlayed++;
         if(won) played.timesWon++;
         if(state.wave > played.waveRecord) played.waveRecord=state.wave;

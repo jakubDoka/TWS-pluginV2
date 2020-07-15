@@ -109,7 +109,7 @@ public class Formatting {
     }
 
     public static class Color {
-        int r,g,b;
+        public int r,g,b;
         public Color(int r,int g,int b){
             this.r=r;
             this.g=g;

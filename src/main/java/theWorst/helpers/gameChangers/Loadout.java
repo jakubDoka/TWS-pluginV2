@@ -61,9 +61,10 @@ public class Loadout implements Displayable, Destroyable {
     @Override
     public void destroy() {
         for(Ship s : new ArrayList<>(ships)){
-            sendMessage("loadout-ships-going-back", s.stack.toString());
+            add(s.stack);
             ships.remove(s);
         }
+        Hud.addAd("loadout-ships-going-back", 10);
     }
 
     public static abstract class Ship {

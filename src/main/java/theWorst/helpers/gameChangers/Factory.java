@@ -78,6 +78,7 @@ public class Factory implements Destroyable, Displayable {
 
     @Override
     public void destroy() {
+        if(threads.isEmpty()) return;
         for(Thread t : new ArrayList<>(threads)){
             if(t.building) continue;
             add(t.stack);

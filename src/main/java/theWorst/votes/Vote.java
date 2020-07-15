@@ -5,6 +5,7 @@ import arc.math.Mathf;
 import arc.util.Time;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
+import theWorst.Global;
 import theWorst.Main;
 import theWorst.database.*;
 import theWorst.helpers.Administration;
@@ -15,17 +16,21 @@ import theWorst.helpers.gameChangers.ItemStack;
 import theWorst.helpers.gameChangers.UnitStack;
 
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
 import static mindustry.Vars.*;
 import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.General.getRank;
+import static theWorst.Tools.Json.loadSimpleHashmap;
+import static theWorst.Tools.Json.saveSimple;
 import static theWorst.Tools.Players.getTranslation;
 import static theWorst.Tools.Players.sendErrMessage;
 
 public class Vote implements Displayable, Destroyable {
-    final long minPlayTime = 1000 * 60 * 60;
+    static String passiveFile = Global.saveDir + "passive.json";
+    static HashMap<String, Integer> passivePlayers = new HashMap<>();
     public VoteData voteData;
     String message;
     String[] args;
@@ -93,6 +98,7 @@ public class Vote implements Displayable, Destroyable {
             special = true;
             Hud.addAd("vote-special", 10, sr.getSuffix(), "!white", "!gray");
         }
+        passivePlayers.remove(player.uuid);
         addVote(player, "y");
         notifyPlayers();
     }
@@ -110,7 +116,8 @@ public class Vote implements Displayable, Destroyable {
         for (Player p : playerGroup) {
             PlayerD pd = Database.getData(p);
             if (pd.rank.equals(Rank.griefer.name()) || pd.afk) continue;
-            if (pd.playTime + Time.timeSinceMillis(pd.connected) < minPlayTime) continue;
+            if (pd.playTime + Time.timeSinceMillis(pd.connected) < Global.limits.minVotePlayTime) continue;
+            if (passivePlayers.getOrDefault(p.uuid, 0) > 1) continue;
             count += 1;
         }
         if (count == 2) {
@@ -132,7 +139,7 @@ public class Vote implements Displayable, Destroyable {
             sendErrMessage( player, "vote-already-voted");
             return;
         }
-        if(totalPT < minPlayTime){
+        if(totalPT < Global.limits.minVotePlayTime){
             sendErrMessage(player, "vote-low-play-time", milsToTime(totalPT));
             return;
         }
@@ -143,11 +150,12 @@ public class Vote implements Displayable, Destroyable {
         voted.add(player.uuid);
         if (vote.equals("y")) yes += 1;
         else no += 1;
-        revolve();
+        resolve();
         notifyPlayers();
+        passivePlayers.remove(player.uuid);
     }
 
-    public void revolve(){
+    public void resolve(){
         if(!voting) return;
         int req = getRequired();
         if (no >= req) close(false);
@@ -161,9 +169,9 @@ public class Vote implements Displayable, Destroyable {
             voteData.run();
             Hud.addAd(voteData.reason + "-done", 10, args);
             PlayerD pd = Database.getData(voteData.by);
-            if(voteData.target instanceof ItemStack){
+            if(voteData.special == Perm.loadout){
                 pd.loadoutVotes++;
-            } else if(voteData.target instanceof UnitStack){
+            } else if(voteData.special == Perm.factory){
                 pd.factoryVotes++;
             }
         } else {
@@ -173,6 +181,11 @@ public class Vote implements Displayable, Destroyable {
             }
             Hud.addAd(voteData.reason + "-fail", 10, args);
         }
+        for(Player p : playerGroup) {
+            if(voted.contains(p.uuid)) continue;
+            passivePlayers.put(p.uuid, passivePlayers.getOrDefault(p.uuid, 0) + 1);
+        }
+        saveSimple(passiveFile, passivePlayers, null);
     }
 
     @Override
@@ -202,5 +215,10 @@ public class Vote implements Displayable, Destroyable {
     @Override
     public void destroy() {
         close(false);
+    }
+
+    public static void loadPassive(){
+        passivePlayers = loadSimpleHashmap(passiveFile, Integer.class, ()->{});
+        if(passivePlayers == null) passivePlayers = new HashMap<>();
     }
 }

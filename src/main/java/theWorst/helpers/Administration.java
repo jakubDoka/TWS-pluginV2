@@ -6,6 +6,7 @@ import arc.util.Time;
 import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
+import mindustry.world.StaticTree;
 import mindustry.world.Tile;
 import theWorst.Bot;
 import theWorst.Global;
@@ -132,22 +133,23 @@ public class Administration implements Displayable{
                     return false;
 
                 }
-                if(act.tile != null  && rank.permission.getValue() < Rank.candidate.permission.getValue()){
+                if(rank.permission.getValue() < Rank.candidate.permission.getValue() && !(act.tile.block() instanceof StaticTree)){
                     ArrayList<Action> acts = undo.computeIfAbsent(pd.uuid, k -> new ArrayList<>());
                     long now = Time.millis();
                     switch (act.type) {
                         case breakBlock:
-                            Action.addBuildBreak(acts, new Action.Break() {
-                                {
-                                    by = pd.uuid;
-                                    tile = act.tile;
-                                    block = act.tile.block();
-                                    config = act.tile.entity.config();
-                                    rotation = act.tile.rotation();
-                                    age = now;
-                                }
-                            });
-
+                            if(act.tile.entity != null){
+                                Action.addBuildBreak(acts, new Action.Break() {
+                                    {
+                                        by = pd.uuid;
+                                        tile = act.tile;
+                                        block = act.tile.block();
+                                        config = act.tile.entity.config();
+                                        rotation = act.tile.rotation();
+                                        age = now;
+                                    }
+                                });
+                            }
                             break;
                         case placeBlock:
                             Action.addBuildBreak(acts, new Action.Build() {
@@ -232,7 +234,7 @@ public class Administration implements Displayable{
                             }
                         }
                         if (burst > Global.limits.configLimit){
-                            Bot.onRankChange(cleanColors(pd.originalName), pd.serverId, rank.name(), Rank.griefer.name(), "Server", "auto");
+                            Bot.onRankChange(pd.originalName, pd.serverId, rank.name(), Rank.griefer.name(), "Server", "auto");
                             Database.setRank(pd, Rank.griefer, player);
                             for(Action a: acts) {
                                 a.Undo();

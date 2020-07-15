@@ -58,6 +58,7 @@ public class Global {
         public int countedActionsPerTile = 5;
         public long withdrawPenalty = 30 * 1000;
         public long testPenalty = 15 * 60 * 1000;
+        public long minVotePlayTime = 1000 * 60 * 30;
 
         public RateLimits() {}
 
@@ -68,6 +69,7 @@ public class Global {
                 @JsonProperty("withdrawPenalty") long withdrawPenalty,
                 @JsonProperty("rateLimitPeriod") long rateLimitPeriod,
                 @JsonProperty("testPenalty") long testPenalty,
+                @JsonProperty("minVotePlayTime") long minVotePlayTime,
                 @JsonProperty("countedActionsPerTile") int countedActionsPerTile){
 
             this.grieferAntiSpamTime = grieferAntiSpamTime;
@@ -76,6 +78,7 @@ public class Global {
             this.withdrawLimit = withdrawLimit;
             this.rateLimitPeriod = rateLimitPeriod;
             this.testPenalty = testPenalty;
+            this.minVotePlayTime = minVotePlayTime;
             this.withdrawPenalty = withdrawPenalty;
         }
     }

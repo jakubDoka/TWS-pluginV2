@@ -59,7 +59,7 @@ public class Commands {
             if (player != null && r.isAdmin) return Res.notPermitted;
             Rank prevRank = getRank(pd);
             Database.setRank(pd, r, null);
-            Bot.onRankChange(cleanColors(pd.originalName), pd.serverId, prevRank.name(), r.name(), by, reason);
+            Bot.onRankChange(pd.originalName, pd.serverId, prevRank.name(), r.name(), by, reason);
             logInfo("rank-change", pd.originalName, pd.rank);
             sendMessage("rank-change", pd.originalName, getRank(pd).getName());
         } else {

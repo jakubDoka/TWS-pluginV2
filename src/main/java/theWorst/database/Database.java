@@ -107,13 +107,18 @@ public class Database {
             addPets(pd, sr);
             //modify name based of rank
             updateName(e.player,pd);
-            sendMessage("player-connected",e.player.name,String.valueOf(pd.serverId));
+
+            Runnable conMess = () -> sendMessage("player-connected",e.player.name,String.valueOf(pd.serverId));
+
             Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes connected.", cleanColors(e.player.name), pd.serverId));
             if (Bot.api == null || Bot.config.serverId == null || pd.rank.equals(Rank.griefer.name())) return;
             if (Bot.pendingLinks.containsKey(pd.serverId)){
                 sendMessage(e.player,"discord-pending-link",Bot.pendingLinks.get(pd.serverId).name);
             }
-            if (pd.discordLink == null) return;
+            if (pd.discordLink == null) {
+                conMess.run();
+                return;
+            }
             CompletableFuture<User> optionalUser = Bot.api.getUserById(pd.discordLink);
             Timer.schedule(new Timer.Task() {
                 @Override
@@ -122,9 +127,15 @@ public class Database {
                     this.cancel();
                     try {
                         User user = optionalUser.get();
-                        if (user == null) return;
+                        if (user == null) {
+                            conMess.run();
+                            return;
+                        }
                         Optional<Server> server = Bot.api.getServerById(Bot.config.serverId);
-                        if (!server.isPresent()) return;
+                        if (!server.isPresent()) {
+                            conMess.run();
+                            return;
+                        }
                         Rank finalR = null;
                         SpecialRank finalDl = null;
                         for (Role r : user.getRoles(server.get())) {
@@ -149,8 +160,11 @@ public class Database {
                             pd.donationLevel = null;
                         }
                         updateName(e.player, pd);
-                        if (finalR == null) return;
-                        setRank(pd, finalR, e.player);
+
+                        if (finalR != null) {
+                            setRank(pd, finalR, e.player);
+                        }
+                        conMess.run();
                     } catch (InterruptedException | ExecutionException interruptedException) {
                         interruptedException.printStackTrace();
                     }

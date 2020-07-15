@@ -20,6 +20,7 @@ import mindustry.type.ItemType;
 import mindustry.type.UnitType;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
+import theWorst.Tools.Formatting;
 import theWorst.database.*;
 import theWorst.helpers.*;
 import theWorst.helpers.gameChangers.*;
@@ -61,6 +62,7 @@ public class InGameCommands {
 
 
     public InGameCommands(){
+        Vote.loadPassive();
         Events.on(EventType.PlayerChatEvent.class,e->{
             getData(e.player).onAction(e.player);
             if(e.message.equalsIgnoreCase("y") || e.message.equalsIgnoreCase("n")) {
@@ -69,8 +71,8 @@ public class InGameCommands {
         });
 
         Events.on(EventType.PlayerLeave.class,e->{
-            voteKick.revolve();
-            vote.revolve();
+            voteKick.resolve();
+            vote.resolve();
         });
 
         Events.on(EventType.ServerLoadEvent.class, e->{
@@ -176,14 +178,13 @@ public class InGameCommands {
                     } else {
                         Database.setRank(pd, Rank.griefer, null);
                     }
-                    Bot.onRankChange(cleanColors(pd.originalName), pd.serverId, old.name(), getRank(pd).name(), cleanName(by.name),
-                            "mkgf");
+                    Bot.onRankChange(pd.originalName, pd.serverId, old.name(), getRank(pd).name(), cleanName(by.name), "mkgf");
                 }
             };
 
             if (player.isAdmin) {
                 voteData.run();
-                sendMessage("mkgf-admin-marked", getData(player).originalName, pd.originalName);
+                sendMessage(pd.rank.equals(Rank.griefer.name()) ? "mkgf-admin-marked" : "mkgf-admin-removed", getData(player).originalName, pd.originalName);
                 return null;
             }
 
@@ -245,7 +246,7 @@ public class InGameCommands {
             }
             if(args.length == 1){
                 if (args[0].equals("help")) {
-                    sendInfoPopup(player, "set-help");
+                    sendInfoPopup(player, "set-help", Formatting.smoothColors("Colors go brrrrr!", "ffff00", "00ffff"));
                     return;
                 }
                 wrongArgAmount(player,args,2);
@@ -284,6 +285,23 @@ public class InGameCommands {
                     //checking if player is verified
                     if (!Database.hasPerm(player, Perm.high)) {
                         sendErrMessage(player, "at-least-verified", Rank.verified.getName());
+                        return;
+                    }
+                    boolean tooDark = false;
+                    if(args[1].startsWith("#")){
+                        try{
+                            Color col = new Color(args[1].substring(1));
+                            tooDark = col.r < 40 && col.g < 40 && col.b < 40;
+                        } catch (Exception ex){
+                            ex.printStackTrace();
+                        }
+                    }
+                    if(args[1].contains("[") || args[1].contains("]")){
+                        sendErrMessage(player,"set-color-illegal-characters");
+                        return;
+                    }
+                    if(args[1].contains("black") || tooDark) {
+                        sendErrMessage(player, "set-color-invalid-shade");
                         return;
                     }
                     sendMessage(player, "set-textColor", args[1]);
@@ -387,7 +405,7 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("map","<help/change/restart/gameover/list/info/rate> [name/idx/this] [1-10]",
+        handler.<Player>register("map","<help/change/restart/gameover/list/info/rate> [name/idx/this] [1-10/mode]",
                 "More info via /map help",(args,player)->{
             VoteData voteData;
             String what = "map-restart";
@@ -464,15 +482,24 @@ public class InGameCommands {
                     break;
                 case "list":
                     int page = 1;
-                    if(args.length>1 ){
+                    Gamemode gamemode = null;
+                    if(args.length > 1){
                         if(!Strings.canParsePostiveInt(args[1])){
                             sendErrMessage(player,"refuse-not-integer","2");
                             return;
                         }
                         page = Integer.parseInt(args[1]);
                     }
+                    if(args.length == 3) {
+                        if(enumContains(Gamemode.values(), args[2])){
+                            gamemode = Gamemode.valueOf(args[2]);
+                        } else {
+                            sendErrMessage(player, "map-wrong-game-mode");
+                            return;
+                        }
+                    }
                     Call.onInfoMessage(player.con, formPage(
-                            MapManager.getMapList(),page,getTranslation(pd,"map-list"),20));
+                            MapManager.getMapList(gamemode),page,getTranslation(pd,"map-list"),20));
                     return;
                 case "info":
                     if( md == null || map == null) {
@@ -1023,7 +1050,7 @@ public class InGameCommands {
                     return;
                 }
                 dms.put(player.uuid, found.uuid);
-                sendMessage(player, "dm-channel-set", player.name);
+                sendMessage(player, "dm-channel-set", found.name);
             } else {
                 if(!dms.containsKey(player.uuid)) {
                     sendErrMessage(player, "dm-no-channel-set");

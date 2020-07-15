@@ -4,8 +4,6 @@ import arc.Events;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import org.javacord.api.DiscordApi;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 import theWorst.database.Database;
 import theWorst.database.PlayerD;
 import theWorst.database.Setting;
@@ -13,16 +11,14 @@ import theWorst.discord.BotConfig;
 import theWorst.discord.Command;
 import theWorst.discord.DiscordCommands;
 
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 
 import static mindustry.Vars.playerGroup;
 import static mindustry.Vars.world;
 import static theWorst.Tools.Commands.isCommandRelated;
-import static theWorst.Tools.Commands.logInfo;
 import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.Json.*;
+import static theWorst.Tools.Json.loadSimpleHashmap;
+import static theWorst.Tools.Json.saveSimple;
 import static theWorst.Tools.Maps.hasMapAttached;
 
 public class Bot {
@@ -49,9 +45,7 @@ public class Bot {
             sendToLinkedChat("**"+cleanName(e.player.name)+"** : "+e.message.substring(e.message.indexOf("]")+1));
         });
 
-        Events.on(EventType.PlayEvent.class, e->{
-           sendToLinkedChat("===*Playing on " + world.getMap().name() + "*===");
-        });
+        Events.on(EventType.PlayEvent.class, e-> sendToLinkedChat("===*Playing on " + world.getMap().name() + "*==="));
 
 
         Events.on(EventType.PlayerChatEvent.class,e->{
@@ -78,7 +72,7 @@ public class Bot {
             reason = "Oxygen account detected!!" + config.roles.get("admin").getMentionTag();
         }
         config.channels.get("log").sendMessage(String.format("**%s** (%d) **%s** -> **%s** \n**by:** %s \n**reason:** %s",
-                name,serverId,prev,now,by,reason));
+                cleanColors(name),serverId,prev,now,by,reason));
     }
 
     public static void connect(){
@@ -129,9 +123,8 @@ public class Bot {
         saveSimple(restrictionFile, data, "command restrictions");
     }
 
-    public static boolean disconnect(){
-        if(api == null) return false;
+    public static void disconnect(){
+        if(api == null) return ;
         api.disconnect();
-        return true;
     }
 }

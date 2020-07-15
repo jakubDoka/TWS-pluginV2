@@ -26,6 +26,8 @@ public class MapD {
     long timesPlayed = 0;
     long timesWon = 0;
     long waveRecord = 0;
+    long longestTime = 0;
+    long shortestTime = Long.MAX_VALUE;
     int firstAirWave = defaultAirWave;
     @Transient long started = Time.millis();
     long playtime = 0;
@@ -41,15 +43,19 @@ public class MapD {
             if(sg.type.flying && sg.begin<firstAirWave) firstAirWave=sg.begin;
         }
     }
-    @PersistenceConstructor public MapD(String filename,
-                long timesPlayed,
-                long timesWon,
-                long waveRecord,
-                int firstAirWave,
-                long playtime,
-                long born,
-                String name,
-                HashMap<String,Byte> ratings){
+
+    @PersistenceConstructor public MapD(
+            String filename,
+            long timesPlayed,
+            long timesWon,
+            long waveRecord,
+            int firstAirWave,
+            long playtime,
+            long born,
+            long longestTime,
+            long shortestTime,
+            String name,
+            HashMap<String,Byte> ratings){
         this.filename = filename;
         this.timesPlayed = timesPlayed;
         this.timesWon = timesWon;
@@ -57,12 +63,14 @@ public class MapD {
         this.firstAirWave = firstAirWave;
         this.playtime = playtime;
         this.born = born;
+        this.longestTime = longestTime;
+        this.shortestTime = shortestTime;
         this.name = name;
         this.ratings = ratings;
     }
 
     double getPlayRatio(){
-        return (playtime-timesPlayed*1000*60*5)/(double)Time.timeSinceMillis(born);
+        return (playtime)/(double)Time.timeSinceMillis(born);
     }
 
     public float getRating(){
@@ -90,6 +98,8 @@ public class MapD {
                 "" + waveRecord,
                 milsToTime(Time.timeSinceMillis(born)),
                 milsToTime(playtime),
+                milsToTime(shortestTime),
+                milsToTime(longestTime),
                 String.format("%.1f/10",getRating()),
                 rules.mode().name(),
                 String.format("%.2f",rules.buildCostMultiplier),
