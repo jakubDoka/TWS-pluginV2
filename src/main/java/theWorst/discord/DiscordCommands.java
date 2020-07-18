@@ -1,5 +1,6 @@
 package theWorst.discord;
 
+import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.ServerChannel;
 import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageAttachment;
@@ -31,9 +32,10 @@ public class DiscordCommands implements MessageCreateListener {
         String message = event.getMessageContent();
         if(event.getMessageAuthor().isBotUser()) return;
         if(!message.startsWith(config.prefix)) return;
-        if(config.channels.containsKey("commands") && config.channels.get("commands").getId() != event.getChannel().getId()){
+        Channel chan = config.channels.get("commands");
+        if(chan != null && chan.getId() != event.getChannel().getId()){
             String msg = "This is not channel for commands.";
-            Optional<ServerChannel> optionalServerChannel = event.getChannel().asServerChannel();
+            Optional<ServerChannel> optionalServerChannel = chan.asServerChannel();
             if(optionalServerChannel.isPresent()) msg+= " Go to "+optionalServerChannel.get().getName()+".";
             event.getChannel().sendMessage(msg);
             return;

@@ -225,25 +225,15 @@ public class BotCommands {
             }
             @Override
             public void run(CommandContext ctx) {
-                ArrayList<String> res = search(ctx.args);
-                if (res == null) {
-                    ctx.reply("Sorry i don't know this sort type. Choose from these : " + Arrays.toString(Stat.values()));
-                    return;
-                }
-
+                ArrayList<String> res = Database.search(ctx.args, 20);
                 StringBuilder mb = new StringBuilder();
-                int size = res.size();
-                int begin = Math.max(0,size-20);
-                for (int i = begin; i <size; i++) {
-                    mb.insert(0, cleanColors(res.get(i))+"\n");
+                for(String s : res) {
+                    mb.append(s).append("\n");
                 }
                 if (res.isEmpty()) {
                     ctx.reply("No results found.");
                 } else {
                     ctx.channel.sendMessage(mb.toString());
-                    if(size>20){
-                        ctx.reply("I em showing just 20 out of " + size + ".");
-                    }
                 }
             }
         });

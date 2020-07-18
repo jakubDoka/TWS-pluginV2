@@ -30,6 +30,12 @@ public class Administration implements Displayable{
             return Global.limits.withdrawPenalty;
         }
     };
+    public static RecentMap doubleClicks = new RecentMap(null) {
+        @Override
+        public long getPenalty() {
+            return 300;
+        }
+    };
     public static Timer.Task recentThread;
     TileInfo[][] data;
     public static HashMap<String, ArrayList<Action>> undo = new HashMap<>();
@@ -138,7 +144,7 @@ public class Administration implements Displayable{
                     long now = Time.millis();
                     switch (act.type) {
                         case breakBlock:
-                            if(act.tile.entity != null){
+                            if(act.tile.entity != null && !world.getMap().rules().bannedBlocks.contains(act.tile.block())){
                                 Action.addBuildBreak(acts, new Action.Break() {
                                     {
                                         by = pd.uuid;
@@ -256,6 +262,11 @@ public class Administration implements Displayable{
 
     private void handleInspect(Player player, Tile tile){
         if (!Database.hasEnabled(player, Setting.inspect)) return;
+        Long pn = doubleClicks.contains(player);
+        if(pn == null || pn < 0) {
+            doubleClicks.add(player);
+            return;
+        }
         StringBuilder msg = new StringBuilder();
         TileInfo ti = data[tile.y][tile.x];
         if (ti.data.isEmpty()) {
@@ -263,14 +274,15 @@ public class Administration implements Displayable{
         } else {
             msg.append(ti.lock == 1 ? Rank.verified.getName() + "\n" : "");
             for (String s : ti.data.keySet()) {
-                msg.append("[orange]").append(s).append(":");
+                msg.append("[orange]").append(s).append(":[gray]");
                 for (PlayerD pd : ti.data.get(s)){
                     msg.append(pd.serverId).append("=").append(pd.originalName).append("|");
                 }
+                msg.delete(msg.length() - 2, msg.length() - 1);
                 msg.append("\n");
             }
         }
-        player.sendMessage(msg.toString());
+        player.sendMessage(msg.toString().substring(0, msg.length() - 1));
     }
 
     @Override

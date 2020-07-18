@@ -16,8 +16,7 @@ import java.util.HashSet;
 import java.util.ResourceBundle;
 
 import static theWorst.Tools.Bundle.*;
-import static theWorst.Tools.Formatting.format;
-import static theWorst.Tools.Formatting.milsToTime;
+import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.Players.*;
 import static theWorst.database.Database.getData;
 
@@ -69,11 +68,11 @@ public class PlayerD {
     }
 
     public PlayerD(Player player){
-        uuid=player.uuid;
+        uuid = player.uuid;
 
         //this data can change
-        ip=player.con.address;
-        originalName=player.name;
+        ip = player.con.address;
+        originalName = player.name;
         loadMeta(player);
     }
 

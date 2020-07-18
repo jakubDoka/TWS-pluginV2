@@ -558,26 +558,18 @@ public class InGameCommands {
         });
 
         handler.<Player>register("search","<searchKey/sort/rank> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
-            ArrayList<String> res = search(args);
-            if (res == null) {
-                sendErrMessage(player, "search-invalid-mode",Arrays.toString(Stat.values()));
-                return;
-            }
-            int showing = 40;
-            StringBuilder mb = new StringBuilder();
-            int size = res.size();
-            int begin = Math.max(0,size-showing);
-            for (int i = begin; i <size; i++) {
-                mb.insert(0,cleanColors(res.get(i))+"\n");
-            }
-            if (res.isEmpty()) {
-                sendErrMessage(player, "search-no-results");
-            } else {
-                player.sendMessage(mb.toString());
-                if(size>showing){
-                    sendMessage(player, "search-show-report", String.valueOf(size));
+            new Thread(()-> {
+                ArrayList<String> res = Database.search(args, 40);
+                StringBuilder mb = new StringBuilder();
+                for (String s : res) {
+                    mb.append(s).append("\n");
                 }
-            }
+                if (res.isEmpty()) {
+                    sendErrMessage(player, "search-no-results");
+                } else {
+                    player.sendMessage(mb.toString());
+                }
+            }).start();
         });
 
         handler.<Player>register("test","<start/egan/help/answer>","More info via /test help.", (args,player)-> {

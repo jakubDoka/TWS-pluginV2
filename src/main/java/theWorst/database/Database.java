@@ -16,6 +16,8 @@ import mindustry.gen.Call;
 import mindustry.net.Administration;
 import mindustry.type.ItemStack;
 import mindustry.world.blocks.storage.CoreBlock;
+import org.bson.BsonDocument;
+import org.bson.BsonInt32;
 import org.bson.Document;
 import org.javacord.api.entity.permission.Role;
 import org.javacord.api.entity.server.Server;
@@ -31,6 +33,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 import static mindustry.Vars.netServer;
 import static mindustry.Vars.playerGroup;
@@ -74,7 +77,7 @@ public class Database {
         Events.on(EventType.PlayerConnect.class,e->{
             //remove fake ranks
             String originalName = e.player.name;
-            e.player.name = cleanEmotes(e.player.name);
+            e.player.name = cleanName(e.player.name);
             if(!originalName.equals(e.player.name)){
                 //name cannot be blank
                 if(e.player.name.replace(" ","").isEmpty()){
@@ -605,6 +608,55 @@ public class Database {
                 logInfo("autocorrect-field-remove",s);
             }
         }
+    }
+
+    public static ArrayList<String> search(String[] args, int limit){
+        ArrayList<String> result = new ArrayList<>();
+        FindIterable<Document> res;
+        switch (args[0]){
+            case "sort":
+                if(!enumContains(Stat.values(), args[1])){
+                    result.add("Invalid sort type.");
+                    return result;
+                }
+                res = rawData.find().sort(new BsonDocument(args[1], new BsonInt32(args.length == 3 ? -1 : 1))).limit(limit);
+                break;
+            case "rank":
+                if(!enumContains(Rank.values(), args[1])) {
+                    result.add("This rank does not exist.");
+                    return result;
+                }
+                res = rawData.find(Filters.eq("rank", args[1])).limit(limit);
+                break;
+            case "specialrank":
+                if(!ranks.containsKey(args[1])) {
+                    result.add("This special rank does not exist.");
+                    return result;
+                }
+                res = rawData.find(Filters.eq("specialRank", args[1])).limit(limit);
+                break;
+            case "donationlevel":
+                if(!ranks.containsKey(args[1])) {
+                    result.add("This donation level does not exist.");
+                    return result;
+                }
+                res = rawData.find(Filters.eq("donationLevel", args[1])).limit(limit);
+                break;
+            default:
+                Pattern pattern = Pattern.compile("^"+Pattern.quote(args[0]), Pattern.CASE_INSENSITIVE);
+                res = rawData.find(Filters.regex("originalName", pattern));
+                break;
+        }
+        for(Document d : res) {
+            result.add(docToString(d));
+        }
+        return result;
+    }
+
+    static String docToString(Document doc) {
+        String r = (String) doc.get("rank");
+        return "[gray][yellow]" + doc.get("serverId") + "[] | " + doc.get("originalName") + " | []" + Rank.valueOf(r).getName();
+
     }
 
     private static class AfkMaker {

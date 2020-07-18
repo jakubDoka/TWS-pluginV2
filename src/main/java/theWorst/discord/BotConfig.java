@@ -87,12 +87,4 @@ public class BotConfig {
                        "}"
         , "bot");
     }
-
-    public TextChannel getChannel(String name) {
-        return channels.get(name);
-    }
-
-    public Role getRole(String name) {
-        return roles.get(name);
-    }
 }
