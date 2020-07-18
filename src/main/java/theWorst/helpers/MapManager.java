@@ -15,7 +15,7 @@ import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import theWorst.Global;
-import theWorst.database.Database;
+import theWorst.dataBase.Database;
 
 import java.io.File;
 import java.io.IOException;

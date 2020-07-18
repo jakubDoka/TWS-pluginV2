@@ -10,10 +10,11 @@ import mindustry.world.StaticTree;
 import mindustry.world.Tile;
 import theWorst.Bot;
 import theWorst.Global;
-import theWorst.database.*;
+import theWorst.dataBase.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import static mindustry.Vars.*;
 import static theWorst.Tools.Formatting.*;
@@ -21,7 +22,12 @@ import static theWorst.Tools.General.getRank;
 import static theWorst.Tools.Players.*;
 
 public class Administration implements Displayable{
-
+    public static RecentMap doubleClicks = new RecentMap(null) {
+        @Override
+        public long getPenalty() {
+            return 300;
+        }
+    };
     public static Emergency emergency = new Emergency(0); // Its just placeholder because time is 0
     public static HashMap<String, ArrayList<Long>> recentWithdraws = new HashMap<>();
     public static RecentMap banned = new RecentMap("ag-can-withdraw-egan"){
@@ -54,10 +60,6 @@ public class Administration implements Displayable{
         });
 
         //displaying of inspect messages
-        Events.on(EventType.TapConfigEvent.class, e-> {
-            if(e.player == null) return;
-            handleInspect(e.player, e.tile);
-        });
         Events.on(EventType.TapEvent.class, e ->{
             if(e.player == null) return;
             handleInspect(e.player, e.tile);
@@ -256,21 +258,27 @@ public class Administration implements Displayable{
 
     private void handleInspect(Player player, Tile tile){
         if (!Database.hasEnabled(player, Setting.inspect)) return;
+        Long pn = doubleClicks.contains(player);
+        if(pn == null || pn < 0) {
+            doubleClicks.add(player);
+            return;
+        }
         StringBuilder msg = new StringBuilder();
         TileInfo ti = data[tile.y][tile.x];
         if (ti.data.isEmpty()) {
-            msg.append("No one interacted with this tile.");
+            msg.append("No one interacted with this tile. ");
         } else {
             msg.append(ti.lock == 1 ? Rank.verified.getName() + "\n" : "");
             for (String s : ti.data.keySet()) {
                 msg.append("[orange]").append(s).append(":");
                 for (PlayerD pd : ti.data.get(s)){
-                    msg.append(pd.serverId).append("=").append(pd.originalName).append("|");
+                    msg.append(pd.serverId).append(" = ").append(pd.originalName).append(" | ");
                 }
+                msg.delete(msg.length() - 2, msg.length() - 1);
                 msg.append("\n");
             }
         }
-        player.sendMessage(msg.toString());
+        player.sendMessage(msg.toString().substring(0, msg.length() - 1));
     }
 
     @Override

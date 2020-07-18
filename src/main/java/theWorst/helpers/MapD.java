@@ -9,8 +9,7 @@ import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.Query;
-import theWorst.Tools.Formatting;
-import theWorst.database.PlayerD;
+import theWorst.dataBase.PlayerD;
 
 import java.util.HashMap;
 

@@ -1,14 +1,12 @@
 package theWorst.helpers;
 
 import mindustry.entities.type.Player;
-import org.json.simple.JSONArray;
 import theWorst.Global;
-import theWorst.database.Database;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
+import theWorst.dataBase.Database;
+import theWorst.dataBase.PlayerD;
+import theWorst.dataBase.Rank;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 

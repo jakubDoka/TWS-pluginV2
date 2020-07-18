@@ -1,6 +1,6 @@
 package theWorst.helpers;
 
-import theWorst.database.PlayerD;
+import theWorst.dataBase.PlayerD;
 
 //interface for objects that ca be displayed in hud
 public interface Displayable {

@@ -1,7 +1,7 @@
 package theWorst.votes;
 
 import mindustry.entities.type.Player;
-import theWorst.database.Perm;
+import theWorst.dataBase.Perm;
 
 public abstract class VoteData {
     public Player by;

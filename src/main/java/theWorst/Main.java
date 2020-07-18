@@ -3,15 +3,17 @@ package theWorst;
 import arc.Core;
 import arc.Events;
 import arc.util.*;
+import mindustry.content.Blocks;
 import mindustry.core.GameState;
 import mindustry.game.EventType;
-import mindustry.gen.Call;
 import mindustry.plugin.Plugin;
+import mindustry.world.Tile;
+import mindustry.world.blocks.Floor;
 import mindustry.world.blocks.logic.MessageBlock;
-import theWorst.database.BackupManager;
-import theWorst.database.Database;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
+import theWorst.dataBase.BackupManager;
+import theWorst.dataBase.Database;
+import theWorst.dataBase.PlayerD;
+import theWorst.dataBase.Rank;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Hud;
@@ -33,6 +35,10 @@ public class Main extends Plugin {
     static ArrayList<Destroyable> destroyable = new ArrayList<>();
     static Hud hud = new Hud();
     static InGameCommands inGameCommands = new InGameCommands();
+
+    public static String milsToTime(long l) {
+        return "";
+    }
 
     public Main() {
         Events.on(EventType.BlockDestroyEvent.class, e ->{
@@ -77,6 +83,10 @@ public class Main extends Plugin {
 
     @Override
     public void registerServerCommands(CommandHandler handler) {
+        handler.register("dbConvert", "Converts the old database to new", args ->{
+           Database.loadData();
+           Database.Convert();
+        });
         handler.register("dbdrop","Do not touch this if you don't want to erase database.",args->{
             if(state.is(GameState.State.playing)){
                 logInfo("dbdrop-refuse-because-playing");
@@ -95,6 +105,15 @@ public class Main extends Plugin {
                 info("&lc{0}&ly new map(s) found and reloaded.", maps.all().size - beforeMaps);
             }else{
                 info("&lyMaps reloaded.");
+            }
+        });
+
+        handler.register("test", "", arg ->{
+            for(int x = 0; x < world.width(); x++){
+                for(int y = 0; y < world.height(); y++){
+                    Tile t = world.tile(x, y);
+                    if(t.block() == Blocks.air) t.setFloor((Floor)Blocks.sand);
+                }
             }
         });
 

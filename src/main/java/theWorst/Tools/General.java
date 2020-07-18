@@ -2,8 +2,8 @@ package theWorst.Tools;
 
 import mindustry.game.Team;
 import mindustry.world.blocks.storage.CoreBlock;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
+import theWorst.dataBase.PlayerD;
+import theWorst.dataBase.Rank;
 
 import java.lang.reflect.Field;
 

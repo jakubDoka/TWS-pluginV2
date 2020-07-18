@@ -1,7 +1,6 @@
-package theWorst.database;
+package theWorst.dataBase;
 
 import arc.util.Time;
-import com.mongodb.DBCollection;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;

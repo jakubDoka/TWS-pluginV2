@@ -7,8 +7,8 @@ import mindustry.game.EventType;
 import mindustry.type.Item;
 import mindustry.type.ItemStack;
 import theWorst.Global;
-import theWorst.database.Database;
-import theWorst.database.PlayerD;
+import theWorst.dataBase.Database;
+import theWorst.dataBase.PlayerD;
 
 import java.util.ArrayList;
 import java.util.HashMap;

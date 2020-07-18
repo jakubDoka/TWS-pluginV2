@@ -1,10 +1,8 @@
 package theWorst.helpers;
 
-import arc.struct.ObjectSet;
-import mindustry.entities.type.Player;
 import mindustry.world.Block;
-import theWorst.database.Perm;
-import theWorst.database.PlayerD;
+import theWorst.dataBase.Perm;
+import theWorst.dataBase.PlayerD;
 
 import java.util.ArrayList;
 import java.util.HashMap;

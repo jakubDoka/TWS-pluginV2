@@ -9,9 +9,9 @@ import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
 import theWorst.Global;
-import theWorst.database.Database;
-import theWorst.database.PlayerD;
-import theWorst.database.Setting;
+import theWorst.dataBase.Database;
+import theWorst.dataBase.PlayerD;
+import theWorst.dataBase.Setting;
 
 import java.util.ArrayList;
 

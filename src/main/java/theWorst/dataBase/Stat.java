@@ -1,4 +1,4 @@
-package theWorst.database;
+package theWorst.dataBase;
 
 public enum Stat {
     playTime,

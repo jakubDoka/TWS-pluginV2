@@ -16,10 +16,10 @@ import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.entity.user.User;
-import theWorst.database.Database;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
-import theWorst.database.Stat;
+import theWorst.dataBase.Database;
+import theWorst.dataBase.PlayerD;
+import theWorst.dataBase.Rank;
+import theWorst.dataBase.Stat;
 import theWorst.discord.Command;
 import theWorst.discord.CommandContext;
 import theWorst.discord.DiscordCommands;
@@ -225,25 +225,16 @@ public class BotCommands {
             }
             @Override
             public void run(CommandContext ctx) {
-                ArrayList<String> res = search(ctx.args);
-                if (res == null) {
-                    ctx.reply("Sorry i don't know this sort type. Choose from these : " + Arrays.toString(Stat.values()));
-                    return;
-                }
+                ArrayList<String> res = Database.search(ctx.args, 20);
 
                 StringBuilder mb = new StringBuilder();
-                int size = res.size();
-                int begin = Math.max(0,size-20);
-                for (int i = begin; i <size; i++) {
-                    mb.insert(0, cleanColors(res.get(i))+"\n");
+                for(String s : res) {
+                    mb.append(s).append("\n");
                 }
                 if (res.isEmpty()) {
                     ctx.reply("No results found.");
                 } else {
                     ctx.channel.sendMessage(mb.toString());
-                    if(size>20){
-                        ctx.reply("I em showing just 20 out of " + size + ".");
-                    }
                 }
             }
         });

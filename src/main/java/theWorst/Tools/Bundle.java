@@ -4,7 +4,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.jsoup.Jsoup;
-import theWorst.database.PlayerD;
+import theWorst.dataBase.PlayerD;
 
 import java.io.IOException;
 import java.util.Locale;

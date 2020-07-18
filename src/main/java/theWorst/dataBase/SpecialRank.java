@@ -1,15 +1,20 @@
-package theWorst.database;
+package theWorst.dataBase;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.mongodb.client.model.Filters;
+import org.bson.BsonDocument;
 import org.bson.Document;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static theWorst.Tools.Commands.logInfo;
 import static theWorst.Tools.Players.getCountryCode;
 import static theWorst.Tools.Players.getTranslation;
@@ -73,17 +78,10 @@ public class SpecialRank implements Serializable {
             }
             if(quest.containsKey(Mod.required.name()) && val < quest.get(Mod.required.name())) return false;
             if(quest.containsKey(Mod.frequency.name()) && quest.get(Mod.frequency.name()) > val/played) return false;
-            if(quest.containsKey(Mod.best.name()) && getPlace(stat, rawData) > quest.get(Mod.best.name())) return false;
+            long count = Database.rawData.countDocuments(Filters.gt(stat, rawData.get(stat)));
+            if(quest.containsKey(Mod.best.name()) && count > quest.get(Mod.best.name())) return false;
         }
         return true;
-    }
-
-    int getPlace(String stat, Document rawData){
-        int place = 1;
-        for(Document d : Database.getAllRawMeta()){
-            if((Long)d.get(stat) > (Long)rawData.get(stat)) place ++;
-        }
-        return place;
     }
 
     @JsonIgnore public String getSuffix(){
@@ -115,11 +113,11 @@ public class SpecialRank implements Serializable {
                     HashMap<String, Integer> quest = quests.get(s);
                     for(String l : quest.keySet()){
                         int req = quest.get(l);
-                        int val = 0;
+                        long val = 0;
                         String color = "green";
                         switch (Mod.valueOf(l)){
                             case best:
-                                val = getPlace(s, rawData);
+                                val = Database.rawData.countDocuments(Filters.gt(s, rawData.get(s)));
                                 if (val > req) color = "scarlet";
                                 break;
                             case required:

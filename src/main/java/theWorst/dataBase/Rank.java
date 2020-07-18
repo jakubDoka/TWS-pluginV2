@@ -1,7 +1,6 @@
-package theWorst.database;
+package theWorst.dataBase;
 
 import arc.graphics.Color;
-import arc.util.Time;
 import mindustry.content.Items;
 
 public enum Rank implements java.io.Serializable{
@@ -33,7 +32,9 @@ public enum Rank implements java.io.Serializable{
         {
             isAdmin=true;
         }
-    };
+    },
+    AFK(Color.red,Perm.high);
+
 
     Color color;
     public Perm permission=Perm.normal;

@@ -1,4 +1,4 @@
-package theWorst.database;
+package theWorst.dataBase;
 
 import arc.util.Time;
 import com.mongodb.lang.Nullable;
@@ -19,7 +19,7 @@ import static theWorst.Tools.Bundle.*;
 import static theWorst.Tools.Formatting.format;
 import static theWorst.Tools.Formatting.milsToTime;
 import static theWorst.Tools.Players.*;
-import static theWorst.database.Database.getData;
+import static theWorst.dataBase.Database.getData;
 
 @Document
 public class PlayerD {
@@ -111,7 +111,7 @@ public class PlayerD {
             }
             //its simple and produces easy to remember ids
             serverId = Database.getDatabaseSize();
-            Database.data.save(this);
+            Database.Data.save(this);
             oldMeta= new PlayerD();
             //meta is null! cannot continue
             return;
@@ -143,7 +143,7 @@ public class PlayerD {
         PlayerD meta = Database.getMeta(uuid);
         //it can happen when mongoDB database is dropped when server is running
         if (meta == null) {
-            Database.data.save(this);
+            Database.Data.save(this);
             return;
         }
         //updating it
@@ -199,7 +199,7 @@ public class PlayerD {
                 "" + (gamesWon + oldMeta.gamesWon),
                 "" + (buildingsBuilt + oldMeta.buildingsBuilt),
                 "" + (buildingsBroken + oldMeta.buildingsBroken),
-                "" + (loadoutVotes + oldMeta.buildingsBroken),
+                "" + (loadoutVotes + oldMeta.loadoutVotes),
                 "" + (factoryVotes + oldMeta.factoryVotes),
                 "" + (enemiesKilled + oldMeta.enemiesKilled),
                 bundle.getLocale().getDisplayCountry(),

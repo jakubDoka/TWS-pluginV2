@@ -3,10 +3,10 @@ package theWorst.Tools;
 import arc.util.Strings;
 import mindustry.entities.type.Player;
 import mindustry.gen.Call;
-import theWorst.database.Database;
-import theWorst.database.Perm;
-import theWorst.database.PlayerD;
-import theWorst.database.Setting;
+import theWorst.dataBase.Database;
+import theWorst.dataBase.Perm;
+import theWorst.dataBase.PlayerD;
+import theWorst.dataBase.Setting;
 
 import java.util.Locale;
 

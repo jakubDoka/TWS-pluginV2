@@ -1,4 +1,4 @@
-package theWorst.database;
+package theWorst.dataBase;
 
 import arc.Events;
 import arc.graphics.Color;
@@ -6,6 +6,7 @@ import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Time;
 import arc.util.Timer;
+import com.mongodb.BasicDBObject;
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
 import mindustry.entities.traits.BuilderTrait;
@@ -16,7 +17,7 @@ import mindustry.gen.Call;
 import mindustry.net.Administration;
 import mindustry.type.ItemStack;
 import mindustry.world.blocks.storage.CoreBlock;
-import org.bson.Document;
+import org.bson.*;
 import org.javacord.api.entity.permission.Role;
 import org.javacord.api.entity.server.Server;
 import org.javacord.api.entity.user.User;
@@ -27,10 +28,15 @@ import theWorst.Bot;
 import theWorst.Global;
 import theWorst.helpers.gameChangers.Pet;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 
 import static mindustry.Vars.netServer;
 import static mindustry.Vars.playerGroup;
@@ -51,7 +57,8 @@ public class Database {
     public static MongoClient client = MongoClients.create();
     static MongoDatabase database = client.getDatabase(Global.config.dbName);
     static MongoCollection<Document> rawData = database.getCollection(playerCollection);
-    static MongoOperations data = new MongoTemplate(client, Global.config.dbName);
+    static MongoOperations Data = new MongoTemplate(client, Global.config.dbName);
+    static HashMap<String, PlayerData> data = new HashMap<>();
     static HashMap<String,PlayerD> online = new HashMap<>();
     public static HashMap<String,SpecialRank> ranks=new HashMap<>();
     public static HashMap<String, Pet> pets=new HashMap<>();
@@ -273,13 +280,13 @@ public class Database {
     public static void reload(){
         database = client.getDatabase(Global.config.dbName);
         rawData = database.getCollection(playerCollection);
-        data = new MongoTemplate(client, Global.config.dbName);
+        Data = new MongoTemplate(client, Global.config.dbName);
     }
 
     //just for testing purposes
     public static void clean(){
         rawData.drop();
-        data = new MongoTemplate(client,Global.config.dbName);
+        Data = new MongoTemplate(client,Global.config.dbName);
         rawData = MongoClients.create().getDatabase(Global.config.dbName).getCollection(playerCollection);
     }
 
@@ -477,11 +484,11 @@ public class Database {
     }
 
     public static void updateMeta(PlayerD pd){
-        Database.data.findAndReplace(new Query(where("_id").is(pd.uuid)),pd);
+        Database.Data.findAndReplace(new Query(where("_id").is(pd.uuid)),pd);
     }
 
     public static PlayerD query(String property, Object value){
-        return data.findOne(new Query(where(property).is(value)),PlayerD.class);
+        return Data.findOne(new Query(where(property).is(value)),PlayerD.class);
     }
 
     public static PlayerD getMeta(String uuid){
@@ -501,7 +508,7 @@ public class Database {
     }
 
     public static List<PlayerD> getAllMeta(){
-        return data.findAll(PlayerD.class);
+        return Data.findAll(PlayerD.class);
     }
 
     public static FindIterable<Document> getAllRawMeta(){
@@ -520,12 +527,12 @@ public class Database {
             pd = getMeta(key);
         }
         if(pd == null){
-            for(PlayerD data : online.values()){
-                if(cleanName(data.originalName).equals(key)) return data;
+            for(PlayerD Data : online.values()){
+                if(cleanName(Data.originalName).equals(key)) return Data;
             }
             return null;
         }
-        //making changes to the instance of data of player that is online has no effect
+        //making changes to the instance of Data of player that is online has no effect
         if(online.containsKey(pd.uuid)){
             return online.get(pd.uuid);
         }
@@ -573,11 +580,11 @@ public class Database {
                 e.printStackTrace();
             }
         }
-        data.save(pd,"pref");
+        Data.save(pd,"pref");
         //assuming that all documents have same structure, and they should we are taking one o the old ones
         Document oldDoc = rawData.find().first();
-        Document currentDoc = data.getCollection("pref").find().first();
-        data.getCollection("pref").drop();
+        Document currentDoc = Data.getCollection("pref").find().first();
+        Data.getCollection("pref").drop();
         //i don't know how this can happen but i want that database the database that produced it
         if(currentDoc == null || oldDoc == null){
             Log.err(currentDoc == null ? "missing current doc" : "missing old doc");
@@ -628,5 +635,92 @@ public class Database {
                 }
             },0,updateRate);
         }
+    }
+
+    public static SpecialRank getSpecialRank(PlayerData d){
+        return new SpecialRank();
+    }
+
+    public static void loadData(){
+        try {
+            FileInputStream fileIn = new FileInputStream(Global.dir + "database.ser");
+            ObjectInputStream in = new ObjectInputStream(fileIn);
+            Object obj=in.readObject();
+            if(obj instanceof HashMap) data = (HashMap<String, PlayerData>) obj;
+            in.close();
+            fileIn.close();
+            Log.info("Database loaded.");
+        } catch (ClassNotFoundException c) {
+            Log.info("class not found");
+            c.printStackTrace();
+        } catch (FileNotFoundException f){
+            Log.info("database no found, creating new");
+        }catch (IOException i){
+            Log.info("Database is incompatible with current version.");
+            i.printStackTrace();
+        }
+    }
+
+    public static void Convert() {
+        for(String s : data.keySet()){
+            PlayerData p = data.get(s);
+            PlayerD pd = new PlayerD(p.buildingsBuilt,p.buildingsBroken,
+                    p.enemiesKilled,p.deaths,p.gamesPlayed,p.gamesWon,p.factoryVotes
+            ,p.loadoutVotes,p.messageCount,p.playTime,p.born,p.connected,
+                    p.lastActive,p.specialRank,p.textColor,p.discordLink,null,
+                    p.settings,new HashSet<String>(), p.serverId,s,p.trueRank.name(),
+                    p.ip,p.originalName,p.lastMessage);
+
+            Database.Data.save(pd);
+        }
+    }
+
+    public static ArrayList<String> search(String[] args, int limit){
+        ArrayList<String> result = new ArrayList<>();
+        FindIterable<Document> res;
+        switch (args[0]){
+            case "sort":
+                if(!enumContains(Stat.values(), args[1])){
+                    result.add("Invalid sort type.");
+                    return result;
+                }
+                res = rawData.find().sort(new BsonDocument(args[1], new BsonInt32(args.length == 3 ? -1 : 1))).limit(limit);
+                break;
+            case "rank":
+                if(!enumContains(Rank.values(), args[1])) {
+                    result.add("This rank does not exist");
+                    return result;
+                }
+                res = rawData.find(Filters.eq("rank", args[1])).limit(limit);
+                break;
+            case "specialrank":
+                if(!ranks.containsKey(args[1])) {
+                    result.add("This special rank does not exist");
+                    return result;
+                }
+                res = rawData.find(Filters.eq("specialRank", args[1])).limit(limit);
+                break;
+            case "donationlevel":
+                if(!ranks.containsKey(args[1])) {
+                    result.add("This donation level does not exist");
+                    return result;
+                }
+                res = rawData.find(Filters.eq("donationLevel", args[1])).limit(limit);
+                break;
+            default:
+                Pattern pattern = Pattern.compile("^"+Pattern.quote(args[0]), Pattern.CASE_INSENSITIVE);
+                res = rawData.find(Filters.regex("originalName", pattern));
+                break;
+        }
+        for(Document d : res) {
+            result.add(docToString(d));
+        }
+        return result;
+    }
+
+    static String docToString(Document doc) {
+        String r = (String) doc.get("rank");
+        return "[gray][yellow]" + doc.get("serverId") + "[] | " + doc.get("originalName") + " | []" + Rank.valueOf(r).getName();
+
     }
 }

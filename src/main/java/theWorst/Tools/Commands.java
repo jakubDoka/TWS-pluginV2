@@ -5,10 +5,9 @@ import arc.util.Strings;
 import mindustry.entities.type.Player;
 import org.bson.Document;
 import theWorst.Bot;
-import theWorst.database.*;
+import theWorst.dataBase.*;
 import theWorst.helpers.Administration;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -113,62 +112,6 @@ public class Commands {
         }
         Administration.emergency = new Administration.Emergency(Integer.parseInt(args[0]));
         return Res.success;
-    }
-
-    public static String pdToLine(PlayerD pd){
-        return "[yellow]" + pd.serverId + "[] | [gray]" + pd.originalName + "[] | " + getRank(pd).getName();
-    }
-
-    public static ArrayList<String> search(String[] args){
-        List<PlayerD> all = Database.getAllMeta();
-        ArrayList<String> res = new ArrayList<>();
-        switch (args[0]){
-            case "sort":
-                if(!enumContains(Stat.values(),args[1])){
-                    return null;
-                }
-                HashMap<Document, PlayerD> holder = new HashMap<>();
-                for (Document d : Database.getAllRawMeta()) {
-                    holder.put(d, Database.getMeta((String) d.get("_id")));
-                }
-                while (!holder.isEmpty()) {
-                    long best = 0;
-                    Document bestD = null;
-                    for (Document d : holder.keySet()) {
-                        Long val = (Long) d.get(args[1]);
-                        if(val == null){
-                            Log.info("error: missing property " + args[1]);
-                            return null;
-                        }
-                        if (val >= best) {
-                            best = val;
-                            bestD = d;
-                        }
-                    }
-                    res.add(pdToLine(holder.get(bestD)));
-                    holder.remove(bestD);
-                }
-                break;
-            case "rank":
-                for(PlayerD pd : all){
-                    if(pd.rank.equals(args[1])) res.add(pdToLine(pd));
-                }
-                break;
-            default:
-                for(PlayerD pd : all){
-                    if(cleanColors(pd.originalName).toLowerCase().startsWith(args[0].toLowerCase())) res.add(pdToLine(pd));
-                }
-                break;
-        }
-        if(args.length == 3){
-            int size = res.size();
-            ArrayList<String> reversed = new ArrayList<>();
-            for(int i = 0; i < size; i++){
-                reversed.add(res.get(size - 1 - i));
-            }
-            return reversed;
-        }
-        return res;
     }
 
     public enum Res{
