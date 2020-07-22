@@ -18,6 +18,9 @@ public class General {
     }
 
     public static Rank getRank(PlayerD pd){
+        if(!enumContains(Rank.values(), pd.rank)){
+            pd.rank = Rank.defaultRank.name();
+        }
         return Rank.valueOf(pd.rank);
     }
 

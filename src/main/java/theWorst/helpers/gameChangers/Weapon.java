@@ -2,6 +2,7 @@ package theWorst.helpers.gameChangers;
 
 import arc.math.Mathf;
 import arc.math.geom.Position;
+import arc.math.geom.Vec2;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -9,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.content.Bullets;
 import mindustry.content.Items;
 import mindustry.entities.bullet.BulletType;
+import mindustry.entities.traits.ShooterTrait;
 import mindustry.entities.type.Player;
 import mindustry.game.Team;
 import mindustry.gen.Call;
@@ -82,8 +84,12 @@ public class Weapon {
         float x = player.getX(), y = player.getY();
         float sMul = pb.speed / bullet.speed, lMul = pb.lifetime / bullet.lifetime;
         lMul = getLiveTime(player, player.pointerX, player.pointerY,sMul, lMul);
+        Vec2 playerVel = ((ShooterTrait)player).velocity();
+        Vec2 resultVel = new Vec2(1, 0).rotate(angle).scl(sMul * bullet.speed).add(playerVel);
+        angle = resultVel.angle();
+        sMul = resultVel.len() / bullet.speed;
         for(int i = 0;i < bulletsPerShot; i++){
-            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy, accuracy), sMul,lMul);
+            Call.createBullet(bullet, team, x, y, angle + Mathf.random(-accuracy, accuracy), sMul, lMul);
         }
     }
 

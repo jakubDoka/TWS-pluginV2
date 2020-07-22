@@ -8,8 +8,10 @@ import arc.struct.Array;
 import arc.util.CommandHandler;
 import arc.util.Strings;
 import mindustry.Vars;
+import mindustry.content.Blocks;
 import mindustry.entities.type.BaseUnit;
 import mindustry.entities.type.Player;
+import mindustry.entities.type.TileEntity;
 import mindustry.game.EventType;
 import mindustry.game.Gamemode;
 import mindustry.game.Team;
@@ -18,6 +20,7 @@ import mindustry.maps.Map;
 import mindustry.type.Item;
 import mindustry.type.ItemType;
 import mindustry.type.UnitType;
+import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
 import theWorst.Tools.Formatting;
@@ -30,6 +33,7 @@ import theWorst.votes.VoteData;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import static mindustry.Vars.*;
 import static theWorst.Tools.Commands.*;
@@ -39,7 +43,6 @@ import static theWorst.Tools.Maps.findMap;
 import static theWorst.Tools.Maps.getFreeTiles;
 import static theWorst.Tools.Players.*;
 import static theWorst.database.Database.getData;
-import static theWorst.database.Database.getSpecialRank;
 
 
 public class InGameCommands {
@@ -202,13 +205,13 @@ public class InGameCommands {
         handler.<Player>register("mkgf","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            vote.aVote(voteData, 4, Database.getSpecialRank(Database.getData(player)), ((PlayerD)voteData.target).originalName);
+            vote.aVote(voteData, 4, ((PlayerD)voteData.target).originalName);
         });
 
         handler.<Player>register("votekick","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            voteKick.aVote(voteData, 4, Database.getSpecialRank(Database.getData(player)),((PlayerD)voteData.target).originalName);
+            voteKick.aVote(voteData, 4,((PlayerD)voteData.target).originalName);
         });
 
         handler.<Player>register("info","[id]","Displays players profile.",(args, player)->{
@@ -231,7 +234,8 @@ public class InGameCommands {
             Call.onInfoMessage(player.con,"[orange]==PLAYER PROFILE==[]\n\n"+data);
         });
 
-        handler.<Player>register("set","[setting/help/info] [on/off/argument]",
+        //todo test
+        handler.<Player>register("set","[setting/permission/help] [on/off/argument]",
                 "/set to see setting options. /set help for more info.",(args,player)->{
             PlayerD pd = getData(player);
 
@@ -240,6 +244,14 @@ public class InGameCommands {
                 for(Setting s : Setting.values()){
                     String val = pd.settings.contains(s.name()) ? "[green]on[]" : "[scarlet]off[]";
                     sb.append(s.name()).append(":").append(val).append("\n");
+                }
+                HashSet<String> permSet = new HashSet<>();
+                for(SpecialRank sr : pd.obtainedRanks){
+                    permSet.addAll(sr.permissions);
+                }
+                for(String s : permSet){
+                    String val = pd.settings.contains(s) ?  "[scarlet]off[]" : "[green]on[]";
+                    sb.append(s).append(": ").append(val).append("\n");
                 }
                 Call.onInfoMessage(player.con, sb.toString());
                 return;
@@ -309,7 +321,8 @@ public class InGameCommands {
                 pd.textColor = args[1];
                 return;
             }
-            if(!enumContains(Setting.values(),args[0])){
+            boolean isSetting = enumContains(Setting.values(),args[0]);
+            if(!isSetting && !enumContains(Perm.values(), args[0])){
                 sendErrMessage(player,"set-invalid");
                 return;
             }
@@ -319,14 +332,16 @@ public class InGameCommands {
                         sendErrMessage(player, "set-already-enabled");
                         return;
                     }
-                    pd.settings.add(args[0]);
+                    if (isSetting) pd.settings.add(args[0]);
+                    else pd.settings.remove(args[0]);
                     break;
                 case "off" :
                     if(!pd.settings.contains(args[0])){
-                        sendErrMessage(player,"set-already-disabled");
+                        sendErrMessage(player, "set-already-disabled");
                         return;
                     }
-                    pd.settings.remove(args[0]);
+                    if (isSetting) pd.settings.remove(args[0]);
+                    else pd.settings.add(args[0]);
                     break;
                 default:
                     sendErrMessage(player,"no-such-option",args[1],"on/off");
@@ -528,7 +543,7 @@ public class InGameCommands {
                     sendErrMessage(player,"invalid-mode");
                     return;
             }
-            vote.aVote(voteData,10, getSpecialRank(pd),voteData.target != null ? ((Map)voteData.target).name() : "");
+            vote.aVote(voteData,10,voteData.target != null ? ((Map)voteData.target).name() : "");
         });
 
         handler.<Player>register("emergency","<time/permanent/stop>","Emergency control.",(args,player)->{
@@ -557,17 +572,17 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("search","<searchKey/sort/rank> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
+        handler.<Player>register("search","<searchKey/sort/rank/specialrank/donationlevel> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
+            if(args[0].equals("help")) {
+                sendInfoPopup(player, "search-help");
+            }
             new Thread(()-> {
-                ArrayList<String> res = Database.search(args, 40);
-                StringBuilder mb = new StringBuilder();
+                ArrayList<String> res = Database.search(args, 40, Database.getData(player));
                 for (String s : res) {
-                    mb.append(s).append("\n");
+                    player.sendMessage(s);
                 }
                 if (res.isEmpty()) {
                     sendErrMessage(player, "search-no-results");
-                } else {
-                    player.sendMessage(mb.toString());
                 }
             }).start();
         });
@@ -646,7 +661,8 @@ public class InGameCommands {
                     break;
                 case "special":
                     for(SpecialRank s : Database.ranks.values()){
-                        res.add(s.getSuffix());
+                        String indicator = pd.obtainedRanks.contains(s) ? "[green]V[]":"[scarlet]X[]";
+                        res.add(indicator + s.getSuffix() + indicator);
                     }
                     break;
                 default:
@@ -812,7 +828,7 @@ public class InGameCommands {
                     Hud.addAd("loadout-player-launch", 10, player.name, "!gray");
                     return;
                 }
-                vote.aVote(data, 3, getSpecialRank(getData(player)), arg, secToTime(Loadout.config.shipSpeed));
+                vote.aVote(data, 3, arg, secToTime(Loadout.config.shipSpeed));
             } else {
                 wrongArgAmount(player, args, 3);
             }
@@ -957,7 +973,7 @@ public class InGameCommands {
                     Hud.addAd("factory-player-launch", 10, player.name, "!gray");
                     return;
                 }
-                vote.aVote(data, 3, getSpecialRank(getData(player)), arg, arg2);
+                vote.aVote(data, 3, arg, arg2);
             } else {
                 wrongArgAmount(player, args, 3);
             }
@@ -975,8 +991,7 @@ public class InGameCommands {
                         kick(p, "kickafk-kick", 0);
                     }
                 }
-            }
-        }, 4, getSpecialRank(getData(player))));
+            }}, 4));
 
         handler.<Player>register("skipwave", "[1-5]", "Skips amount of waves.",(args, player)->{
             if(args.length == 1 && !Strings.canParsePostiveInt(args[0])){
@@ -999,7 +1014,7 @@ public class InGameCommands {
                         logic.runWave();
                     }
                 }
-            }, 6, getSpecialRank(getData(player)), "" + amount);
+            }, 6, "" + amount);
         });
 
         handler.removeCommand("vote");
@@ -1096,6 +1111,69 @@ public class InGameCommands {
                 count++;
             }
             sendMessage(player, "revert-reverted");
+        });
+
+        handler.<Player>register("buidcore", "<small/normal/big>", "Builds core on your coordinates.", (args, player)-> {
+            Block core = Blocks.coreShard;
+            TileEntity existingCore = player.getClosestCore();
+            if (existingCore == null) {
+                sendChatMessage(player, "buildcore-no-resources");
+                return;
+            }
+            float priceRatio = .2f;
+            Tile tile = player.tileOn();
+            switch (args[0]) {
+                case "normal":
+                    core = Blocks.coreNucleus;
+                    priceRatio = .3f;
+                    break;
+                case "big":
+                    core = Blocks.coreFoundation;
+                    priceRatio = .4f;
+            }
+            ArrayList<ItemStack> price = new ArrayList<>();
+            int storageSize = 0;
+            for (CoreBlock.CoreEntity c : state.teams.cores(Team.sharded)) {
+                storageSize += c.block.itemCapacity;
+            }
+            for (Item i : content.items()) {
+                if (i.type == ItemType.resource) continue;
+                price.add(new ItemStack(i, (int) (storageSize * priceRatio)));
+            }
+            boolean has = true;
+            StringBuilder sb = new StringBuilder();
+            for (ItemStack i : price) {
+                if (!existingCore.items.has(i.item, i.amount)) {
+                    i.amount -= existingCore.items.get(i.item);
+                    sb.append(i).append(" ");
+                    has = false;
+                }
+            }
+            if (!has) {
+                sendErrMessage(player, "buildcore-missing", sb.toString());
+                return;
+            }
+            Block finalCore = core;
+            vote.aVote(new VoteData() {
+                {
+                    by = player;
+                    reason = "buildcore";
+                    special = Perm.coreBuild;
+                }
+
+                @Override
+                public void run() {
+                    Call.onConstructFinish(tile, finalCore, 0, (byte) 0, player.getTeam(), true);
+                    if (tile.block() == finalCore) {
+                        for (ItemStack i : price) {
+                            existingCore.items.remove(i.item, i.amount);
+                        }
+                        sendMessage("buildcore-success");
+                    } else {
+                        sendMessage("buildcore-failed");
+                    }
+                }
+            }, 3, core.name, tile.x + " " + tile.y);
         });
     }
 }

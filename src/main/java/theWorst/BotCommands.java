@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static mindustry.Vars.*;
 import static theWorst.Bot.*;
+import static theWorst.Tools.Bundle.locPlayer;
 import static theWorst.Tools.Commands.*;
 import static theWorst.Tools.Formatting.cleanColors;
 import static theWorst.Tools.Json.makeFullPath;
@@ -219,13 +220,13 @@ public class BotCommands {
             }
         });
 
-        handler.registerCommand(new Command("search","<searchKey/sort/rank> [sortType/rankName] [reverse]") {
+        handler.registerCommand(new Command("search","<searchKey/sort/rank/specialrank/donationlevel> [sortType/rankName] [reverse]") {
             {
                 description = "Shows first 20 results of search.";
             }
             @Override
             public void run(CommandContext ctx) {
-                ArrayList<String> res = Database.search(ctx.args, 20);
+                ArrayList<String> res = Database.search(ctx.args, 20, locPlayer);
                 StringBuilder mb = new StringBuilder();
                 for(String s : res) {
                     mb.append(s).append("\n");
@@ -233,7 +234,7 @@ public class BotCommands {
                 if (res.isEmpty()) {
                     ctx.reply("No results found.");
                 } else {
-                    ctx.channel.sendMessage(mb.toString());
+                    ctx.channel.sendMessage(cleanColors(mb.toString()));
                 }
             }
         });

@@ -8,6 +8,7 @@ import arc.util.Time;
 import arc.util.Timer;
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import mindustry.entities.traits.BuilderTrait;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
@@ -35,15 +36,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
-import static mindustry.Vars.netServer;
-import static mindustry.Vars.playerGroup;
+import static mindustry.Vars.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static theWorst.Tools.Commands.logInfo;
 import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.General.*;
 import static theWorst.Tools.Json.*;
-import static theWorst.Tools.Players.sendErrMessage;
-import static theWorst.Tools.Players.sendMessage;
+import static theWorst.Tools.Players.*;
 
 public class Database {
     public static final String playerCollection = "playerD";
@@ -74,6 +73,7 @@ public class Database {
         });
 
         new AfkMaker();
+        //todo test
         Events.on(EventType.PlayerConnect.class,e->{
             //remove fake ranks
             String originalName = e.player.name;
@@ -95,19 +95,30 @@ public class Database {
                 setRank(pd, Rank.griefer, e.player);
             }
             //resolving special rank
-            SpecialRank sr = getSpecialRank(pd);
-            if(sr != null && !sr.isPermanent()){
-                pd.specialRank = null;
-                sr = null;
+            SpecialRank specialRank = getSpecialRank(pd);
+            if(specialRank != null && !specialRank.isPermanent()){
+                pd.specialRank = "";
             }
 
-            for(SpecialRank rank : ranks.values()){
-                if(rank.condition(pd) && (sr==null || sr.value < rank.value)){
-                   pd.specialRank = rank.name;
-                   sr = rank;
+            new Thread(()->{
+                SpecialRank sr = getSpecialRank(pd);
+                for(SpecialRank rank : ranks.values()){
+                    if(rank.condition(pd) ){
+                        if (sr==null || sr.value < rank.value) {
+                            synchronized (pd) {
+                                pd.specialRank = rank.name;
+                            }
+                            sr = rank;
+                        }
+                        synchronized (pd.obtainedRanks){
+                            pd.obtainedRanks.add(sr);
+                        }
+                        addPets(pd, rank);
+                    }
                 }
-            }
-            addPets(pd, sr);
+            });
+
+
             //modify name based of rank
             updateName(e.player,pd);
 
@@ -140,27 +151,27 @@ public class Database {
                             return;
                         }
                         Rank finalR = null;
-                        SpecialRank finalDl = null;
+                        pd.donationLevel = "";
+                        SpecialRank crDl = getDonationLevel(pd);
                         for (Role r : user.getRoles(server.get())) {
                             String roleName = r.getName();
+                            SpecialRank dl = ranks.get(roleName);
+
                             if (enumContains(Rank.values(), roleName)) {
                                 Rank rank = Rank.valueOf(roleName);
                                 if (Rank.valueOf(pd.rank).getValue() < rank.getValue()) {
                                     finalR = rank;
                                 }
-                            }else if (ranks.containsKey(roleName)) {
-                                SpecialRank dl = ranks.get(pd.donationLevel);
-                                SpecialRank ndl = ranks.get(roleName);
-                                if (pd.donationLevel == null || dl == null || dl.value < ndl.value) {
+                            }else if (dl != null ) {
+                                if (crDl == null || dl.value > crDl.value){
                                     pd.donationLevel = roleName;
-                                    finalDl = ndl;
+                                    crDl = dl;
                                 }
+                                synchronized (pd.obtainedRanks) {
+                                    pd.obtainedRanks.add(dl);
+                                }
+                                addPets(pd, dl);
                             }
-                        }
-                        if (finalDl != null) {
-                            addPets(pd, finalDl);
-                        } else {
-                            pd.donationLevel = null;
                         }
                         updateName(e.player, pd);
 
@@ -186,11 +197,10 @@ public class Database {
         //games played and games won counter
         Events.on(EventType.GameOverEvent.class, e ->{
             for(Player p:playerGroup){
-                PlayerD pd=getData(p);
                 if(p.getTeam()==e.winner) {
-                    pd.gamesWon++;
+                    incOne(p, Stat.gamesWon);
                 }
-                pd.gamesPlayed++;
+                incOne(p, Stat.gamesPlayed);
             }
         });
 
@@ -224,10 +234,10 @@ public class Database {
         //count units killed and deaths
         Events.on(EventType.UnitDestroyEvent.class, e->{
             if(e.unit instanceof Player){
-                getData((Player) e.unit).deaths++;
+                incOne((Player) e.unit, Stat.deaths);
             }else if(e.unit.getTeam() != Team.sharded){
                 for(Player p:playerGroup){
-                    getData(p).enemiesKilled++;
+                    incOne(p, Stat.enemiesKilled);
                 }
             }
         });
@@ -249,11 +259,10 @@ public class Database {
         Events.on(EventType.BlockBuildEndEvent.class, e->{
             if(e.player == null) return;
             if(!e.breaking && e.tile.block().buildCost/60<1) return;
-            PlayerD pd=getData(e.player);
             if(e.breaking){
-                pd.buildingsBroken++;
+                incOne(e.player, Stat.buildingsBroken);
             }else {
-                pd.buildingsBuilt++;
+                incOne(e.player, Stat.buildingsBuilt);
             }
         });
 
@@ -267,7 +276,9 @@ public class Database {
                 if(found == null){
                     Log.info("missing pet :" + pet);
                 } else {
-                    pd.pets.add(new Pet(found));
+                    synchronized (pd.pets) {
+                        pd.pets.add(new Pet(found));
+                    }
                 }
             }
         }
@@ -441,36 +452,28 @@ public class Database {
     }
 
     public static SpecialRank getSpecialRank(PlayerD pd) {
-        if (pd.specialRank == null) return null;
+        if (pd.specialRank == null ||pd.specialRank.isEmpty()) return null;
         SpecialRank sr = ranks.get(pd.specialRank);
-        if (sr == null) pd.specialRank = null;
+        if (sr == null) pd.specialRank = "";
         return sr;
     }
 
     public static SpecialRank getDonationLevel(PlayerD pd) {
-        if (pd.donationLevel == null) return null;
+        if (pd.donationLevel == null || pd.donationLevel.isEmpty()) return null;
         SpecialRank sr = ranks.get(pd.donationLevel);
-        if (sr == null) pd.donationLevel = null;
+        if (sr == null) pd.donationLevel = "";
         return sr;
     }
 
     public static void updateName(Player player,PlayerD pd){
         player.name=pd.originalName;
+        SpecialRank rank = getDonationLevel(pd);
+        SpecialRank level = getSpecialRank(pd);
         if (pd.afk){
             player.name += AFK;
-        } else if(pd.donationLevel != null) {
-            SpecialRank rank = getDonationLevel(pd);
-            if(rank == null){
-                updateName(player,pd);
-                return;
-            }
-            player.name += rank.getSuffix();
-        } else if(pd.specialRank != null) {
-            SpecialRank rank = getSpecialRank(pd);
-            if(rank == null){
-                updateName(player,pd);
-                return;
-            }
+        } else if(level != null) {
+            player.name += level.getSuffix();
+        } else if(rank != null) {
             player.name += rank.getSuffix();
         } else {
             player.name += getRank(pd).getSuffix();
@@ -535,6 +538,14 @@ public class Database {
         return pd;
     }
 
+    public static void inc(Player player, Stat stat, long amount){
+        rawData.updateOne(Filters.eq("uuid", player.uuid), Updates.inc(stat.name(), amount));
+    }
+
+    public static void incOne(Player player, Stat stat) {
+        inc(player, stat, 1);
+    }
+
 
 
     public static boolean hasEnabled(Player player, Setting setting){
@@ -542,23 +553,23 @@ public class Database {
     }
 
     public static boolean hasPerm(Player player,Perm perm){
-        return Rank.valueOf(getData(player).rank).permission.getValue()>=perm.getValue();
-    }
-
-    public static boolean hasThisPerm(Player player,Perm perm){
-        Rank rank = Rank.valueOf(getData(player).rank);
-        return rank.permission==perm;
+        for(Perm p : getRank(getData(player)).permissions) {
+            if(p.getValue() >= perm.getValue()) return true;
+        }
+        return false;
     }
 
     public static boolean hasSpecialPerm(Player player,Perm perm){
         PlayerD pd = getData(player);
-        if(!pd.settings.contains(Setting.ability.name())) return false;
-        SpecialRank sr = getSpecialRank(pd);
+        if(pd.settings.contains(perm.name())) return false;
+        for ( SpecialRank s : pd.obtainedRanks) {
+            if (s.permissions.contains(perm.name())) {
+                return true;
+            }
+        }
         SpecialRank dl = getDonationLevel(pd);
-        boolean srh = false, dlh = false;
-        if(sr != null) srh = sr.permissions.contains(perm.name());
-        if(dl != null) dlh = dl.permissions.contains(perm.name());
-        return  srh || dlh;
+        if(dl != null) return dl.permissions.contains(perm.name());
+        return false;
     }
 
     //when structure of playerD is changed this function tries its bet to make database still compatible
@@ -588,10 +599,10 @@ public class Database {
         }
         //if there is new field added
         for(String s : currentDoc.keySet()){
-            if(!currentDoc.containsKey(s)){
+            if(!oldDoc.containsKey(s)){
                 for(Document d : getAllRawMeta()){
                     if(d.containsKey(s)) continue;
-                    d.append(s, oldDoc.get(s));
+                    d.append(s, currentDoc.get(s));
                     rawData.replaceOne(Filters.eq("_id",d.get("_id")),d);
                 }
                 logInfo("autocorrect-field-add",s);
@@ -610,43 +621,46 @@ public class Database {
         }
     }
 
-    public static ArrayList<String> search(String[] args, int limit){
+    public static ArrayList<String> search(String[] args, int limit, PlayerD pd){
         ArrayList<String> result = new ArrayList<>();
         FindIterable<Document> res;
-        switch (args[0]){
-            case "sort":
-                if(!enumContains(Stat.values(), args[1])){
-                    result.add("Invalid sort type.");
+        if(args.length > 1) {
+            switch (args[0]){
+                case "sort":
+                    if(!enumContains(Stat.values(), args[1])){
+                        result.add(format(getTranslation(pd, "search-invalid-mode"), Arrays.toString(Stat.values())));
+                        return result;
+                    }
+                    res = rawData.find().sort(new BsonDocument(args[1], new BsonInt32(args.length == 3 ? -1 : 1))).limit(limit);
+                    break;
+                case "rank":
+
+                    if(!enumContains(Rank.values(), args[1])) {
+                        result.add(getTranslation(pd, "search-non-existent-rank"));
+                        return result;
+                    }
+                    res = rawData.find(Filters.eq("rank", args[1])).limit(limit);
+                    break;
+                case "specialrank":
+
+                    if(!ranks.containsKey(args[1])) {
+                        result.add(getTranslation(pd, "search-non-existent-special-rank"));
+                        return result;
+                    }
+                    res = rawData.find(Filters.eq("specialRank", args[1])).limit(limit);
+                    if (res.first() == null){
+                        res = rawData.find(Filters.eq("donationLevel", args[1])).limit(limit);
+                    }
+                    break;
+                default:
+                    result.add(getTranslation(pd, "invalid-mode"));
                     return result;
-                }
-                res = rawData.find().sort(new BsonDocument(args[1], new BsonInt32(args.length == 3 ? -1 : 1))).limit(limit);
-                break;
-            case "rank":
-                if(!enumContains(Rank.values(), args[1])) {
-                    result.add("This rank does not exist.");
-                    return result;
-                }
-                res = rawData.find(Filters.eq("rank", args[1])).limit(limit);
-                break;
-            case "specialrank":
-                if(!ranks.containsKey(args[1])) {
-                    result.add("This special rank does not exist.");
-                    return result;
-                }
-                res = rawData.find(Filters.eq("specialRank", args[1])).limit(limit);
-                break;
-            case "donationlevel":
-                if(!ranks.containsKey(args[1])) {
-                    result.add("This donation level does not exist.");
-                    return result;
-                }
-                res = rawData.find(Filters.eq("donationLevel", args[1])).limit(limit);
-                break;
-            default:
-                Pattern pattern = Pattern.compile("^"+Pattern.quote(args[0]), Pattern.CASE_INSENSITIVE);
-                res = rawData.find(Filters.regex("originalName", pattern));
-                break;
+            }
+        } else {
+            Pattern pattern = Pattern.compile("^"+Pattern.quote(args[0]), Pattern.CASE_INSENSITIVE);
+            res = rawData.find(Filters.regex("originalName", pattern)).limit(limit);
         }
+
         for(Document d : res) {
             result.add(docToString(d));
         }
@@ -664,21 +678,27 @@ public class Database {
         private static final int requiredTime = 1000*60*5;
         private AfkMaker(){
             Timer.schedule(()->{
-                for(Player p : playerGroup){
-                    PlayerD pd = getData(p);
-                    if(pd.afk && Time.timeSinceMillis(pd.lastAction)<requiredTime){
-                        pd.afk = false;
-                        updateName(p,pd);
-                        sendMessage("afk-is-not",pd.originalName,AFK);
-                        return;
+                try {
+                    synchronized (this){
+                        for(Player p : playerGroup){
+                            PlayerD pd = getData(p);
+                            if(pd.afk && Time.timeSinceMillis(pd.lastAction)<requiredTime){
+                                pd.afk = false;
+                                updateName(p,pd);
+                                sendMessage("afk-is-not",pd.originalName,AFK);
+                                return;
+                            }
+                            if (!pd.afk && Time.timeSinceMillis(pd.lastAction)>requiredTime){
+                                pd.afk = true;
+                                updateName(p,pd);
+                                sendMessage("afk-is",pd.originalName,AFK);
+                            }
+                        }
                     }
-                    if (!pd.afk && Time.timeSinceMillis(pd.lastAction)>requiredTime){
-                        pd.afk = true;
-                        updateName(p,pd);
-                        sendMessage("afk-is",pd.originalName,AFK);
-                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                 }
-            },0,updateRate);
+            }, 0, updateRate);
         }
     }
 }

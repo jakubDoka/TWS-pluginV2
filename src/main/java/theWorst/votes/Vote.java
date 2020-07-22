@@ -27,6 +27,7 @@ import static theWorst.Tools.Json.loadSimpleHashmap;
 import static theWorst.Tools.Json.saveSimple;
 import static theWorst.Tools.Players.getTranslation;
 import static theWorst.Tools.Players.sendErrMessage;
+import static theWorst.database.Database.*;
 
 public class Vote implements Displayable, Destroyable {
     static String passiveFile = Global.saveDir + "passive.json";
@@ -63,7 +64,7 @@ public class Vote implements Displayable, Destroyable {
 
     }
 
-    public void aVote(VoteData voteData, Integer maxReq, SpecialRank sr, String ... args) {
+    public void aVote(VoteData voteData, Integer maxReq, String ... args) {
         Player player = voteData.by;
         Database.getData(player).onAction(player);
         if (!canVote) {
@@ -93,10 +94,10 @@ public class Vote implements Displayable, Destroyable {
         time = voteDuration;
         voting = true;
         special = false;
-        if(sr != null && voteData.special != null && sr.permissions.contains(voteData.special.name())) {
+        if(hasSpecialPerm(voteData.by,voteData.special)) {
             time = voteDuration/2;
             special = true;
-            Hud.addAd("vote-special", 10, sr.getSuffix(), "!white", "!gray");
+            Hud.addAd("vote-special", 10, player.name, "!white", "!gray");
         }
         passivePlayers.remove(player.uuid);
         addVote(player, "y");
@@ -168,11 +169,8 @@ public class Vote implements Displayable, Destroyable {
         if (success) {
             voteData.run();
             Hud.addAd(voteData.reason + "-done", 10, args);
-            PlayerD pd = Database.getData(voteData.by);
-            if(voteData.special == Perm.loadout){
-                pd.loadoutVotes++;
-            } else if(voteData.special == Perm.factory){
-                pd.factoryVotes++;
+            if(voteData.special.relation != null) {
+                Database.incOne(voteData.by, voteData.special.relation);
             }
         } else {
             if(!Database.hasPerm(voteData.by, Perm.high)){

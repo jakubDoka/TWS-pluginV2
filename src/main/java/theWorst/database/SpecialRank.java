@@ -140,7 +140,7 @@ public class SpecialRank implements Serializable {
                 }
             }
         }
-        return getSuffix() + "\n[gray]" + desc + "\n" + condition + "\n";
+        return getSuffix() + "\n[gray]" + desc + "\npermissions:" + permissions + "\n" + condition + "\n";
     }
 
     enum Mod{

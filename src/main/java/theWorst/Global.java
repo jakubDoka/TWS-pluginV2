@@ -54,6 +54,7 @@ public class Global {
         public long grieferAntiSpamTime = 1000 * 10;
         public int configLimit = 50;
         public int withdrawLimit = 50;
+        public int revertCacheSize = 200;
         public long rateLimitPeriod = 1000;
         public int countedActionsPerTile = 5;
         public long withdrawPenalty = 30 * 1000;
@@ -65,6 +66,7 @@ public class Global {
         @JsonCreator public RateLimits(
                 @JsonProperty("grieferAntiSpamTime") long grieferAntiSpamTime,
                 @JsonProperty("configLimit") int configLimit,
+                @JsonProperty("revertCacheSize") int revertCacheSize,
                 @JsonProperty("withdrawLimit") int withdrawLimit,
                 @JsonProperty("withdrawPenalty") long withdrawPenalty,
                 @JsonProperty("rateLimitPeriod") long rateLimitPeriod,
@@ -75,6 +77,7 @@ public class Global {
             this.grieferAntiSpamTime = grieferAntiSpamTime;
             this.countedActionsPerTile = countedActionsPerTile;
             this.configLimit = configLimit;
+            this.revertCacheSize = revertCacheSize;
             this.withdrawLimit = withdrawLimit;
             this.rateLimitPeriod = rateLimitPeriod;
             this.testPenalty = testPenalty;

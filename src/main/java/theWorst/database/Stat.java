@@ -12,5 +12,6 @@ public enum Stat {
     age,
     messageCount,
     loadoutVotes,
+    buildCoreVotes,
     none
 }

@@ -1,6 +1,9 @@
 package theWorst.database;
 
+import arc.util.Log;
 import arc.util.Time;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import com.mongodb.lang.Nullable;
 import mindustry.entities.type.Player;
 import org.springframework.data.annotation.Id;
@@ -19,6 +22,7 @@ import static theWorst.Tools.Bundle.*;
 import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.Players.*;
 import static theWorst.database.Database.getData;
+import static theWorst.database.Database.rawData;
 
 @Document
 public class PlayerD {
@@ -29,29 +33,31 @@ public class PlayerD {
     public long deaths = 0;
     public long gamesPlayed = 0;
     public long gamesWon = 0;
-    public long factoryVotes =0;
-    public long loadoutVotes =0;
-    public long messageCount =0;
+    public long factoryVotes = 0;
+    public long loadoutVotes = 0;
+    public long buildCoreVotes = 0;
+    public long messageCount = 0;
     public long playTime = 1;
     public long age = Time.millis();
     public long connected = Time.millis()+1;
     public long lastActive = 0;
     @Transient public long lastAction = Time.millis();
     @Transient public boolean afk = false;
-    public String specialRank;
-    @Transient public ArrayList<Pet> pets = new ArrayList<>();
+    public String specialRank = "";
+    @Transient public final HashSet<SpecialRank> obtainedRanks = new HashSet<>();
+    @Transient public final ArrayList<Pet> pets = new ArrayList<>();
 
     //user customization
     public String textColor = "white";
     @Indexed public String discordLink;
     public HashSet<String> settings = new HashSet<>();
     public HashSet<String> mutes = new HashSet<>();
-    public String donationLevel;
+    public String donationLevel = "";
 
     //administration
     @Indexed public long serverId;
     @Id public String uuid;
-    public String rank = "newcomer";
+    public String rank = Rank.defaultRank.name();
     public String ip;
     public String originalName;
     public long lastMessage = 0;
@@ -93,7 +99,7 @@ public class PlayerD {
         PlayerD meta = Database.getMeta(uuid);
         //It takes about 3 seconds to figure out bundle for player, thread gets rid of the delay.
         new Thread(()->{
-            bundle=ResourceBundle.getBundle(bundlePath,getLocale(ip,getLocData(ip)));
+            bundle = ResourceBundle.getBundle(bundlePath, getLocale(ip));
             if(Global.config.welcomeMessage == null) return;
             String welcomeMessage = Global.config.welcomeMessage.getOrDefault(
                     getCountryCode(getData(player).bundle.getLocale()),Global.config.welcomeMessage.get("default"));
@@ -146,17 +152,6 @@ public class PlayerD {
             return;
         }
         //updating it
-        ///counters
-        meta.buildingsBuilt += buildingsBuilt;
-        meta.buildingsBroken += buildingsBroken;
-        meta.enemiesKilled += enemiesKilled;
-        meta.deaths += deaths;
-        meta.gamesPlayed += gamesPlayed;
-        meta.gamesWon += gamesWon;
-        meta.factoryVotes += factoryVotes;
-        meta.loadoutVotes += loadoutVotes;
-        meta.messageCount += messageCount;
-        meta.playTime += Time.timeSinceMillis(connected);
         ///settings
         meta.textColor = textColor;
         meta.discordLink = discordLink;
@@ -213,6 +208,7 @@ public class PlayerD {
                 (gamesPlayed + oldMeta.gamesPlayed)*2+
                 (loadoutVotes + oldMeta.buildingsBroken)*100+
                 (factoryVotes + oldMeta.factoryVotes)*100+
+                (buildCoreVotes + oldMeta.buildCoreVotes)*1000+
                 (enemiesKilled + oldMeta.enemiesKilled)/10+
                 oldMeta.playTime/(1000*60)+
                 (messageCount + oldMeta.messageCount)*5;
@@ -236,6 +232,7 @@ public class PlayerD {
                    long gamesWon,
                    long factoryVotes,
                    long loadoutVotes,
+                   long buildCoreVotes,
                    long messageCount,
                    long playTime,
                    long age,
@@ -261,6 +258,7 @@ public class PlayerD {
         this.gamesWon = gamesWon;
         this.factoryVotes = factoryVotes;
         this.loadoutVotes = loadoutVotes;
+        this.buildCoreVotes = buildCoreVotes;
         this.messageCount = messageCount;
         this.playTime = playTime;
         this.age = age;
@@ -278,6 +276,10 @@ public class PlayerD {
         this.originalName = originalName;
         this.lastMessage = lastMessage;
         this.donationLevel = donationLevel;
+    }
+
+    public void increment(Stat relation) {
+        rawData.updateOne(Filters.eq("uuid", uuid), Updates.inc(relation.name(),1));
     }
 }
 

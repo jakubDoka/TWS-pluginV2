@@ -64,7 +64,7 @@ public class Commands {
             sendMessage("rank-change", pd.originalName, getRank(pd).getName());
         } else {
             if (rank.equals("restart")) {
-                pd.specialRank = null;
+                pd.specialRank = "";
                 sendMessage("rank-restart", pd.originalName);
                 logInfo("rank-restart", pd.originalName);
             }

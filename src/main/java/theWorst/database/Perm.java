@@ -7,8 +7,8 @@ public enum Perm {
     higher(4),
     highest(100),
 
-    loadout,
-    factory,
+    loadout(Stat.loadoutVotes),
+    factory(Stat.factoryVotes),
     restart,
     change,
     gameOver,
@@ -17,10 +17,16 @@ public enum Perm {
     suicide,
     colorCombo,
     antiGrief,
-    skip;
+    skip,
+    coreBuild(Stat.buildCoreVotes);
 
     private final int value;
     public String description=null;
+    public Stat relation = null;
+    Perm(Stat relation){
+        this.relation = relation;
+        this.value=0;
+    }
     Perm(){
         this.value=0;
     }

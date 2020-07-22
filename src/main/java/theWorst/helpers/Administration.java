@@ -39,7 +39,6 @@ public class Administration implements Displayable{
     public static Timer.Task recentThread;
     TileInfo[][] data;
     public static HashMap<String, ArrayList<Action>> undo = new HashMap<>();
-    final int undoCache = 200;
 
     public Administration() {
         Action.register();
@@ -216,8 +215,8 @@ public class Administration implements Displayable{
                                 }
                             });
                     }
-                    if(acts.size() > undoCache){
-                        acts.remove(undoCache);
+                    if(acts.size() > Global.limits.revertCacheSize){
+                        acts.remove(Global.limits.revertCacheSize);
                     }
                     if(!acts.isEmpty()){
                         int burst = 0;

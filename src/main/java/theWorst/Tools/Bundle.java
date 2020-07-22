@@ -12,9 +12,9 @@ import java.util.ResourceBundle;
 
 public class Bundle {
     public static final String bundlePath = "bundles.bundle";
-    public static final Locale locale = new Locale(System.getProperty("user.language"),System.getProperty("user.country"));
-    public static final ResourceBundle defaultBundle = ResourceBundle.getBundle(bundlePath,new Locale("en","US"));
-    public static final PlayerD locPlayer = new PlayerD(){{bundle=ResourceBundle.getBundle(bundlePath,locale);}};
+    public static final Locale locale = new Locale("en","US");
+    public static final ResourceBundle defaultBundle = ResourceBundle.getBundle(bundlePath, locale);
+    public static final PlayerD locPlayer = new PlayerD(){{bundle = defaultBundle;}};
 
     public static JSONObject getLocData(String ip){
         try {
@@ -26,8 +26,8 @@ public class Bundle {
         return null;
     }
 
-    public static Locale getLocale(String ip,JSONObject data){
-        if(data == null) data = getLocData(ip);
+    public static Locale getLocale(String ip){
+        JSONObject data = getLocData(ip);
         if(data==null) return locale;
         String languages = (String) data.get("languages");
         if(languages==null) return locale;

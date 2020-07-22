@@ -2,6 +2,7 @@ package theWorst.helpers.gameChangers;
 
 import arc.math.Mathf;
 import mindustry.Vars;
+import mindustry.entities.type.TileEntity;
 import mindustry.type.Item;
 import mindustry.type.ItemType;
 import mindustry.world.blocks.storage.CoreBlock;
@@ -187,5 +188,11 @@ public class Loadout implements Displayable, Destroyable {
         return res;
     }
 
+    public static boolean CoreHas(TileEntity core, ArrayList<ItemStack> itemStacks) {
+        for(ItemStack i : itemStacks) {
+            if(!core.items.has(i.item, i.amount)) return false;
+        }
+        return true;
+    }
 
 }
