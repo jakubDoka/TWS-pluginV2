@@ -4,7 +4,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.jsoup.Jsoup;
-import theWorst.database.PlayerD;
+import theWorst.database.PD;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -14,7 +14,7 @@ public class Bundle {
     public static final String bundlePath = "bundles.bundle";
     public static final Locale locale = new Locale("en","US");
     public static final ResourceBundle defaultBundle = ResourceBundle.getBundle(bundlePath, locale);
-    public static final PlayerD locPlayer = new PlayerD(){{bundle = defaultBundle;}};
+    public static final PD locPlayer = new PD(){{bundle = defaultBundle;}};
 
     public static JSONObject getLocData(String ip){
         try {

@@ -10,7 +10,7 @@ import mindustry.game.EventType;
 import mindustry.gen.Call;
 import theWorst.Global;
 import theWorst.database.Database;
-import theWorst.database.PlayerD;
+import theWorst.database.PD;
 import theWorst.database.Setting;
 
 import java.util.ArrayList;
@@ -58,7 +58,7 @@ public class Hud {
                         Call.hideHudText(p.con);
                         continue;
                     }
-                    PlayerD pd = Database.getData(p);
+                    PD pd = Database.getData(p);
                     StringBuilder b = new StringBuilder().append("[#cbcbcb]");
                     if (cycle.on) b.append(cycle.getMessage()).append("\n");
                     //displayable are registered in their constructors
@@ -105,7 +105,7 @@ public class Hud {
             expiration = Timer.schedule(()-> adQueue.remove(this),liveTime);
         }
 
-       String getMessage(PlayerD pd){
+       String getMessage(PD pd){
            String currentColor;
            if (colors.isEmpty()){
                currentColor="white";

@@ -4,8 +4,8 @@ import arc.util.Strings;
 import mindustry.entities.type.Player;
 import mindustry.gen.Call;
 import theWorst.database.Database;
+import theWorst.database.PD;
 import theWorst.database.Perm;
-import theWorst.database.PlayerD;
 import theWorst.database.Setting;
 
 import java.util.Locale;
@@ -22,9 +22,10 @@ public class Players {
         StringBuilder builder = new StringBuilder();
         builder.append("[orange]Players: \n");
         for(Player p : playerGroup.all()){
-            if(p.isAdmin || p.con == null || Database.hasPerm(p, Perm.higher)) continue;
+            PD pd = Database.getData(p);
+            if(p.isAdmin || p.con == null || pd.hasPermLevel(Perm.higher)) continue;
             builder.append("[lightgray]").append(p.name);
-            builder.append("[accent] (ID:").append(Database.getData(p).serverId).append(")\n");
+            builder.append("[accent] (ID:").append(pd.id).append(")\n");
         }
         return builder.toString();
     }
@@ -32,7 +33,7 @@ public class Players {
     public static Player findPlayer(String arg) {
         if(Strings.canParseInt(arg)){
             int id = Strings.parseInt(arg);
-            return  playerGroup.find(p -> Database.getData(p).serverId == id);
+            return  playerGroup.find(p -> Database.getData(p).id == id);
         }
         for(Player p:playerGroup){
             String pName = cleanName(p.name);
@@ -44,35 +45,35 @@ public class Players {
     }
 
     public static void sendMessage(Player player,String key,String ... args){
-        PlayerD pd = Database.getData(player);
+        PD pd = Database.getData(player);
         player.sendMessage(prefix + format(getTranslation(pd,key),args));
     }
 
     public static void sendErrMessage(Player player,String key,String ... args){
-        PlayerD pd = Database.getData(player);
+        PD pd = Database.getData(player);
         player.sendMessage(prefix + "[#bc5757]" + format(getTranslation(pd,key),args));
     }
 
     public static void sendInfoPopup(Player player, String kay, String ... args) {
-        PlayerD pd = Database.getData(player);
+        PD pd = Database.getData(player);
         Call.onInfoMessage(player.con,format(getTranslation(pd,kay),args));
     }
 
     public static void kick(Player player, String kay, int duration, String ... args ){
-        PlayerD pd = Database.getData(player);
+        PD pd = Database.getData(player);
         player.con.kick(format(getTranslation(pd,kay),args), duration);
     }
 
 
-    public static String getTranslation(PlayerD pd, String key){
-        if(pd != null && pd.bundle != null && pd.bundle.containsKey(key) && pd.settings.contains(Setting.translate.name())){
+    public static String getTranslation(PD pd, String key){
+        if(pd != null && pd.bundle != null && pd.bundle.containsKey(key)){
             return pd.bundle.getString(key);
         }
         if(!defaultBundle.containsKey(key)) return "error: bundle " + key + " is missing. Please report it.";
         return defaultBundle.getString(key);
     }
 
-    public static boolean cnaTranslate(PlayerD pd, String key){
+    public static boolean cnaTranslate(PD pd, String key){
         return pd.bundle.containsKey(key) || defaultBundle.containsKey(key);
     }
 
@@ -86,7 +87,7 @@ public class Players {
     public static void sendChatMessage(Player sender, String message){
         for(Player p : playerGroup){
             //filtering messages
-            if(!Database.hasEnabled(p,Setting.chat) || Database.getData(p).mutes.contains(sender.uuid)) continue;
+            if(!Database.hasEnabled(p,Setting.chat) || Database.hasMuted(p, sender)) continue;
             p.sendMessage("[coral][[[#"+sender.color+"]"+sender.name+"[]]:[]"+message);
         }
     }

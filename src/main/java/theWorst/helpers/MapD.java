@@ -9,8 +9,7 @@ import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.Query;
-import theWorst.Tools.Formatting;
-import theWorst.database.PlayerD;
+import theWorst.database.PD;
 
 import java.util.HashMap;
 
@@ -87,7 +86,7 @@ public class MapD {
     }
 
 
-    public String toString(Map map, PlayerD pd) {
+    public String toString(Map map, PD pd) {
         Rules rules = map.rules();
         return format(getTranslation(pd,"map-info"),
                 name,

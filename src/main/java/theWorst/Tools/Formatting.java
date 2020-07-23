@@ -132,4 +132,8 @@ public class Formatting {
             return parts[0] + parts[1] + parts[2];
         }
     }
+
+    public static String getSubnet(String address){
+        return address.substring(0,address.lastIndexOf("."));
+    }
 }

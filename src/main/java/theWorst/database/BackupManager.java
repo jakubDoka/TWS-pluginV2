@@ -9,7 +9,7 @@ import org.bson.Document;
 
 import java.util.ArrayList;
 
-public class BackupManager {
+/*public class BackupManager {
     static final long oldestValid = 1000*60*60;
     static final String databaseName = "serveBackups";
     static final MongoDatabase backups = MongoClients.create().getDatabase(databaseName);
@@ -73,4 +73,4 @@ public class BackupManager {
         }
         return true;
     }
-}
+}*/

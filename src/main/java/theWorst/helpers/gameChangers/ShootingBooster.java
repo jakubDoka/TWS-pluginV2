@@ -8,7 +8,7 @@ import mindustry.type.Item;
 import mindustry.type.ItemStack;
 import theWorst.Global;
 import theWorst.database.Database;
-import theWorst.database.PlayerD;
+import theWorst.database.PD;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,7 +36,8 @@ public class ShootingBooster {
         });
 
         Events.on(EventType.Trigger.update,() -> playerGroup.all().forEach(player -> {
-            PlayerD pd = Database.getData(player);
+            PD pd = Database.getData(player);
+            if (pd == null) return;
             if (!pd.pets.isEmpty()) {
                 for(Pet p : pd.pets){
                     p.update(player, pd.pets);

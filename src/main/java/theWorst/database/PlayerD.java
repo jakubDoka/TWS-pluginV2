@@ -1,6 +1,6 @@
 package theWorst.database;
 
-import arc.util.Log;
+/*import arc.util.Log;
 import arc.util.Time;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
@@ -55,12 +55,12 @@ public class PlayerD {
     public String donationLevel = "";
 
     //administration
-    @Indexed public long serverId;
-    @Id public String uuid;
-    public String rank = Rank.defaultRank.name();
-    public String ip;
-    public String originalName;
-    public long lastMessage = 0;
+    @Indexed public long serverId; //done
+    @Id public String uuid; //done
+    public String rank = Rank.defaultRank.name(); //done
+    public String ip; //done
+    public String originalName; //done
+    public long lastMessage = 0; //done
 
 
 
@@ -282,4 +282,4 @@ public class PlayerD {
         rawData.updateOne(Filters.eq("uuid", uuid), Updates.inc(relation.name(),1));
     }
 }
-
+*/

@@ -5,13 +5,11 @@ import arc.Events;
 import arc.util.*;
 import mindustry.core.GameState;
 import mindustry.game.EventType;
-import mindustry.gen.Call;
 import mindustry.plugin.Plugin;
 import mindustry.world.blocks.logic.MessageBlock;
-import theWorst.database.BackupManager;
+import theWorst.database.DataHandler;
 import theWorst.database.Database;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
+import theWorst.database.Ranks;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Hud;
@@ -21,7 +19,6 @@ import theWorst.helpers.gameChangers.Loadout;
 import theWorst.helpers.gameChangers.ShootingBooster;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 
 import static arc.util.Log.info;
@@ -61,6 +58,8 @@ public class Main extends Plugin {
         Events.on(EventType.WorldLoadEvent.class,e-> destroyable.forEach(Destroyable::destroy));
 
         Events.on(EventType.ServerLoadEvent.class, e->{
+            Ranks.loadRanks();
+            Ranks.loadBuildIn();
             Global.loadConfig();
             Global.loadLimits();
             new ShootingBooster();
@@ -98,7 +97,7 @@ public class Main extends Plugin {
             }
         });
 
-        handler.register("dbbackup","<add/remove/load/show> [idx]",
+        /*handler.register("dbbackup","<add/remove/load/show> [idx]",
                 "Shows backups and their indexes or adds, removes or loads the backup by index.",args->{
             if(args.length==1){
                 switch (args[0]){
@@ -137,16 +136,16 @@ public class Main extends Plugin {
                 }
             }
             logInfo("invalid-mode");
-        });
+        });*/
 
         handler.register("unkick", "<ID/uuid>", "Erases kick status of player player.", args -> {
-            PlayerD pd = Database.findData(args[0]);
+            DataHandler.Doc pd = Database.findData(args[0]);
             if (pd == null) {
                 logInfo("player-not-found");
                 return;
             }
-            netServer.admins.getInfo(pd.uuid).lastKicked = Time.millis();
-            logInfo("unkick",pd.originalName);
+            netServer.admins.getInfo(pd.getUuid()).lastKicked = Time.millis();
+            logInfo("unkick",pd.getName());
         });
 
         handler.register("mapstats","Shows all maps with statistics.",args-> Log.info(MapManager.statistics()));
@@ -157,14 +156,13 @@ public class Main extends Plugin {
                     logInfo("show-modes","ranks, pets, general, limits, discord, discordrolerestrict, loadout, factory, weapons");
                     return;
                 case "ranks":
-                    Database.loadRanks();
+                    Ranks.loadRanks();
                     return;
                 case "pets":
                     Database.loadPets();
                     return;
                 case "general":
                     Global.loadConfig();
-                    Database.reload();
                     return;
                 case "limits":
                     Global.loadLimits();
@@ -216,8 +214,8 @@ public class Main extends Plugin {
                     break;
                 case invalid:
                     logInfo("rank-not-found");
-                    logInfo("rank-s",Arrays.toString(Rank.values()));
-                    logInfo("rank-s-custom",Database.ranks.keySet().toString());
+                    logInfo("rank-s", Ranks.buildIn.keySet().toString());
+                    logInfo("rank-s-custom", Ranks.special.keySet().toString());
             }
         });
 

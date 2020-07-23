@@ -5,7 +5,7 @@ import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import org.javacord.api.DiscordApi;
 import theWorst.database.Database;
-import theWorst.database.PlayerD;
+import theWorst.database.PD;
 import theWorst.database.Setting;
 import theWorst.discord.BotConfig;
 import theWorst.discord.Command;
@@ -51,9 +51,9 @@ public class Bot {
         Events.on(EventType.PlayerChatEvent.class,e->{
             if(api == null || !config.channels.containsKey("commandLog")) return;
             if(!isCommandRelated(e.message)) return;
-            PlayerD pd = Database.getData(e.player);
+            PD pd = Database.getData(e.player);
             config.channels.get("commandLog").sendMessage(String.format("**%s** - %s (%d): %s",
-                    cleanColors(pd.originalName), pd.rank, pd.serverId, e.message));
+                    pd.name, pd.rank, pd.id, e.message));
         });
         loadRestrictions();
         connect();

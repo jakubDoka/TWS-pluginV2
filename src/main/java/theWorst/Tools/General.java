@@ -2,8 +2,6 @@ package theWorst.Tools;
 
 import mindustry.game.Team;
 import mindustry.world.blocks.storage.CoreBlock;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
 
 import java.lang.reflect.Field;
 
@@ -17,12 +15,6 @@ public class General {
         return false;
     }
 
-    public static Rank getRank(PlayerD pd){
-        if(!enumContains(Rank.values(), pd.rank)){
-            pd.rank = Rank.defaultRank.name();
-        }
-        return Rank.valueOf(pd.rank);
-    }
 
     public static CoreBlock.CoreEntity getCore(){
         if(state.teams.cores(Team.sharded).isEmpty()) return null;

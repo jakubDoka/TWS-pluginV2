@@ -12,22 +12,20 @@ import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
-import theWorst.helpers.gameChangers.ItemStack;
-import theWorst.helpers.gameChangers.UnitStack;
-
+import theWorst.helpers.gameChangers.Loadout;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
-import static mindustry.Vars.*;
-import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.General.getRank;
+import static mindustry.Vars.player;
+import static mindustry.Vars.playerGroup;
+import static theWorst.Tools.Formatting.format;
+import static theWorst.Tools.Formatting.milsToTime;
 import static theWorst.Tools.Json.loadSimpleHashmap;
 import static theWorst.Tools.Json.saveSimple;
 import static theWorst.Tools.Players.getTranslation;
 import static theWorst.Tools.Players.sendErrMessage;
-import static theWorst.database.Database.*;
 
 public class Vote implements Displayable, Destroyable {
     static String passiveFile = Global.saveDir + "passive.json";
@@ -66,7 +64,8 @@ public class Vote implements Displayable, Destroyable {
 
     public void aVote(VoteData voteData, Integer maxReq, String ... args) {
         Player player = voteData.by;
-        Database.getData(player).onAction(player);
+        PD pd = Database.getData(player);
+        pd.onAction();
         if (!canVote) {
             sendErrMessage(player, "vote-cannot-vote");
             return;
@@ -75,7 +74,7 @@ public class Vote implements Displayable, Destroyable {
             sendErrMessage(player, "vote-in-process");
             return;
         }
-        if (getRank(Database.getData(player)).equals(Rank.griefer)) {
+        if (pd.isGriefer()) {
             sendErrMessage(player, "griefer-no-perm");
             return;
         }
@@ -94,7 +93,7 @@ public class Vote implements Displayable, Destroyable {
         time = voteDuration;
         voting = true;
         special = false;
-        if(hasSpecialPerm(voteData.by,voteData.special)) {
+        if(pd.hasThisPerm(voteData.special)) {
             time = voteDuration/2;
             special = true;
             Hud.addAd("vote-special", 10, player.name, "!white", "!gray");
@@ -115,9 +114,9 @@ public class Vote implements Displayable, Destroyable {
     public int getRequired() {
         int count = 0;
         for (Player p : playerGroup) {
-            PlayerD pd = Database.getData(p);
-            if (pd.rank.equals(Rank.griefer.name()) || pd.afk) continue;
-            if (pd.playTime + Time.timeSinceMillis(pd.connected) < Global.limits.minVotePlayTime) continue;
+            PD pd = Database.getData(p);
+            if (pd.isGriefer() || pd.afk) continue;
+            if (pd.getPlayTime() < Global.limits.minVotePlayTime) continue;
             if (passivePlayers.getOrDefault(p.uuid, 0) > 1) continue;
             count += 1;
         }
@@ -133,9 +132,9 @@ public class Vote implements Displayable, Destroyable {
         if(!voting){
             sendErrMessage(player, "vote-not-active");
         }
-        PlayerD pd=Database.getData(player);
-        pd.onAction(player);
-        long totalPT = pd.playTime + Time.timeSinceMillis(pd.connected);
+        PD pd=Database.getData(player);
+        pd.onAction();
+        long totalPT = pd.getPlayTime();
         if (voted.contains(player.uuid)) {
             sendErrMessage( player, "vote-already-voted");
             return;
@@ -144,7 +143,7 @@ public class Vote implements Displayable, Destroyable {
             sendErrMessage(player, "vote-low-play-time", milsToTime(totalPT));
             return;
         }
-        if(pd.rank.equals(Rank.griefer.name())){
+        if(pd.isGriefer()){
             sendErrMessage(player, "griefer-no-perm");
             return;
         }
@@ -166,14 +165,15 @@ public class Vote implements Displayable, Destroyable {
     public void close(boolean success) {
         if (!voting) return;
         voting = false;
+        PD pd = Database.getData(voteData.by);
         if (success) {
             voteData.run();
             Hud.addAd(voteData.reason + "-done", 10, args);
             if(voteData.special.relation != null) {
-                Database.incOne(voteData.by, voteData.special.relation);
+                Database.data.incOne(pd.player, voteData.special.relation);
             }
         } else {
-            if(!Database.hasPerm(voteData.by, Perm.high)){
+            if(!pd.hasPermLevel(Perm.high)){
                 recent.add(voteData.by);
                 sendErrMessage(voteData.by, "vote-failed-penalty");
             }
@@ -187,7 +187,7 @@ public class Vote implements Displayable, Destroyable {
     }
 
     @Override
-    public String getMessage(PlayerD pd) {
+    public String getMessage(PD pd) {
         if(!voting) return null;
         String color = time % 2 == 0 ? "gray" : "white";
         String md = getTranslation(pd,mode);

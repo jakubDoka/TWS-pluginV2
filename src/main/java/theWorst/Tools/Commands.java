@@ -3,20 +3,12 @@ package theWorst.Tools;
 import arc.util.Log;
 import arc.util.Strings;
 import mindustry.entities.type.Player;
-import org.bson.Document;
 import theWorst.Bot;
 import theWorst.database.*;
 import theWorst.helpers.Administration;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
 import static theWorst.Tools.Bundle.locPlayer;
 import static theWorst.Tools.Formatting.cleanColors;
-import static theWorst.Tools.General.enumContains;
-import static theWorst.Tools.General.getRank;
 import static theWorst.Tools.Players.*;
 import static theWorst.Tools.Formatting.format;
 
@@ -44,42 +36,42 @@ public class Commands {
     //beautiful spaghetti in deed
     public static Res setRankViaCommand(Player player, String target, String rank, String reason) {
 
-        PlayerD pd = Database.findData(target);
-
-        if (pd == null) return Res.notFound;
-
+        DataHandler.Doc doc = Database.findData(target);
+        if (doc == null) return Res.notFound;
+        String name = doc.getName();
+        Rank current = doc.getRank(RankType.rank);
         String by = "terminal";
         if (player != null) {
             by = player.name;
-            if (getRank(pd).isAdmin) return Res.notPermitted;
+            if (current.isAdmin) return Res.notPermitted;
         }
-        if(enumContains(Rank.values(),rank)) {
-            Rank r = Rank.valueOf(rank);
+        Rank rk = Ranks.buildIn.get(rank);
+        Rank sr = Ranks.special.get(rank);
+        if(rk != null) {
             //this means that this function is called from InGameCommands or BotCommands
-            if (player != null && r.isAdmin) return Res.notPermitted;
-            Rank prevRank = getRank(pd);
-            Database.setRank(pd, r, null);
-            Bot.onRankChange(pd.originalName, pd.serverId, prevRank.name(), r.name(), by, reason);
-            logInfo("rank-change", pd.originalName, pd.rank);
-            sendMessage("rank-change", pd.originalName, getRank(pd).getName());
+            if (player != null && rk.isAdmin) return Res.notPermitted;
+
+            Bot.onRankChange(name, doc.getId(), current.name, rk.name, by, reason);
+            logInfo("rank-change", name, rk.name);
+            sendMessage("rank-change", name, rk.Suffix());
+            Database.setRank(doc.getId(), rk);
+
         } else {
             if (rank.equals("restart")) {
-                pd.specialRank = "";
-                sendMessage("rank-restart", pd.originalName);
-                logInfo("rank-restart", pd.originalName);
+                Database.data.removeRank(doc.getId(), RankType.specialRank);
+                sendMessage("rank-restart", name);
+                logInfo("rank-restart", name);
             }
-            else if (!Database.ranks.containsKey(rank)) return Res.invalid;
+            else if (sr == null) return Res.invalid;
             else {
-                pd.specialRank = rank;
-                SpecialRank sr = Database.getSpecialRank(pd);
-                if (sr != null) {
-                    logInfo("rank-change", pd.originalName, pd.specialRank);
-                    sendMessage("rank-change", pd.originalName, sr.getSuffix());
-                }
+                Database.data.setRank(doc.getUuid(), sr, RankType.specialRank);
+                logInfo("rank-change", name, sr.name);
+                sendMessage("rank-change", name, sr.Suffix());
             }
         }
-        if(!pd.isOnline()) {
-            Database.updateMeta(pd);
+        PD pd = Database.online.get(doc.getUuid());
+        if(pd != null) {
+            Database.logPlayer(pd.player, false);
         }
         return Res.success;
     }
@@ -113,62 +105,6 @@ public class Commands {
         }
         Administration.emergency = new Administration.Emergency(Integer.parseInt(args[0]));
         return Res.success;
-    }
-
-    public static String pdToLine(PlayerD pd){
-        return "[yellow]" + pd.serverId + "[] | [gray]" + pd.originalName + "[] | " + getRank(pd).getName();
-    }
-
-    public static ArrayList<String> search(String[] args){
-        List<PlayerD> all = Database.getAllMeta();
-        ArrayList<String> res = new ArrayList<>();
-        switch (args[0]){
-            case "sort":
-                if(!enumContains(Stat.values(),args[1])){
-                    return null;
-                }
-                HashMap<Document, PlayerD> holder = new HashMap<>();
-                for (Document d : Database.getAllRawMeta()) {
-                    holder.put(d, Database.getMeta((String) d.get("_id")));
-                }
-                while (!holder.isEmpty()) {
-                    long best = 0;
-                    Document bestD = null;
-                    for (Document d : holder.keySet()) {
-                        Long val = (Long) d.get(args[1]);
-                        if(val == null){
-                            Log.info("error: missing property " + args[1]);
-                            return null;
-                        }
-                        if (val >= best) {
-                            best = val;
-                            bestD = d;
-                        }
-                    }
-                    res.add(pdToLine(holder.get(bestD)));
-                    holder.remove(bestD);
-                }
-                break;
-            case "rank":
-                for(PlayerD pd : all){
-                    if(pd.rank.equals(args[1])) res.add(pdToLine(pd));
-                }
-                break;
-            default:
-                for(PlayerD pd : all){
-                    if(cleanColors(pd.originalName).toLowerCase().startsWith(args[0].toLowerCase())) res.add(pdToLine(pd));
-                }
-                break;
-        }
-        if(args.length == 3){
-            int size = res.size();
-            ArrayList<String> reversed = new ArrayList<>();
-            for(int i = 0; i < size; i++){
-                reversed.add(res.get(size - 1 - i));
-            }
-            return reversed;
-        }
-        return res;
     }
 
     public enum Res{

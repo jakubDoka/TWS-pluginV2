@@ -9,7 +9,7 @@ import mindustry.world.blocks.storage.CoreBlock;
 import org.json.simple.JSONObject;
 import theWorst.Global;
 import theWorst.Main;
-import theWorst.database.PlayerD;
+import theWorst.database.PD;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
@@ -32,7 +32,7 @@ public class Loadout implements Displayable, Destroyable {
     public ArrayList<Ship> ships = new ArrayList<>();
 
     @Override
-    public String getMessage(PlayerD pd) {
+    public String getMessage(PD pd) {
         StringBuilder sb = new StringBuilder();
         for(Ship s: ships){
             String f = "[orange]" + new String[]{"-->", "->-", ">--"}[s.time % 3] + "[]";

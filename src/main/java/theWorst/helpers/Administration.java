@@ -17,7 +17,6 @@ import java.util.HashMap;
 
 import static mindustry.Vars.*;
 import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.General.getRank;
 import static theWorst.Tools.Players.*;
 
 public class Administration implements Displayable{
@@ -84,14 +83,14 @@ public class Administration implements Displayable{
             netServer.admins.addChatFilter((player, message) -> {
                 //do not display how people voted
                 if (message.equals("y") || message.equals("n")) return null;
-                PlayerD pd = Database.getData(player);
+                PD pd = Database.getData(player);
                 String color = pd.textColor;
                 if (!Database.hasEnabled(player, Setting.chat)) {
                     sendErrMessage(player, "chat-disabled");
                     return null;
                 }
                 //handle griefer messages
-                if (pd.rank.equals(Rank.griefer.name())) {
+                if (pd.rank == Ranks.griefer) {
                     if (Time.timeSinceMillis(pd.lastMessage) < Global.limits.grieferAntiSpamTime) {
                         sendErrMessage(player, "griefer-too-match-messages");
                         return null;
@@ -101,12 +100,12 @@ public class Administration implements Displayable{
                 }
                 //handle users with color combo permission
                 String[] colors = pd.textColor.split("/");
-                if (Database.hasSpecialPerm(player, Perm.colorCombo) && colors.length > 1) {
+                if (pd.hasThisPerm(Perm.colorCombo) && colors.length > 1) {
                     message = smoothColors(message,colors);
                 } else message = "[" + color + "]" + message;
                 //updating stats
                 pd.lastMessage = Time.millis();
-                pd.messageCount++;
+                Database.data.incOne(player, Stat.messageCount);
                 //final sending message, i have my own function for this because people ca have this user muted
                 sendChatMessage(player,message);
                 return null;
@@ -115,38 +114,37 @@ public class Administration implements Displayable{
             netServer.admins.addActionFilter( act -> {
                 Player player = act.player;
                 if (player == null) return true;
-                PlayerD pd = Database.getData(player);
+                PD pd = Database.getData(player);
                 if (pd == null) return true;
-                pd.onAction(player);
-                Rank rank = getRank(pd);
+                pd.onAction();
                 //taping on tiles is ok.
                 if(act.type == mindustry.net.Administration.ActionType.tapTile) return true;
                 //this is against Ag client messing up game
                 //if there is emergency
-                if(emergency.isActive() && rank.permission.getValue() < Perm.high.getValue()) {
-                    sendErrMessage(player,"at-least-verified",Rank.verified.getName());
+                if(emergency.isActive() && pd.hasThisPerm(Perm.high)) {
+                    sendErrMessage(player,"at-least-verified", Ranks.verified.Suffix());
                     return false;
                 }
                 TileInfo ti = data[act.tile.y][act.tile.x];
                 //if player has to low permission to interact
-                if(rank.permission.getValue() < ti.lock){
-                    if(rank==Rank.griefer){
+                if(pd.hasPermLevel(ti.lock)){
+                    if(pd.isGriefer()){
                         sendErrMessage(player,"griefer-no-perm");
                     }else {
-                        sendErrMessage(player,"at-least-verified",Rank.verified.getName());
+                        sendErrMessage(player,"at-least-verified", Ranks.verified.Suffix());
                     }
                     return false;
 
                 }
-                if(rank.permission.getValue() < Rank.candidate.permission.getValue() && !(act.tile.block() instanceof StaticTree)){
-                    ArrayList<Action> acts = undo.computeIfAbsent(pd.uuid, k -> new ArrayList<>());
+                if(pd.hasPermLevel(Perm.higher) && !(act.tile.block() instanceof StaticTree)){
+                    ArrayList<Action> acts = undo.computeIfAbsent(player.uuid, k -> new ArrayList<>());
                     long now = Time.millis();
                     switch (act.type) {
                         case breakBlock:
                             if(act.tile.entity != null && !world.getMap().rules().bannedBlocks.contains(act.tile.block())){
                                 Action.addBuildBreak(acts, new Action.Break() {
                                     {
-                                        by = pd.uuid;
+                                        by = player.uuid;
                                         tile = act.tile;
                                         block = act.tile.block();
                                         config = act.tile.entity.config();
@@ -159,7 +157,7 @@ public class Administration implements Displayable{
                         case placeBlock:
                             Action.addBuildBreak(acts, new Action.Build() {
                                 {
-                                    by = pd.uuid;
+                                    by = player.uuid;
                                     tile = act.tile;
                                     block = act.block;
                                     age = now;
@@ -168,7 +166,7 @@ public class Administration implements Displayable{
                             break;
                         case depositItem:
                         case withdrawItem:
-                            ArrayList<Long> draws = recentWithdraws.computeIfAbsent(pd.uuid, k -> new ArrayList<>());
+                            ArrayList<Long> draws = recentWithdraws.computeIfAbsent(player.uuid, k -> new ArrayList<>());
                             if (draws.size() > Global.limits.withdrawLimit) {
                                 Long ban = banned.contains(player);
                                 if (ban != null) {
@@ -239,8 +237,8 @@ public class Administration implements Displayable{
                             }
                         }
                         if (burst > Global.limits.configLimit){
-                            Bot.onRankChange(pd.originalName, pd.serverId, rank.name(), Rank.griefer.name(), "Server", "auto");
-                            Database.setRank(pd, Rank.griefer, player);
+                            Bot.onRankChange(pd.name, pd.id, pd.rank.name, Ranks.griefer.name, "Server", "auto");
+                            Database.setRank(pd.id, Ranks.griefer);
                             for(Action a: acts) {
                                 a.Undo();
                             }
@@ -250,7 +248,7 @@ public class Administration implements Displayable{
                 }
                 //remember tis action for inspect.
                 ti.add(act.type.name(),pd);
-                ti.lock = Mathf.clamp(rank.permission.getValue(), 0, 1);
+                ti.lock = Mathf.clamp(pd.getHighestPermissionLevel(), 0, 1);
                 return true;
 
             });
@@ -271,11 +269,11 @@ public class Administration implements Displayable{
         if (ti.data.isEmpty()) {
             msg.append("No one interacted with this tile.");
         } else {
-            msg.append(ti.lock == 1 ? Rank.verified.getName() + "\n" : "");
+            msg.append(ti.lock == 1 ? Ranks.verified.Suffix() + "\n" : "");
             for (String s : ti.data.keySet()) {
                 msg.append("[orange]").append(s).append(":[gray]");
-                for (PlayerD pd : ti.data.get(s)){
-                    msg.append(pd.serverId).append("=").append(pd.originalName).append("|");
+                for (PD pd : ti.data.get(s)){
+                    msg.append(pd.id).append("=").append(pd.name).append("|");
                 }
                 msg.delete(msg.length() - 2, msg.length() - 1);
                 msg.append("\n");
@@ -285,7 +283,7 @@ public class Administration implements Displayable{
     }
 
     @Override
-    public String getMessage(PlayerD pd) {
+    public String getMessage(PD pd) {
         return emergency.getReport(pd);
     }
 
@@ -305,7 +303,7 @@ public class Administration implements Displayable{
 
 
         private void addOne(Player player){
-            if(Database.hasPerm(player,Perm.high)) return;
+            if(Database.getData(player).hasPermLevel(Perm.high)) return;
             used+=1;
             if(used>=commandUseLimit){
                 netServer.admins.addSubnetBan(player.con.address.substring(0,player.con.address.lastIndexOf(".")));
@@ -349,9 +347,9 @@ public class Administration implements Displayable{
             return time > 0 || permanent;
         }
 
-        public String getReport(PlayerD pd){
+        public String getReport(PD pd){
             if(permanent){
-                return format(getTranslation(pd,"emergency-permanent"),Rank.verified.getName());
+                return format(getTranslation(pd,"emergency-permanent"), Ranks.verified.Suffix());
             }
             if(time <= 0){
                 return null;

@@ -16,7 +16,7 @@ import theWorst.Global;
 import theWorst.Main;
 import theWorst.Tools.Formatting;
 import theWorst.Tools.Players;
-import theWorst.database.PlayerD;
+import theWorst.database.PD;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
@@ -88,7 +88,7 @@ public class Factory implements Destroyable, Displayable {
     }
 
     @Override
-    public String getMessage(PlayerD pd) {
+    public String getMessage(PD pd) {
         StringBuilder sb = new StringBuilder();
         for(Thread t: threads){
             sb.append("[gray]<[]");
