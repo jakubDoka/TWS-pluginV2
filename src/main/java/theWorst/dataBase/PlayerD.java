@@ -33,7 +33,7 @@ public class PlayerD {
     public String donationLevel;
 
     //administration
-    @Indexed public long serverId;
+    @Indexed public long id;
     @Id public String uuid;
     public String rank;
     @Indexed public String ip;
@@ -63,7 +63,7 @@ public class PlayerD {
                    String donationLevel,
                    HashSet<String> settings,
                    HashSet<String> mutes,
-                   long serverId,
+                   long id,
                    String uuid,
                    String rank,
                    String ip,
@@ -87,7 +87,7 @@ public class PlayerD {
         this.discordLink = discordLink;
         this.settings = settings;
         this.mutes = mutes;
-        this.serverId = serverId;
+        this.id = id;
         this.uuid = uuid;
         this.rank = rank;
         this.ip = ip;

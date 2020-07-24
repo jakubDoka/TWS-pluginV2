@@ -7,6 +7,7 @@ import com.mongodb.client.*;
 import org.bson.*;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import theWorst.Main;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -59,15 +60,21 @@ public class Database {
         }
     }
 
+    public static String[] randomNames =new String[]{"rob", "tom", "steve", "jack", "henry", "sofokles", "niceChild"};
+
     public static void Convert() {
         for(String s : data.keySet()){
             PlayerData p = data.get(s);
+            String cleanName = Main.cleanName(p.originalName);
+            if(cleanName.replace(" ", "").isEmpty()) {
+                cleanName = randomNames[new Random().nextInt() % randomNames.length];
+            }
             PlayerD pd = new PlayerD(p.buildingsBuilt,p.buildingsBroken,
                     p.enemiesKilled,p.deaths,p.gamesPlayed,p.gamesWon,p.factoryVotes
             ,p.loadoutVotes,p.messageCount,p.playTime,p.born,p.connected,
                     p.lastActive,p.specialRank,p.textColor,p.discordLink,null,
                     p.settings,new HashSet<String>(), p.serverId,s,p.trueRank.name(),
-                    p.ip,p.originalName,p.lastMessage);
+                    p.ip,cleanName ,p.lastMessage);
 
             Database.Data.save(pd);
         }
