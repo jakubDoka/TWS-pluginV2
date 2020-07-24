@@ -25,7 +25,7 @@ public class Database {
         return new SpecialRank();
     }
 
-    public static void Init(String host, String database) {
+    public static void Init(String database, String host) {
         if (host != null) {
             Log.info("Connecting to Mongodb...");
             ConnectionString connectionString = new ConnectionString("mongodb+srv://" + host + "/" + database + "?w=majority");
