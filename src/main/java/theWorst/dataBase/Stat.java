@@ -11,6 +11,5 @@ public enum Stat {
     factoryVotes,
     age,
     messageCount,
-    loadoutVotes,
-    none
+    loadoutVotes;
 }
