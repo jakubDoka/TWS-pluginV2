@@ -37,7 +37,7 @@ import static theWorst.Tools.Json.saveSimple;
 import static theWorst.Tools.Players.*;
 
 public class Database {
-    public static final String playerCollection = "playerD";
+    public static final String playerCollection = "PlayerData";
     public static final String AFK = "[gray]<AFK>[]";
 
     static final String subnetFile = Global.saveDir + "subnetBuns.json";
