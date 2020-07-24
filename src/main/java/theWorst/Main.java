@@ -7,6 +7,7 @@ import mindustry.core.GameState;
 import mindustry.game.EventType;
 import mindustry.plugin.Plugin;
 import mindustry.world.blocks.logic.MessageBlock;
+import theWorst.database.BackupManager;
 import theWorst.database.DataHandler;
 import theWorst.database.Database;
 import theWorst.database.Ranks;
@@ -26,12 +27,12 @@ import static mindustry.Vars.*;
 import static theWorst.Tools.Commands.*;
 
 public class Main extends Plugin {
-    static Administration administration =  new Administration();
     static ArrayList<Destroyable> destroyable = new ArrayList<>();
-    static Hud hud = new Hud();
     static InGameCommands inGameCommands = new InGameCommands();
 
     public Main() {
+        new Administration();
+        new Hud();
         Events.on(EventType.BlockDestroyEvent.class, e ->{
             if(Global.config.alertPrefix == null) return;
             if(e.tile == null) {
@@ -50,9 +51,7 @@ public class Main extends Plugin {
             float original = state.rules.respawnTime;
             float spawnBoost = .1f;
             state.rules.respawnTime = spawnBoost;
-            Timer.schedule(()->{
-                state.rules.respawnTime = original;
-            }, playerGroup.size() * spawnBoost + 1f);
+            Timer.schedule(()-> state.rules.respawnTime = original, playerGroup.size() * spawnBoost + 1f);
         });
 
         Events.on(EventType.WorldLoadEvent.class,e-> destroyable.forEach(Destroyable::destroy));
@@ -63,9 +62,9 @@ public class Main extends Plugin {
             Global.loadConfig();
             Global.loadLimits();
             new ShootingBooster();
-            new Database();
+            Database.Init();
             new MapManager();
-            new Bot();
+            Bot.Init();
             MapManager.cleanMaps();
         });
     }
@@ -81,7 +80,7 @@ public class Main extends Plugin {
                 logInfo("dbdrop-refuse-because-playing");
                 return;
             }
-            Database.clean();
+            Database.clear();
             logInfo("dbdrop-erased");
         });
 
@@ -97,7 +96,7 @@ public class Main extends Plugin {
             }
         });
 
-        /*handler.register("dbbackup","<add/remove/load/show> [idx]",
+        handler.register("dbbackup","<add/remove/load/show> [idx]",
                 "Shows backups and their indexes or adds, removes or loads the backup by index.",args->{
             if(args.length==1){
                 switch (args[0]){
@@ -136,7 +135,7 @@ public class Main extends Plugin {
                 }
             }
             logInfo("invalid-mode");
-        });*/
+        });
 
         handler.register("unkick", "<ID/uuid>", "Erases kick status of player player.", args -> {
             DataHandler.Doc pd = Database.findData(args[0]);
@@ -159,10 +158,11 @@ public class Main extends Plugin {
                     Ranks.loadRanks();
                     return;
                 case "pets":
-                    Database.loadPets();
+                    ShootingBooster.loadPets();
                     return;
                 case "general":
                     Global.loadConfig();
+                    Database.reconnect();
                     return;
                 case "limits":
                     Global.loadLimits();

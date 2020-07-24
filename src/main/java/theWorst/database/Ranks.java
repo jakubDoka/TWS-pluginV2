@@ -18,23 +18,23 @@ import static theWorst.Tools.Json.saveSimple;
 public class Ranks {
     static final String rankFile = Global.configDir + "specialRanks.json";
     public static HashMap<String, Rank> buildIn = new HashMap<String, Rank>() {{
-        put("griefer", new Rank(false, "griefer", "#" + Items.thorium.color.toString(),
+        put("griefer", new Rank(true, false, "griefer", "#" + Items.thorium.color.toString(),
                 new HashMap<String, String>() {{
                     put("default", "Rank for griefers you ll see what it does when you get it.");
                 }}, 0, null, null, null, null));
-        put("newcomer", new Rank(false, "newcomer", "#" + Items.copper.color.toString(),
+        put("newcomer", new Rank(false, false, "newcomer", "#" + Items.copper.color.toString(),
                 new HashMap<String, String>() {{
                     put("default", "This is first ran you will get.");
                 }}, 0, new HashSet<>(Collections.singletonList(Perm.normal.name())), null, null, null));
-        put("verified", new Rank(false, "verified", "#" + Items.titanium.color.toString(),
+        put("verified", new Rank(false, false, "verified", "#" + Items.titanium.color.toString(),
                 new HashMap<String, String>() {{
                     put("default", "pass the test and you ll get this. Protects your blocks against newcomers.");
                 }}, 0, new HashSet<>(Collections.singletonList(Perm.high.name())), null, null, null));
-        put("candidate", new Rank(false, "candidate", "#" + Items.plastanium.color.toString(),
+        put("candidate", new Rank(true, false, "candidate", "#" + Items.plastanium.color.toString(),
                 new HashMap<String, String>() {{
                     put("default", "This is middle step between normal player and admin.");
                 }}, 0, new HashSet<>(Collections.singletonList(Perm.higher.name())), null, null, null));
-        put("admin", new Rank(true, "admin", "#" + Items.surgealloy.color.toString(),
+        put("admin", new Rank(true, true, "admin", "#" + Items.surgealloy.color.toString(),
                 new HashMap<String, String>() {{
                     put("default", "You have power to protect others.");
                 }}, 0, new HashSet<>(Collections.singletonList(Perm.highest.name())), null, null, null));
@@ -42,7 +42,7 @@ public class Ranks {
     public static HashMap<String, Rank> special = new HashMap<>();
     public static HashMap<String, Rank> donation = new HashMap<>();
     public static Rank griefer, newcomer, verified, candidate, admin;
-    public static Rank error = new Rank(false, "error", "red", new HashMap<String, String>() {{
+    public static Rank error = new Rank(true, false, "error", "red", new HashMap<String, String>() {{
         put("default", "When your special rank disappears you have chance to get this super rare rank");
     }}, 0, null, null, null, null);
 

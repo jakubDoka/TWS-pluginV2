@@ -33,18 +33,21 @@ public class Global {
     public static class Config {
         public String alertPrefix = "!!";
         public String dbName = "mindustryServer";
+        public String dbAddress = "mongodb://host1:27017";
         public HashMap<String, String > rules;
         public HashMap<String, String > welcomeMessage;
 
         public Config() {}
 
         @JsonCreator public Config(
+                @JsonProperty("dbAddress") String dbAddress,
                 @JsonProperty("alertPrefix") String alertPrefix,
                 @JsonProperty("dbName") String dbName,
                 @JsonProperty("rules") HashMap<String, String > rules,
                 @JsonProperty("welcomeMessage") HashMap<String, String > welcomeMessage){
-            this.alertPrefix = alertPrefix;
-            this.dbName = dbName;
+            if(dbAddress != null) this.dbAddress = dbAddress;
+            if(alertPrefix != null) this.alertPrefix = alertPrefix;
+            if(dbName != null) this.dbName = dbName;
             this.rules = rules;
             this.welcomeMessage = welcomeMessage;
         }

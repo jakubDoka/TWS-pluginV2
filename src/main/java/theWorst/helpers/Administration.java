@@ -122,7 +122,7 @@ public class Administration implements Displayable{
                 //this is against Ag client messing up game
                 //if there is emergency
                 if(emergency.isActive() && pd.hasThisPerm(Perm.high)) {
-                    sendErrMessage(player,"at-least-verified", Ranks.verified.Suffix());
+                    sendErrMessage(player,"at-least-verified", Ranks.verified.getSuffix());
                     return false;
                 }
                 TileInfo ti = data[act.tile.y][act.tile.x];
@@ -131,7 +131,7 @@ public class Administration implements Displayable{
                     if(pd.isGriefer()){
                         sendErrMessage(player,"griefer-no-perm");
                     }else {
-                        sendErrMessage(player,"at-least-verified", Ranks.verified.Suffix());
+                        sendErrMessage(player,"at-least-verified", Ranks.verified.getSuffix());
                     }
                     return false;
 
@@ -269,7 +269,7 @@ public class Administration implements Displayable{
         if (ti.data.isEmpty()) {
             msg.append("No one interacted with this tile.");
         } else {
-            msg.append(ti.lock == 1 ? Ranks.verified.Suffix() + "\n" : "");
+            msg.append(ti.lock == 1 ? Ranks.verified.getSuffix() + "\n" : "");
             for (String s : ti.data.keySet()) {
                 msg.append("[orange]").append(s).append(":[gray]");
                 for (PD pd : ti.data.get(s)){
@@ -349,7 +349,7 @@ public class Administration implements Displayable{
 
         public String getReport(PD pd){
             if(permanent){
-                return format(getTranslation(pd,"emergency-permanent"), Ranks.verified.Suffix());
+                return format(getTranslation(pd,"emergency-permanent"), Ranks.verified.getSuffix());
             }
             if(time <= 0){
                 return null;

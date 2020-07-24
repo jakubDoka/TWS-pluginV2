@@ -14,13 +14,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import static mindustry.Vars.playerGroup;
+import static theWorst.Tools.Commands.logInfo;
 import static theWorst.Tools.Json.loadSimpleHashmap;
 import static theWorst.Tools.Json.saveSimple;
 
 public class ShootingBooster {
     static final String weaponFile = Global.configDir + "weapons.json";
+    static final String petFile = Global.configDir + "pets.json";
+
     static HashMap<String , Weapon> weapons = new HashMap<>();
     static HashMap<String , Weapon> playerWeapons = new HashMap<>();
+    public static HashMap<String, Pet> pets = new HashMap<>();
     HashMap<String, ShootingD> data = new HashMap<>();
     public ShootingBooster(){
         Events.on(EventType.PlayerJoin.class, e-> data.put(e.player.uuid, new ShootingD()));
@@ -77,7 +81,9 @@ public class ShootingBooster {
             sd.ammo--;
             weapon.playerShoot(player);
         }));
+
         loadWeapons();
+        loadPets();
     }
 
     public static void loadWeapons(){
@@ -98,6 +104,29 @@ public class ShootingBooster {
             put("weapons",new ArrayList<Weapon>(){{ add(new Weapon()); }});
         }}, "weapons");
         loadWeapons();
+    }
+
+    public static void loadPets(){
+        pets.clear();
+        HashMap<String, Pet[]> pets = loadSimpleHashmap(petFile, Pet[].class, ShootingBooster::defaultPets);
+        if(pets == null) return;
+        Pet[] pts = pets.get("pets");
+        if(pts == null) return;
+        for(Pet p : pts) {
+            if(p.trail == null) {
+                logInfo("pet-invalid-trail", p.name);
+                continue;
+            }
+            ShootingBooster.pets.put(p.name,p);
+        }
+
+    }
+
+    public static void defaultPets(){
+        saveSimple(petFile, new HashMap<String, ArrayList<Pet>>(){{
+            put("pets",new ArrayList<Pet>(){{ add(new Pet()); }});
+        }},"pets");
+
     }
 
     static class ShootingD {

@@ -153,6 +153,7 @@ public class InGameCommands {
 
             if (doc == null) {
                 sendErrMessage(player, "player-not-found");
+                player.sendMessage(getPlayerList());
                 return null;
             }
 
@@ -222,8 +223,8 @@ public class InGameCommands {
                 DataHandler.Doc doc = Database.data.getDoc(player);
                 data = args[0].equals("s") ?  doc.statsToString(pd) : doc.toString(pd);
             } else {
-                if(!Strings.canParsePostiveInt(args[0])){
-                    sendErrMessage(player,"refuse-not-integer","1");
+                if(!Strings.canParsePostiveInt(args[1])){
+                    sendErrMessage(player,"refuse-not-integer","2");
                     return;
                 }
                 DataHandler.Doc doc = Database.data.getDoc(Long.parseLong(args[1]));
@@ -293,7 +294,7 @@ public class InGameCommands {
                 } else {
                     //checking if player is verified
                     if (!pd.hasPermLevel(Perm.high)) {
-                        sendErrMessage(player, "at-least-verified", Ranks.verified.Suffix());
+                        sendErrMessage(player, "at-least-verified", Ranks.verified.getSuffix());
                         return;
                     }
                     boolean tooDark = false;
@@ -364,7 +365,6 @@ public class InGameCommands {
 
         handler.<Player>register("mute","<name/id/info>","Mutes or, if muted, unmutes player for you. " +
                 "It can be used only on online players.",(args,player)->{
-            PD pd = getData(player);
             Player other = findPlayer(args[0]);
 
             if(other == null){
@@ -616,7 +616,7 @@ public class InGameCommands {
                         return;
                     }
                     if (pd.hasPermLevel(Perm.high)) {
-                        sendErrMessage(player, "test-no-need", Ranks.verified.Suffix());
+                        sendErrMessage(player, "test-no-need", Ranks.verified.getSuffix());
                         return;
                     }
                     if (penalty != null && penalty > 0) {
@@ -651,7 +651,7 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("ranks","<help/normal/special/info> [name/page]",
+        handler.<Player>register("ranks","<help/normal/special/info/update> [name/page]",
                 "More info via /ranks help.", (args,player)->{
             PD pd = Database.getData(player);
             ArrayList<String> res = new ArrayList<>();
@@ -659,6 +659,10 @@ public class InGameCommands {
             switch (args[0]){
                 case "help":
                     sendInfoPopup(player, "ranks-help");
+                    return;
+                case "update":
+                    Database.checkAchievements(pd, Database.data.getDoc(pd.id));
+                    sendMessage(player, "ranks-updated");//todo
                     return;
                 case "info":
                     if(wrongArgAmount(player,args,2)) return;
@@ -677,18 +681,18 @@ public class InGameCommands {
                     return;
                 case "normal":
                     for(Rank r : Ranks.buildIn.values()){
-                        res.add(r.Suffix());
+                        res.add(r.getSuffix());
                     }
                     break;
                 case "special":
                     for(Rank s : Ranks.special.values()){
                         String indicator = pd.obtained.contains(s) ? "[green]V[]":"[scarlet]X[]";
-                        res.add(indicator + s.Suffix() + indicator);
+                        res.add(indicator + s.getSuffix() + indicator);
                     }
                     break;
                 case "donation":
                     for(Rank s : Ranks.donation.values()){
-                        res.add(s.Suffix());
+                        res.add(s.getSuffix());
                     }
                     break;
                 default:

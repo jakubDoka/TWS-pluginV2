@@ -1,8 +1,6 @@
 package theWorst.database;
 
 import arc.Events;
-import arc.graphics.Color;
-import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Time;
 import arc.util.Timer;
@@ -19,52 +17,70 @@ import mindustry.world.blocks.storage.CoreBlock;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.Document;
-import org.javacord.api.entity.permission.Role;
-import org.javacord.api.entity.server.Server;
-import org.javacord.api.entity.user.User;
 import theWorst.Bot;
 import theWorst.Global;
-import theWorst.helpers.gameChangers.Pet;
+import theWorst.Tools.Bundle;
 
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.regex.Pattern;
 
-import static mindustry.Vars.*;
-import static theWorst.Tools.Commands.logInfo;
+import static mindustry.Vars.netServer;
+import static mindustry.Vars.playerGroup;
 import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.General.enumContains;
 import static theWorst.Tools.General.getCore;
-import static theWorst.Tools.Json.*;
+import static theWorst.Tools.Json.loadSimpleCollection;
+import static theWorst.Tools.Json.saveSimple;
 import static theWorst.Tools.Players.*;
 
 public class Database {
     public static final String playerCollection = "playerD";
     public static final String AFK = "[gray]<AFK>[]";
 
-    static final String petFile = Global.configDir + "pets.json";
     static final String subnetFile = Global.saveDir + "subnetBuns.json";
-    public static MongoClient client = MongoClients.create();
+
+    public static MongoClient client = MongoClients.create(Global.config.dbAddress);
     static MongoDatabase database = client.getDatabase(Global.config.dbName);
     static MongoCollection<Document> rawData = database.getCollection(playerCollection);
-    public static HashMap<String,PD> online = new HashMap<>();
-    public static HashMap<String, Pet> pets=new HashMap<>();
-    static HashSet<String> subnet = new HashSet<>();
     public static DataHandler data = new DataHandler(rawData);
 
-    public Database(){
+    public static HashMap<String,PD> online = new HashMap<>();
+
+    static HashSet<String> subnet = new HashSet<>();
+
+
+    public static void Init(){
         loadSubnet();
-        Events.on(EventType.ServerLoadEvent.class, e->{
-            loadPets();
-        });
-
         new AfkMaker();
-        //todo test
-        Events.on(EventType.PlayerConnect.class,e->{
-            //remove fake ranks
-            logPlayer(e.player, true);
 
+        Events.on(EventType.PlayerConnect.class,e-> {
+            //remove fake ranks and colors
+            Player player = e.player;
+            String originalName = player.name;
+            player.name = cleanName(player.name);
+            if (!originalName.equals(player.name)) {
+                //name cannot be blank
+                if (player.name.replace(" ", "").isEmpty()) {
+                    player.name = player.id + "&#@";
+                }
+                //let player know
+                sendErrMessage(player, "name-modified");
+            }
+            PD pd = data.LoadData(player);
+            DataHandler.Doc doc = data.getDoc(player);
+            online.put(player.uuid, pd);
+            //marked subnet so mark player aromatically
+            if (subnet.contains(getSubnet(player.con.address)) && pd.hasPermLevel(Perm.normal)) {
+                Bot.onRankChange(pd.name, pd.id, pd.rank.name, Ranks.griefer.name, "Server", "Subnet ban.");
+                setRank(pd.id, Ranks.griefer);
+            }
+            //resolving special rank
+            checkAchievements(pd, doc);
+            Bot.connectUser(pd, doc);
+            Bundle.findBundleAndCountry(pd);
         });
 
         Events.on(EventType.PlayerLeave.class,e->{
@@ -145,136 +161,38 @@ public class Database {
 
     }
 
-    public static void logPlayer(Player player, boolean firstTime) {
-        String originalName = player.name;
-        player.name = cleanName(player.name);
-        if(!originalName.equals(player.name)){
-            //name cannot be blank
-            if(player.name.replace(" ","").isEmpty()){
-                player.name = player.id +"&#@";
-            }
-            //let player know
-            if(firstTime) sendErrMessage(player,"name-modified");
+
+
+    public static void checkAchievements(PD pd, DataHandler.Doc doc) {
+        for(Rank r : Ranks.special.values()) {
+            pd.removeRank(r);
+            pd.sRank = null;
         }
-        PD pd = data.LoadData(player);
-        DataHandler.Doc doc = data.getDoc(player);
-        online.put(player.uuid, pd);
-        //marked subnet so mark player aromatically
-        if(subnet.contains(getSubnet(player.con.address)) && pd.hasPermLevel(Perm.normal)){
-            Bot.onRankChange(pd.name, pd.id, pd.rank.name , Ranks.griefer.name, "Server", "Subnet ban.");
-            setRank(pd.id, Ranks.griefer);
-        }
-        //resolving special rank
         new Thread(()->{
-            Rank sr = null;
             for(Rank rank : Ranks.special.values()){
                 if(rank.condition(doc,pd)){
-                    if (sr == null || sr.value < rank.value) {
+                    if (pd.sRank == null || pd.sRank.value < rank.value) {
                         synchronized (pd) {
                             pd.sRank = rank;
                         }
-                        sr = rank;
-                        pd.addPerms(rank);
                     }
-                    addPets(pd, rank);
+                    pd.addRank(rank);
                 }
             }
-        });
-
-        pd.updateName();
-
-        Runnable conMess = () ->{ if (firstTime) sendMessage("player-connected",player.name,String.valueOf(pd.id)); };
-
-        Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes connected.", player.name, pd.id));
-        if (Bot.api == null || Bot.config.serverId == null || pd.rank == Ranks.griefer) return;
-        if (Bot.pendingLinks.containsKey(pd.id)){
-            sendMessage(player,"discord-pending-link",Bot.pendingLinks.get(pd.id).name);
-        }
-        String link = doc.getLink();
-        if (link == null) {
-            conMess.run();
-            return;
-        }
-        CompletableFuture<User> optionalUser = Bot.api.getUserById(link);
-        Timer.schedule(new Timer.Task() {
-            @Override
-            public void run() {
-                if (!optionalUser.isDone()) return;
-                this.cancel();
-                try {
-                    User user = optionalUser.get();
-                    if (user == null) {
-                        conMess.run();
-                        return;
-                    }
-                    Optional<Server> server = Bot.api.getServerById(Bot.config.serverId);
-                    if (!server.isPresent()) {
-                        conMess.run();
-                        return;
-                    }
-                    Rank current = pd.rank;
-                    Rank crDl = null;
-                    for (Role r : user.getRoles(server.get())) {
-                        String roleName = r.getName();
-                        Rank dl = Ranks.donation.get(roleName);
-                        Rank rk = Ranks.buildIn.get(roleName);
-                        if (rk != null) {
-                            if (pd.rank.value < rk.value) {
-                                current = rk;
-                            }
-                            synchronized (pd) {
-                                pd.obtained.add(rk);
-                            }
-                            pd.addPerms(rk);
-                            addPets(pd, rk);
-                        }else if (dl != null ) {
-                            if (crDl == null || dl.value > crDl.value){
-                                crDl = dl;
-                            }
-                            synchronized (pd) {
-                                pd.obtained.add(dl);
-                            }
-                            pd.addPerms(dl);
-                            addPets(pd, dl);
-                        }
-                    }
-                    synchronized (pd){
-                        setRank(pd.id, current);
-                        pd.dRank = crDl;
-                        pd.updateName();
-                    }
-                    conMess.run();
-                } catch (InterruptedException | ExecutionException interruptedException) {
-                    interruptedException.printStackTrace();
-                }
+            synchronized (pd){
+                pd.updateName();
             }
-        }, 0, .1f);
+        }).start();
     }
+
+
 
     public static boolean hasDisabled(Player player, Perm p) {
         return data.contains(player, "settings", p.name());
     }
 
-    static void fixName(Player player) {
-
-    }
 
 
-    static void addPets(PD pd, Rank sr){
-        if(!hasEnabled(pd.player, Setting.pets)) return;
-        if(sr != null && sr.pets != null){
-            for(String pet : sr.pets){
-                Pet found = pets.get(pet);
-                if(found == null){
-                    Log.info("missing pet :" + pet);
-                } else {
-                    synchronized (pd.pets) {
-                        pd.pets.add(new Pet(found));
-                    }
-                }
-            }
-        }
-    }
 
     public static PD getData(Player player) {
         return online.get(player.uuid);
@@ -289,9 +207,15 @@ public class Database {
     }
 
     //just for testing purposes
-    public static void clean(){
+    public static void clear(){
         rawData.drop();
-        rawData = MongoClients.create().getDatabase(Global.config.dbName).getCollection(playerCollection);
+        reconnect();
+    }
+
+    public static void reconnect() {
+        client = MongoClients.create(Global.config.dbAddress);
+        database = client.getDatabase(Global.config.dbName);
+        rawData = database.getCollection(playerCollection);
         data = new DataHandler(rawData);
     }
 
@@ -336,7 +260,9 @@ public class Database {
         }
         PD pd = online.get(doc.getUuid());
         if(pd != null) {
+            pd.removeRank(pd.rank);
             pd.rank = rank;
+            pd.addRank(current);
             pd.updateName();
             pd.player.isAdmin = rank.isAdmin;
         }
@@ -350,29 +276,6 @@ public class Database {
         String[] subnet = loadSimpleCollection(subnetFile, Database::saveSubnet);
         if(subnet == null) return;
         Database.subnet.addAll(Arrays.asList(subnet));
-    }
-
-    public static void loadPets(){
-        pets.clear();
-        HashMap<String, Pet[]> pets = loadSimpleHashmap(petFile, Pet[].class, Database::defaultPets);
-        if(pets == null) return;
-        Pet[] pts = pets.get("pets");
-        if(pts == null) return;
-        for(Pet p : pts) {
-            if(p.trail == null) {
-                logInfo("pet-invalid-trail", p.name);
-                continue;
-            }
-            Database.pets.put(p.name,p);
-        }
-
-    }
-
-    public static void defaultPets(){
-        saveSimple(petFile, new HashMap<String, ArrayList<Pet>>(){{
-            put("pets",new ArrayList<Pet>(){{ add(new Pet()); }});
-        }},"pets");
-
     }
 
     public static int getDatabaseSize(){
@@ -427,10 +330,9 @@ public class Database {
         return result;
     }
 
-    //todo this is incorrect function fix it
     static String docToString(Document doc) {
         DataHandler.Doc d = DataHandler.Doc.getNew(doc);
-        return "[gray][yellow]" + d.getId() + "[] | " + d.getName() + " | []" + d.getRank(RankType.rank).Suffix() ;
+        return "[gray][yellow]" + d.getId() + "[] | " + d.getName() + " | []" + d.getRank(RankType.rank).getSuffix() ;
 
     }
 

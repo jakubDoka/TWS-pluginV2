@@ -70,7 +70,7 @@ public class Tester {
             int size = questions.size();
             if(progress >= size){
                 if(points==size){
-                    sendMessage(player,"test-success", Ranks.verified.Suffix());
+                    sendMessage(player,"test-success", Ranks.verified.getSuffix());
                     Database.setRank(getData(player).id, Ranks.verified);
                 } else {
                     sendErrMessage(player,"test-fail","" + points,"" + size);

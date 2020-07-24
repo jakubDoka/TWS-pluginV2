@@ -9,6 +9,8 @@ import com.mongodb.client.model.Updates;
 import mindustry.entities.type.Player;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.json.simple.JSONObject;
+import theWorst.Tools.Bundle;
 
 import java.util.ArrayList;
 
@@ -164,29 +166,29 @@ public class DataHandler {
         set(pd.player, "textColor", pd.textColor);
         inc(pd.player, Stat.playTime, Time.millisToNanos(pd.joined));
         set(pd.player, "lastActive", Time.millis());
+        set(pd.player, "level", getDoc(pd.id).getLevel());
+
+        if(pd.dRank != null) set(pd.player, RankType.donationRank.name(), pd.dRank.name);
+        else remove(pd.player, RankType.donationRank.name());
+        if(pd.sRank != null) set(pd.player, RankType.specialRank.name(), pd.sRank.name);
+        else remove(pd.player, RankType.specialRank.name());
     }
 
-    public PD LoadData(Player aPlayer) {
-        Doc doc = getDoc(aPlayer);
+    public PD LoadData(Player player) {
+        Doc doc = getDoc(player);
         if(doc == null) {
-            data.insertOne(new Document("_id", aPlayer.uuid));
+            data.insertOne(new Document("_id", player.uuid));
             for(Setting s :Setting.values()){
-                addToSet(aPlayer, "settings", s.name());
+                addToSet(player, "settings", s.name());
             }
-            set(aPlayer, "serverId", getDatabaseSize());
-            set(aPlayer, "rank", Ranks.newcomer);
+            set(player, "serverId", getDatabaseSize());
+            set(player, "rank", Ranks.newcomer);
         }
-        set(aPlayer, "ip", aPlayer.con.address);
-        set(aPlayer, "name", aPlayer.name);
-        Doc finalDoc = getDoc(aPlayer);
-        return new PD() {{
-            player = aPlayer;
-            name = aPlayer.name;
-            rank = getRank(aPlayer, RankType.rank);
-            textColor = finalDoc.getTextColor();
-            joined = lastAction = lastMessage = Time.millis();
-            id = finalDoc.getId();
-        }};
+
+        set(player, "ip", player.con.address);
+        set(player, "name", player.name);
+
+        return new PD(player, getDoc(player));
     }
 
     public static class Doc {
@@ -278,11 +280,11 @@ public class DataHandler {
             return format(getTranslation(pd, "player-info"),
                     activity,
                     "" + getId(),
-                    "" + getLevel(),
+                    "" + data.get("level"),
                     getName(),
-                    rk.Suffix(),
-                    (sr == null ? "none" : sr.Suffix()),
-                    (dl == null ? "none" : dl.Suffix()),
+                    rk.getSuffix(),
+                    (sr == null ? "none" : sr.getSuffix()),
+                    (dl == null ? "none" : dl.getSuffix()),
                     milsToTime(getStat(Stat.playTime)),
                     milsToTime(Time.timeSinceMillis(getStat(Stat.age))),
                     (String) data.get("country"));

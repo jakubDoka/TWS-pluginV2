@@ -53,9 +53,14 @@ public class Commands {
 
             Bot.onRankChange(name, doc.getId(), current.name, rk.name, by, reason);
             logInfo("rank-change", name, rk.name);
-            sendMessage("rank-change", name, rk.Suffix());
+            sendMessage("rank-change", name, rk.getSuffix());
             Database.setRank(doc.getId(), rk);
-
+            PD pd = Database.online.get(doc.getUuid());
+            if(pd != null) {
+                pd.removeRank(pd.rank);
+                pd.addRank(rk);
+                pd.rank = rk;
+            }
         } else {
             if (rank.equals("restart")) {
                 Database.data.removeRank(doc.getId(), RankType.specialRank);
@@ -66,13 +71,10 @@ public class Commands {
             else {
                 Database.data.setRank(doc.getUuid(), sr, RankType.specialRank);
                 logInfo("rank-change", name, sr.name);
-                sendMessage("rank-change", name, sr.Suffix());
+                sendMessage("rank-change", name, sr.getSuffix());
             }
         }
-        PD pd = Database.online.get(doc.getUuid());
-        if(pd != null) {
-            Database.logPlayer(pd.player, false);
-        }
+
         return Res.success;
     }
 

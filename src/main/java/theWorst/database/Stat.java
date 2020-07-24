@@ -3,6 +3,7 @@ package theWorst.database;
 public enum Stat {
     playTime(1, false),
     age(0, false),
+    level(0, false),
 
     buildingsBuilt(100),
     buildingsBroken(50),

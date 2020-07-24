@@ -4,6 +4,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.jsoup.Jsoup;
+import theWorst.database.DataHandler;
+import theWorst.database.Database;
 import theWorst.database.PD;
 
 import java.io.IOException;
@@ -26,8 +28,7 @@ public class Bundle {
         return null;
     }
 
-    public static Locale getLocale(String ip){
-        JSONObject data = getLocData(ip);
+    public static Locale getLocale(JSONObject data){
         if(data==null) return locale;
         String languages = (String) data.get("languages");
         if(languages==null) return locale;
@@ -38,4 +39,16 @@ public class Bundle {
         return new Locale(resResolvedL[0],resResolvedL[1]);
     }
 
+    public static void findBundleAndCountry(PD pd) {
+        new Thread(()->{
+            JSONObject data = getLocData(pd.player.con.address);
+            if(data != null){
+                Database.data.set(pd.player, "country", data.getOrDefault("country_name", "unknown"));
+            }
+            synchronized (pd){
+                pd.bundle = ResourceBundle.getBundle(bundlePath, getLocale(data));
+            }
+        }).start();
+
+    }
 }

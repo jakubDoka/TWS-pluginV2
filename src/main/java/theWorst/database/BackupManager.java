@@ -9,7 +9,7 @@ import org.bson.Document;
 
 import java.util.ArrayList;
 
-/*public class BackupManager {
+public class BackupManager {
     static final long oldestValid = 1000*60*60;
     static final String databaseName = "serveBackups";
     static final MongoDatabase backups = MongoClients.create().getDatabase(databaseName);
@@ -18,7 +18,7 @@ import java.util.ArrayList;
         String collectionName = String.valueOf(Time.millis());
         backups.createCollection(collectionName);
         MongoCollection<Document> collection = backups.getCollection(collectionName);
-        for(Document d : Database.getAllRawMeta()){
+        for(Document d : Database.rawData.find()){
             collection.insertOne(d);
         }
     }
@@ -37,8 +37,8 @@ import java.util.ArrayList;
         if(idx>=b.size()){
             return false;
         }
-        //we have to eras everything, jus replacing can leave some outdated data behind
-        Database.clean();
+        //have to erase everything, jus replacing can leave some outdated data behind
+        Database.clear();
         for(Document d : backups.getCollection(b.get(idx)).find()){
             Database.rawData.insertOne(d);
         }
@@ -73,4 +73,4 @@ import java.util.ArrayList;
         }
         return true;
     }
-}*/
+}

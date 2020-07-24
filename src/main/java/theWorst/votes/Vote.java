@@ -2,17 +2,18 @@ package theWorst.votes;
 
 import arc.Events;
 import arc.math.Mathf;
-import arc.util.Time;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import theWorst.Global;
 import theWorst.Main;
-import theWorst.database.*;
+import theWorst.database.Database;
+import theWorst.database.PD;
+import theWorst.database.Perm;
+import theWorst.database.Setting;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
-import theWorst.helpers.gameChangers.Loadout;
 
 import java.util.HashMap;
 import java.util.HashSet;

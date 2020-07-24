@@ -1,25 +1,31 @@
 package theWorst;
 
 import arc.Events;
+import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import org.javacord.api.DiscordApi;
-import theWorst.database.Database;
-import theWorst.database.PD;
-import theWorst.database.Setting;
+import org.javacord.api.entity.permission.Role;
+import org.javacord.api.entity.server.Server;
+import org.javacord.api.entity.user.User;
+import theWorst.database.*;
 import theWorst.discord.BotConfig;
 import theWorst.discord.Command;
 import theWorst.discord.DiscordCommands;
 
 import java.util.HashMap;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
-import static mindustry.Vars.playerGroup;
-import static mindustry.Vars.world;
+import static mindustry.Vars.*;
+import static mindustry.Vars.player;
 import static theWorst.Tools.Commands.isCommandRelated;
 import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.Json.loadSimpleHashmap;
 import static theWorst.Tools.Json.saveSimple;
 import static theWorst.Tools.Maps.hasMapAttached;
+import static theWorst.Tools.Players.sendMessage;
 
 public class Bot {
     public static String dir = Global.configDir + "bot/";
@@ -28,7 +34,6 @@ public class Bot {
     public static DiscordApi api = null;
     public static final HashMap<Long,LinkData> pendingLinks = new HashMap<>();
     private static final DiscordCommands handler = new DiscordCommands();
-    private static final BotCommands commands = new BotCommands(handler);
 
     public static class LinkData{
         public String name,pin,id;
@@ -39,7 +44,8 @@ public class Bot {
         }
     }
 
-    public Bot(){
+    public static void Init(){
+        new BotCommands(handler);
         Events.on(EventType.PlayerChatEvent.class,e->{
             if(isCommandRelated(e.message)) return;
             sendToLinkedChat("**"+cleanName(e.player.name)+"** : "+e.message.substring(e.message.indexOf("]")+1));
@@ -126,5 +132,73 @@ public class Bot {
     public static void disconnect(){
         if(api == null) return ;
         api.disconnect();
+    }
+
+    public static void connectUser(PD pd, DataHandler.Doc doc) {
+
+        if (Bot.api == null || Bot.config.serverId == null || pd.rank == Ranks.griefer) {
+            sendMessage("player-connected",player.name,String.valueOf(pd.id));
+            return;
+        }
+
+        Runnable conMess = () ->{
+            sendMessage("player-connected",player.name,String.valueOf(pd.id));
+            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes connected.", player.name, pd.id));
+        };
+
+        if (Bot.pendingLinks.containsKey(pd.id)){
+            sendMessage(player,"discord-pending-link",Bot.pendingLinks.get(pd.id).name);
+        }
+        String link = doc.getLink();
+        if (link == null) {
+            conMess.run();
+            return ;
+        }
+        CompletableFuture<User> optionalUser = Bot.api.getUserById(link);
+        Timer.schedule(() -> {
+            while (true) {
+                if (optionalUser.isDone()) break;
+            }
+
+            User user;
+            try {
+                user = optionalUser.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                conMess.run();
+                return;
+            }
+
+            Optional<Server> server = Bot.api.getServerById(Bot.config.serverId);
+            if (!server.isPresent()) {
+                conMess.run();
+                return;
+            }
+
+            Rank current = pd.rank;
+            Rank crDl = null;
+            for (Role r : user.getRoles(server.get())) {
+                String roleName = r.getName();
+                Rank dl = Ranks.donation.get(roleName);
+                Rank rk = Ranks.buildIn.get(roleName);
+
+                if (rk != null && pd.rank.value < rk.value) {
+                    current = rk;
+                } else if (dl != null) {
+                    if (crDl == null || dl.value > crDl.value) {
+                        crDl = dl;
+                    }
+                    pd.addRank(dl);
+                }
+            }
+
+            synchronized (pd) {
+                Database.setRank(pd.id, current);
+                pd.dRank = crDl;
+                pd.updateName();
+            }
+
+            conMess.run();
+        }, 0, .1f);
     }
 }

@@ -1,5 +1,6 @@
 package theWorst.database;
 
+import arc.util.Log;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -30,6 +31,7 @@ public class Rank implements Serializable {
     public Rank() {}
 
     @JsonCreator public Rank(
+            @JsonProperty("displayed") boolean displayed,
             @JsonProperty("isAdmin") boolean isAdmin,
             @JsonProperty("name") String name,
             @JsonProperty("color") String color,
@@ -40,6 +42,7 @@ public class Rank implements Serializable {
             @JsonProperty("quests") HashMap<String, HashMap<String,Integer>> quests,
             @JsonProperty("pets")ArrayList<String> pets){
 
+        this.displayed = displayed;
         this.isAdmin = isAdmin;
         if(name == null) logInfo("missing-name","special rank");
         else this.name = name;
@@ -91,11 +94,10 @@ public class Rank implements Serializable {
         return "["+color+"]<"+name+">[]";
     }
 
-    @JsonIgnore public String Suffix() {
-        return displayed ? "["+color+"]<"+name+">[]" : "";
+    @JsonIgnore public String suffix() {
+        return displayed ? getSuffix() : "";
     }
 
-    //todo fix
     public String getDescription(PD pd) {
         String desc = getTranslation(pd, "special-missing-description");
         DataHandler.Doc doc = data.getDoc(pd.id);
@@ -121,7 +123,7 @@ public class Rank implements Serializable {
                     HashMap<String, Integer> quest = quests.get(s);
                     for(String l : quest.keySet()){
                         int req = quest.get(l);
-                        long val = doc.getStat(l);
+                        long val = doc.getStat(s);
                         String color = "green";
                         switch (Mod.valueOf(l)){
                             case best:
@@ -134,8 +136,8 @@ public class Rank implements Serializable {
                             case frequency:
                                 long played = doc.getStat(Stat.playTime)/hour;
                                 if (played == 0) played = 1;
-                                if (val/played < req) color = "scarlet";
-
+                                val = val/played;
+                                if (val < req) color = "scarlet";
                         }
                         condition.append("[").append(color).append("]");
                         condition.append(getTranslation(pd, "special-" + l)).append(":");

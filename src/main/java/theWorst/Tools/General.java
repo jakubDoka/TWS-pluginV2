@@ -30,12 +30,12 @@ public class General {
         }
     }
 
-    public static <T> String[] getPropertyNameList(Class<T> tClass){
+    /*public static <T> String[] getPropertyNameList(Class<T> tClass){
         Field[] fields = tClass.getDeclaredFields();
         String[] res = new String[fields.length];
         for(int i = 0; i < res.length; i++){
             res[i] = fields[i].getName();
         }
         return res;
-    }
+    }*/
 }
