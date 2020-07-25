@@ -33,8 +33,8 @@ public class PlayerD {
     public String donationLevel;
 
     //administration
-    @Indexed public long id;
-    @Id public String uuid;
+    @Id public long id;
+    @Indexed public String uuid;
     public String rank;
     @Indexed public String ip;
     public String name;

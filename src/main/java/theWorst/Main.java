@@ -8,8 +8,9 @@ import theWorst.dataBase.Database;
 
 public class Main extends Plugin {
 
+    //ignore this method
     public static String milsToTime(long l) {
-        return "";
+        return l + "";
     }
 
     public Main() {
@@ -23,7 +24,6 @@ public class Main extends Plugin {
             int first=string.indexOf(begin,fromBegin),last=string.indexOf(end,fromEnd);
             if(first==-1 || last==-1) break;
             if(first>last){
-                fromBegin=first+1;
                 fromEnd=last+1;
             }
             string=string.substring(0,first)+string.substring(last+1);
@@ -52,7 +52,6 @@ public class Main extends Plugin {
             Database.Init(args[0], args.length == 2 ? args[1] : null);
             Database.loadData();
             Database.Convert();
-            Log.info("Database successfully converted");
         });
     }
 

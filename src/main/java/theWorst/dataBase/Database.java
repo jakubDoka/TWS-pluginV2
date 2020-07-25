@@ -63,11 +63,12 @@ public class Database {
     public static String[] randomNames =new String[]{"rob", "tom", "steve", "jack", "henry", "sofokles", "niceChild"};
 
     public static void Convert() {
+        long counter = 0;
         for(String s : data.keySet()){
             PlayerData p = data.get(s);
             String cleanName = Main.cleanName(p.originalName);
             if(cleanName.replace(" ", "").isEmpty()) {
-                cleanName = randomNames[new Random().nextInt() % randomNames.length];
+                cleanName = randomNames[Math.abs(new Random().nextInt()) % randomNames.length];
             }
             PlayerD pd = new PlayerD(p.buildingsBuilt,p.buildingsBroken,
                     p.enemiesKilled,p.deaths,p.gamesPlayed,p.gamesWon,p.factoryVotes
@@ -75,9 +76,13 @@ public class Database {
                     p.lastActive,p.specialRank,p.textColor,p.discordLink,null,
                     p.settings,new HashSet<String>(), p.serverId,s,p.trueRank.name(),
                     p.ip,cleanName ,p.lastMessage);
-
             Database.Data.save(pd);
+            counter ++;
+            if(counter % 1000 == 0) {
+                Log.info(counter + " documents converted.");
+            }
         }
+        Log.info("All " + counter + "are converted");
     }
 
     static class SpecialRank {
