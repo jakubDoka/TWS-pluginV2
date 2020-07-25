@@ -1,6 +1,6 @@
 package theWorst.helpers;
 
-import arc.util.Time;
+
 import mindustry.game.Rules;
 import mindustry.game.SpawnGroup;
 import mindustry.maps.Map;
@@ -9,6 +9,7 @@ import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.Query;
+import theWorst.Tools.Millis;
 import theWorst.database.PD;
 
 import java.util.HashMap;
@@ -28,9 +29,9 @@ public class MapD {
     long longestTime = 0;
     long shortestTime = Long.MAX_VALUE;
     int firstAirWave = defaultAirWave;
-    @Transient long started = Time.millis();
+    @Transient long started = Millis.now();
     long playtime = 0;
-    long born = Time.millis();
+    long born = Millis.now();
     public String name;
 
     public HashMap<String,Byte> ratings=new HashMap<>();
@@ -69,7 +70,7 @@ public class MapD {
     }
 
     double getPlayRatio(){
-        return (playtime)/(double)Time.timeSinceMillis(born);
+        return (playtime)/(double) Millis.since(born);
     }
 
     public float getRating(){
@@ -95,7 +96,7 @@ public class MapD {
                 "" + timesPlayed,
                 "" + timesWon,
                 "" + waveRecord,
-                milsToTime(Time.timeSinceMillis(born)),
+                milsToTime(Millis.since(born)),
                 milsToTime(playtime),
                 milsToTime(shortestTime),
                 milsToTime(longestTime),

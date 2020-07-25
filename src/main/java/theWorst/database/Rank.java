@@ -60,7 +60,7 @@ public class Rank implements Serializable {
         return quests == null && linked == null;
     }
 
-    public boolean condition(DataHandler.Doc tested, PD pd){
+    public boolean condition(Doc tested, PD pd){
         if (pd.obtained.contains(this)) return true;
         if(linked != null) {
             for (String l : linked){
@@ -100,7 +100,7 @@ public class Rank implements Serializable {
 
     public String getDescription(PD pd) {
         String desc = getTranslation(pd, "special-missing-description");
-        DataHandler.Doc doc = data.getDoc(pd.id);
+        Doc doc = data.getDoc(pd.id);
         if(description != null){
             String resolved = description.getOrDefault(getCountryCode(pd.bundle.getLocale()), description.get("default"));
             if(resolved != null) desc = resolved;

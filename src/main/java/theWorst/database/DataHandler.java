@@ -1,6 +1,6 @@
 package theWorst.database;
 
-import arc.util.Time;
+
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
@@ -9,19 +9,18 @@ import com.mongodb.client.model.Updates;
 import mindustry.entities.type.Player;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.json.simple.JSONObject;
-import theWorst.Tools.Bundle;
+import theWorst.Tools.Millis;
 
 import java.util.ArrayList;
 
 import static com.mongodb.client.model.Filters.and;
 import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.Players.getTranslation;
+import static theWorst.Tools.Players.*;
 import static theWorst.database.Database.*;
 
 public class DataHandler {
     MongoCollection<Document> data;
-
+    public final static long paralyzedId = -1;
 
 
 
@@ -38,10 +37,18 @@ public class DataHandler {
         for(Indexed i : Indexed.values()) {
             data.createIndex(Indexes.descending(i.name()));
         }
+        Doc doc = getDoc(paralyzedId);
+        if(doc == null) {
+            data.insertOne(new Document("_id", paralyzedId));
+        }
+    }
+
+    public Bson findUuid(String uuid) {
+        return Filters.eq("uuid", uuid);
     }
 
     public Bson find(Player player){
-        return Filters.eq("_id", player.uuid);
+        return findUuid(player.uuid);
     }
 
     public Bson find(String ip){
@@ -49,20 +56,23 @@ public class DataHandler {
     }
 
     public Bson find(long id){
-        return Filters.eq("serverId", id);
+        return Filters.eq("_id", id);
+    }
+
+    public FindIterable<Document> byUuid(String uuid) {
+        return data.find(findUuid(uuid));
     }
 
 
-    public Doc getDocByUuid(String uuid) {
-        return Doc.getNew(data.find(Filters.eq("_id", uuid)).first());
-    }
 
-    public Doc getDoc(Player player) {
-        return Doc.getNew(data.find(find(player)).first());
-    }
-
-    public Doc getDoc(String ip) {
-        return Doc.getNew(data.find(find(ip)).first());
+    public String getSuggestions(String uuid, String ip) {
+        StringBuilder sb = new StringBuilder("[yellow]");
+        FindIterable<Document> fits = data.find(Filters.or(findUuid(uuid), find(ip)));
+        for(Document fit : fits) {
+            Doc doc = Doc.getNew(fit);
+            sb.append(doc.getName()).append("[gray]||[]").append(doc.getId()).append("\n");
+        }
+        return sb.toString();
     }
 
     public Doc getDoc(long id) {
@@ -73,47 +83,53 @@ public class DataHandler {
         return Doc.getNew(data.find(Filters.eq("discordLink", link)).first());
     }
 
+    public void delete(long id){
+        data.deleteOne(find(id));
+        data.updateMany(Filters.gt("_id", id), Updates.inc("_id", -1));
 
-
-    public void set(Player player, String field, Object value) {
-        data.updateOne(find(player), Updates.set(field, value));
     }
 
-    public void addToSet(Player player, String field, Object value) {
-        data.updateOne(find(player), Updates.addToSet(field, value));
+    public void set(long id, String field, Object value) {
+        data.updateOne(find( id), Updates.set(field, value));
     }
 
-    public void pull(Player player, String field, Object value) {
-        data.updateOne(find(player), Updates.pull(field, value));
+    public void setUuid(long id, String uuid) {
+        set(id, "uuid", uuid);
     }
 
-    public boolean contains(Player player, String field, Object value) {
-        return data.find(and(find(player), Filters.eq(field, value))).first() != null;
+    public void setIp(long id, String ip) {
+        set(id, "ip", ip);
+    }
+
+    public void addToSet(long id, String field, Object value) {
+        data.updateOne(find( id), Updates.addToSet(field, value));
+    }
+
+    public void pull(long id, String field, Object value) {
+        data.updateOne(find( id), Updates.pull(field, value));
+    }
+
+    public boolean contains(long id, String field, Object value) {
+        return data.find(and(find( id), Filters.eq(field, value))).first() != null;
     }
 
 
-    public Object get(Player player, String field) {
-        Document dc = data.find(find(player)).first();
+    public Object get(long id, String field) {
+        Document dc = data.find(find( id)).first();
         if (dc == null) return null;
         return dc.get(field);
     }
 
-    public Long getId(Player player){
-        return (Long) get(player, "serverId");
+    public void inc(long id, Stat stat, long amount){
+        data.updateOne(find( id), Updates.inc(stat.name(), amount));
     }
 
-
-
-    public void inc(Player player, Stat stat, long amount){
-        data.updateOne(find(player), Updates.inc(stat.name(), amount));
+    public void incOne(long id, Stat stat) {
+        inc( id, stat, 1);
     }
 
-    public void incOne(Player player, Stat stat) {
-        inc(player, stat, 1);
-    }
-
-    public Long getStat(Player player, String stat) {
-        Long val = (Long) get(player, stat);
+    public Long getStat(long id, String stat) {
+        Long val = (Long) get( id, stat);
         return val == null ? 0 : val;
     }
 
@@ -129,30 +145,21 @@ public class DataHandler {
         return res;
     }
 
-    public Rank getRank(Player player, RankType type) {
-        String rankName = (String) get(player, type.name());
+    public Rank getRank(long id, RankType type) {
+        String rankName = (String) get( id, type.name());
         if (rankName == null) {
             return null;
         }
         return Ranks.getRank(rankName, type);
     }
 
-    public void remove(Player player, String field) {
-        data.updateOne(find(player), Updates.unset(field));
-    }
-
     public void remove(long id, String field) {
         data.updateOne(find(id), Updates.unset(field));
     }
 
-    public void removeRank(Player player, RankType type) {
-        remove(player, type.name());
-    }
-
     public void removeRank(long id, RankType type) {
-        remove(id, type.name());
+        remove( id, type.name());
     }
-
 
     public void setRank(String ip, Rank rank, RankType type) {
         data.updateMany(find(ip), Updates.set(type.name(), rank.name));
@@ -163,140 +170,61 @@ public class DataHandler {
     }
 
     public void free(PD pd) {
-        set(pd.player, "textColor", pd.textColor);
-        inc(pd.player, Stat.playTime, Time.millisToNanos(pd.joined));
-        set(pd.player, "lastActive", Time.millis());
-        set(pd.player, "level", getDoc(pd.id).getLevel());
+        long id = pd.id;
+        set(id, "textColor", pd.textColor);
+        inc(id, Stat.playTime, Millis.since(pd.joined));
+        set(id, "lastActive", Millis.now());
+        set(id, "level", getDoc(pd.id).getLevel());
 
-        if(pd.dRank != null) set(pd.player, RankType.donationRank.name(), pd.dRank.name);
-        else remove(pd.player, RankType.donationRank.name());
-        if(pd.sRank != null) set(pd.player, RankType.specialRank.name(), pd.sRank.name);
-        else remove(pd.player, RankType.specialRank.name());
+        if (pd.dRank != null) set(id, RankType.donationRank.name(), pd.dRank.name);
+        else remove(id, RankType.donationRank.name());
+        if (pd.sRank != null) set(id, RankType.specialRank.name(), pd.sRank.name);
+        else remove(id, RankType.specialRank.name());
+    }
+
+    public Doc findData(Player player) {
+        String ip = player.con.address;
+        long resultCount = data.countDocuments(Filters.and(find(player), find(ip)));
+        if(resultCount == 1) {
+            return Doc.getNew(data.find(Filters.or(find(player), find(ip))).first());
+        }
+        if(resultCount == 0) {
+            boolean exists = false;
+            for(Document d : data.find(Filters.or(find(player), find(player.con.address)))){
+                exists = true;
+                Doc doc = Doc.getNew(d);
+                if(doc.isProtected()) continue;
+                return doc;
+            }
+            if (!exists) {
+                return null;
+            }
+        }
+        sendInfoPopup(player,"database-must-log-in", getSuggestions(player.uuid, player.con.address));//todo
+        return Doc.getNew(new Document("paralyzed", true));
     }
 
     public PD LoadData(Player player) {
-        Doc doc = getDoc(player);
-        if(doc == null) {
-            data.insertOne(new Document("_id", player.uuid));
-            for(Setting s :Setting.values()){
-                addToSet(player, "settings", s.name());
+        Doc doc = findData(player);
+        if(doc != null && doc.isParalyzed()) {
+            return new PD(player);
+        } else if(doc == null) {
+            long id = getDatabaseSize();
+            data.insertOne(new Document("_id", id));
+            for(Setting s :Setting.values()) {
+                addToSet(id, "settings", s.name());
             }
-            set(player, "serverId", getDatabaseSize());
-            set(player, "rank", Ranks.newcomer);
+            setUuid(id, player.uuid);
+            setRank(id, Ranks.newcomer, RankType.rank);
+            setIp(id, player.con.address);
+            set(id, "age", Millis.now());
+            doc = getDoc(id);
         }
-
-        set(player, "ip", player.con.address);
-        set(player, "name", player.name);
-
-        return new PD(player, getDoc(player));
+        PD pd = new PD(player, doc);
+        set(pd.id, "name", player.name);
+        return pd;
     }
 
-    public static class Doc {
-        Document data;
 
-        public static Doc getNew(Document document){
-            if (document == null) return null;
-            return new Doc(document);
-        }
-
-        public Doc(Document data){
-            this.data = data;
-        }
-
-        public Long getStat( Stat stat) {
-            return getStat(stat.name());
-        }
-
-        public Long getStat(String stat) {
-            Long val = (Long) data.get(stat);
-            return val == null ? 0 : val;
-        }
-
-        public String getLink(){
-            return (String) data.get("link");
-        }
-
-        public String getUuid() {
-            return (String) data.get("_id");
-        }
-
-        public String getIp() {
-            return (String) data.get("ip");
-        }
-
-        public String getTextColor() {
-            return (String) data.get("textColor");
-        }
-
-        public long getId() {
-            return (Long) data.get("serverId");
-        }
-
-        public boolean isAdmin() {
-            return getRank(RankType.rank).isAdmin;
-        }
-
-        public long getLatestActivity() {
-            return (Long) data.get("lastActive");
-        }
-
-        public Rank getRank(RankType type) {
-            String rankName = (String) data.get(type.name());
-            if (rankName == null) {
-                return null;
-            }
-            return Ranks.getRank(rankName, type);
-        }
-
-        public String getName() {
-            return (String) data.get("name");
-        }
-
-        public boolean isGriefer() {
-            return getRank(RankType.rank) == Ranks.griefer;
-        }
-
-        public long getLevel() {
-            long total = 0;
-            for(Stat s : Stat.values()) {
-                total += s.value * getStat(s);
-            }
-            long level = 0;
-            long val = 10000;
-            while (total > 0){
-               level++;
-               total -= val;
-               val = (long)(val * 1.1d);
-            }
-            return level;
-        }
-
-        public String toString(PD pd) {
-            Rank rk = getRank(RankType.rank);
-            Rank sr = getRank(RankType.specialRank);
-            Rank dl = getRank(RankType.donationRank);
-            String activity = online.containsKey(getUuid()) ? getTranslation(pd,"player-online") :
-                    format(getTranslation(pd, "player-offline"), milsToTime(Time.timeSinceMillis(getLatestActivity())));
-            return format(getTranslation(pd, "player-info"),
-                    activity,
-                    "" + getId(),
-                    "" + data.get("level"),
-                    getName(),
-                    rk.getSuffix(),
-                    (sr == null ? "none" : sr.getSuffix()),
-                    (dl == null ? "none" : dl.getSuffix()),
-                    milsToTime(getStat(Stat.playTime)),
-                    milsToTime(Time.timeSinceMillis(getStat(Stat.age))),
-                    (String) data.get("country"));
-        }
-
-        public String statsToString(PD pd) {
-            ArrayList<String> res = new ArrayList<>();
-            for(Stat s : Stat.values()){
-                if(s.inStats) res.add(String.valueOf(getStat(s)));
-            }
-            return format(getTranslation(pd, "player-stats"), res.toArray(new String[0]));
-        }
-    }
 }
 

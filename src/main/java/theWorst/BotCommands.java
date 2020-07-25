@@ -16,10 +16,7 @@ import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.entity.user.User;
-import theWorst.database.DataHandler;
-import theWorst.database.Database;
-import theWorst.database.PD;
-import theWorst.database.Ranks;
+import theWorst.database.*;
 import theWorst.discord.Command;
 import theWorst.discord.CommandContext;
 import theWorst.discord.DiscordCommands;
@@ -80,7 +77,7 @@ public class BotCommands {
                     return;
                 }
                 User user = optionalUser.get();
-                DataHandler.Doc found = Database.data.getDocBiLink(user.getIdAsString());
+                Doc found = Database.data.getDocBiLink(user.getIdAsString());
                 if (ctx.args[0].equals("disconnect")) {
 
                     if (found == null) {
@@ -254,7 +251,7 @@ public class BotCommands {
 
             @Override
             public void run(CommandContext ctx) {
-                DataHandler.Doc doc = Database.data.getDoc(Long.parseLong(ctx.args[0]));
+                Doc doc = Database.data.getDoc(Long.parseLong(ctx.args[0]));
                 if (doc == null) {
                     ctx.reply("No data found.");
                     return;

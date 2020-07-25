@@ -1,7 +1,7 @@
 package theWorst.database;
 
 public enum Stat {
-    playTime(1, false),
+    playTime(0, false),
     age(0, false),
     level(0, false),
 

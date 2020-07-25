@@ -2,6 +2,7 @@ package theWorst.Tools;
 
 import mindustry.game.Team;
 import mindustry.world.blocks.storage.CoreBlock;
+import theWorst.Global;
 
 import java.lang.reflect.Field;
 
@@ -38,4 +39,13 @@ public class General {
         }
         return res;
     }*/
+
+    public static long Hash(String password) {
+        password += Global.config.salt;
+        long res = 0;
+        for(int i = 0; i < password.length(); i++) {
+            res = res + (long)Math.pow(password.charAt(i), 2);
+        }
+        return res;
+    }
 }

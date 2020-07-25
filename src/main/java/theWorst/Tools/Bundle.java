@@ -43,7 +43,7 @@ public class Bundle {
         new Thread(()->{
             JSONObject data = getLocData(pd.player.con.address);
             if(data != null){
-                Database.data.set(pd.player, "country", data.getOrDefault("country_name", "unknown"));
+                Database.data.set(pd.id, "country", data.getOrDefault("country_name", "unknown"));
             }
             synchronized (pd){
                 pd.bundle = ResourceBundle.getBundle(bundlePath, getLocale(data));

@@ -108,6 +108,13 @@ public class Formatting {
         return b.toString();
     }
 
+    public static boolean hasNoDigit(String arg) {
+        for(int i = 0; i < arg.length(); i++){
+            if(Character.isDigit(arg.charAt(i))) return false;
+        }
+        return true;
+    }
+
     public static class Color {
         public int r,g,b;
         public Color(int r,int g,int b){

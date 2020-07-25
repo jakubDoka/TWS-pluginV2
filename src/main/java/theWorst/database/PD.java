@@ -1,9 +1,10 @@
 package theWorst.database;
 
 import arc.util.Log;
-import arc.util.Time;
+
 import mindustry.entities.type.Player;
 import theWorst.Tools.Bundle;
+import theWorst.Tools.Millis;
 import theWorst.helpers.gameChangers.Pet;
 import theWorst.helpers.gameChangers.ShootingBooster;
 
@@ -12,6 +13,7 @@ import java.util.HashSet;
 import java.util.ResourceBundle;
 
 import static theWorst.Tools.Players.sendMessage;
+import static theWorst.database.Database.data;
 import static theWorst.database.Database.hasEnabled;
 
 public class PD{
@@ -25,25 +27,38 @@ public class PD{
     public final HashSet<Perm> perms = new HashSet<>();
     public final ArrayList<Pet> pets = new ArrayList<>();
 
-    public boolean afk;
+    public boolean afk, paralyzed;
 
     public long id;
 
     public long lastAction;
     public long lastMessage;
-    public long joined = lastAction = lastMessage = Time.millis();
+    public long joined = lastAction = lastMessage = Millis.now();
 
     public ResourceBundle bundle = Bundle.defaultBundle;
 
     public PD() {}
 
 
-    public PD(Player player, DataHandler.Doc doc) {
+    public PD(Player player, Doc doc) {
         this.player = player;
         name = player.name;
         rank = doc.getRank(RankType.rank);
         textColor = doc.getTextColor();
         id = doc.getId();
+        addRank(rank);
+    }
+
+    public PD(Player player) {
+        this.player = player;
+        paralyzed = true;
+        rank = Ranks.paralyzed;
+        name = player.name;
+        id = DataHandler.paralyzedId;
+    }
+
+    public Doc getDoc() {
+        return data.getDoc(id);
     }
 
     public void updateName() {
@@ -62,7 +77,7 @@ public class PD{
     }
 
     public boolean hasThisPerm(Perm perm) {
-        return perms.contains(perm);
+        return !(paralyzed || !perms.contains(perm));
     }
 
     public boolean hasPermLevel(Perm perm) {
@@ -70,19 +85,20 @@ public class PD{
     }
 
     public boolean hasPermLevel(int level) {
+        if(paralyzed) return false;
         for(Perm p : perms) {
-            if (p.value > level) return true;
+            if (p.value >= level) return true;
         }
         return false;
     }
 
     public boolean isGriefer() {
-        return rank == Ranks.griefer;
+        return rank == Ranks.griefer || paralyzed;
     }
 
     public void onAction() {
         if(!afk) return;
-        lastAction = Time.millis();
+        lastAction = Millis.now();
         afk = false;
         updateName();
         sendMessage("afk-is-not", name, Database.AFK);
@@ -106,7 +122,7 @@ public class PD{
     }
 
     void addPets(Rank rank){
-        if(!hasEnabled(player, Setting.pets)) return;
+        if(data.contains(id, "settings", Setting.pets.name())) return;
         if(rank != null && rank.pets != null){
             for(String pet : rank.pets){
                 Pet found = ShootingBooster.pets.get(pet);
@@ -122,7 +138,7 @@ public class PD{
     }
 
     public long getPlayTime() {
-        return Database.data.getStat(player ,Stat.playTime.name()) + Time.timeSinceMillis(joined);
+        return Database.data.getStat(id,Stat.playTime.name()) + Millis.since(joined);
     }
 
     public void addRank(Rank rank) {

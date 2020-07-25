@@ -2,15 +2,17 @@ package theWorst;
 
 import arc.Core;
 import arc.Events;
-import arc.util.*;
+
+import arc.util.CommandHandler;
+import arc.util.Log;
+import arc.util.Strings;
+import arc.util.Timer;
 import mindustry.core.GameState;
 import mindustry.game.EventType;
 import mindustry.plugin.Plugin;
 import mindustry.world.blocks.logic.MessageBlock;
-import theWorst.database.BackupManager;
-import theWorst.database.DataHandler;
-import theWorst.database.Database;
-import theWorst.database.Ranks;
+import theWorst.Tools.Millis;
+import theWorst.database.*;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Hud;
@@ -62,9 +64,9 @@ public class Main extends Plugin {
             Global.loadConfig();
             Global.loadLimits();
             new ShootingBooster();
-            Database.Init();
+            Database.init();
             new MapManager();
-            Bot.Init();
+            Bot.init();
             MapManager.cleanMaps();
         });
     }
@@ -138,12 +140,12 @@ public class Main extends Plugin {
         });
 
         handler.register("unkick", "<ID/uuid>", "Erases kick status of player player.", args -> {
-            DataHandler.Doc pd = Database.findData(args[0]);
+            Doc pd = Database.findData(args[0]);
             if (pd == null) {
                 logInfo("player-not-found");
                 return;
             }
-            netServer.admins.getInfo(pd.getUuid()).lastKicked = Time.millis();
+            netServer.admins.getInfo(pd.getUuid()).lastKicked = Millis.now();
             logInfo("unkick",pd.getName());
         });
 

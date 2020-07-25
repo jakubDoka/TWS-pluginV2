@@ -23,7 +23,9 @@ import mindustry.type.UnitType;
 import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
+import org.bson.Document;
 import theWorst.Tools.Formatting;
+import theWorst.Tools.Players;
 import theWorst.database.*;
 import theWorst.helpers.*;
 import theWorst.helpers.gameChangers.*;
@@ -51,11 +53,14 @@ public class InGameCommands {
         }
     };
 
+
+
     public static Vote vote = new Vote("vote-y-n");
     public static Vote voteKick = new Vote("vote-/vote-y-/vote-n");
     public static Loadout loadout;
     public static Factory factory;
     public HashMap<String, String> dms = new HashMap<>();
+    HashMap<Long, String> passwordConfirm = new HashMap<>();
 
     interface Command {
         VoteData run(String[] args, Player player);
@@ -82,7 +87,7 @@ public class InGameCommands {
         });
     }
 
-    private boolean handleHammer(Vote vote, DataHandler.Doc doc, Player player) {
+    private boolean handleHammer(Vote vote, Doc doc, Player player) {
         if(vote.voting && vote.voteData.target instanceof PD && ((PD) vote.voteData.target).player.uuid.equals(doc.getUuid())){
             vote.addVote(player, "y");
             return true;
@@ -94,6 +99,85 @@ public class InGameCommands {
     public void register(CommandHandler handler) {
         handler.removeCommand("help");
         handler.removeCommand("t");
+
+        handler.<Player>register("login", "[ServerID] [password]", "Logs you in, so you can play normally.", (args, player)->{
+            if (args.length == 0) {
+                sendInfoPopup(player, "logon-help", Database.data.getSuggestions(player.uuid, player.con.address));//todo
+                return;
+            } else if(args.length == 1) {
+                wrongArgAmount(player, args, 2);
+                return;
+            }
+            if(!Strings.canParsePostiveInt(args[0])){
+                sendErrMessage(player, "refuse-not-integer", "1");
+                return;
+            }
+            PD pd = getData(player);
+            long id = Long.parseLong(args[0]);
+            Doc doc = Database.data.getDoc(id);
+            if(doc == null) {
+                sendErrMessage(player, "login-not-found");//todo
+                return;
+            }
+            if(pd.rank == Ranks.griefer) {
+                sendErrMessage(player, "griefer-no-perm");
+                return;
+            }
+            Long password = doc.getPassword();
+            if(!player.con.address.equals(doc.getIp()) && !player.uuid.equals(doc.getUuid()) && password == null) {
+                sendErrMessage(player, "login-invalid");//todo
+            } else if(password == null || password == Hash(args[1])){
+                if(!pd.paralyzed) {
+                    if(!pd.getDoc().isProtected()) {
+                        Database.data.delete(pd.id);
+                    } else {
+                        Database.data.setUuid(id, "why cant i just die");
+                        Database.data.setIp(id, "because you are too week");
+                    }
+                }
+                Database.reLogPlayer(player, id);
+            } else {
+                sendErrMessage(player, "login-password-invalid");
+            }
+        });
+
+        handler.<Player>register("protect", "<password>", "Protect your account with password",(args, player)-> {
+            PD pd = getData(player);
+            String password = passwordConfirm.get(pd.id);
+            Long hashed = Hash(args[0]);
+            if (password != null) {
+                if (password.equals(args[0])) {
+                    sendMessage(player, "protect");//todo
+                    Database.data.set(pd.id, "password", hashed);
+                    return;
+                }
+                sendErrMessage(player, "protect-confirm-failed");//todo
+                passwordConfirm.remove(pd.id);
+                return;
+            }
+            Long current = pd.getDoc().getPassword();
+            if(current != null) {
+                if(hashed.equals(current)) {
+                    Database.data.remove(pd.id, "password");
+                    sendMessage(player, "protect-protection-deleted");//todo
+                }
+                sendErrMessage(player, "protect-already-protected");//todo
+            }
+            if (args[0].length() < 8) {
+                sendErrMessage(player, "protect-too-short");//todo
+                return;
+            }
+            if (args[0].toLowerCase().equals(args[0])) {
+                sendErrMessage(player, "protect-missing-capital");//todo
+                return;
+            }
+            if (Formatting.hasNoDigit(args[0])) {
+                sendErrMessage(player, "protect-missing-digit");//todo
+                return;
+            }
+            sendMessage(player, "protect-confirm");//todo
+            passwordConfirm.put(pd.id, args[0]);
+        });
 
         handler.<Player>register("t", "<text...>", "This command straight up bans you from server, don't use it.",(args, player)->{
             Long pen = spammers.contains(player);
@@ -149,7 +233,7 @@ public class InGameCommands {
         });
 
         Command mkgfCommand = (args,player)-> {
-            DataHandler.Doc doc = Database.findData(args[0]);
+            Doc doc = Database.findData(args[0]);
 
             if (doc == null) {
                 sendErrMessage(player, "player-not-found");
@@ -220,19 +304,19 @@ public class InGameCommands {
             String data;
             PD pd = getData(player);
             if(args.length == 1){
-                DataHandler.Doc doc = Database.data.getDoc(player);
+                Doc doc = pd.getDoc();
                 data = args[0].equals("s") ?  doc.statsToString(pd) : doc.toString(pd);
             } else {
                 if(!Strings.canParsePostiveInt(args[1])){
                     sendErrMessage(player,"refuse-not-integer","2");
                     return;
                 }
-                DataHandler.Doc doc = Database.data.getDoc(Long.parseLong(args[1]));
+                Doc doc = Database.data.getDoc(Long.parseLong(args[1]));
                 if(doc == null){
                     sendErrMessage(player,"player-not-found");
                     return;
                 }
-                data = args[0].equals("s") ? doc.toString(pd) : doc.statsToString(pd);
+                data = args[0].equals("s") ?  doc.statsToString(pd) : doc.toString(pd);
             }
             Call.onInfoMessage(player.con,data);
         });
@@ -326,7 +410,7 @@ public class InGameCommands {
             }
             Setting s = isSetting ? Setting.valueOf(args[0]) : null;
             Perm p = !isSetting ? Perm.valueOf(args[0]) : null;
-
+            long id = pd.id;
             switch (args[1]){
                 case "on" :
                     if(isSetting) {
@@ -334,28 +418,28 @@ public class InGameCommands {
                             sendErrMessage(player, "set-already-enabled");
                             return;
                         }
-                        Database.data.addToSet(player, "settings", args[0]);
+                        Database.data.addToSet(id, "settings", args[0]);
                     } else {
                         if(!Database.hasDisabled(player, p)){
                             sendErrMessage(player, "set-already-enabled");
                             return;
                         }
-                        Database.data.pull(player, "settings", args[0]);
+                        Database.data.pull(id, "settings", args[0]);
                     }
                     break;
                 case "off" :
                     if(isSetting) {
-                        if(Database.hasEnabled(player, s)){
+                        if(!Database.hasEnabled(player, s)){
                             sendErrMessage(player, "set-already-disabled");
                             return;
                         }
-                        Database.data.pull(player, "settings", args[0]);
+                        Database.data.pull(id, "settings", args[0]);
                     } else {
-                        if(!Database.hasDisabled(player, p)){
+                        if(Database.hasDisabled(player, p)){
                             sendErrMessage(player, "set-already-disabled");
                             return;
                         }
-                        Database.data.addToSet(player, "settings", args[0]);
+                        Database.data.addToSet(id, "settings", args[0]);
                     }
                 default:
                     sendErrMessage(player,"no-such-option",args[1],"on/off");
@@ -366,13 +450,16 @@ public class InGameCommands {
         handler.<Player>register("mute","<name/id/info>","Mutes or, if muted, unmutes player for you. " +
                 "It can be used only on online players.",(args,player)->{
             Player other = findPlayer(args[0]);
-
+            PD pd = getData(player);
             if(other == null){
                 if(args[0].equals("info")){
                     StringBuilder sb = new StringBuilder("[orange]==MUTES==[]\n\n");
-                    for(String s : (String[]) Database.data.get(player, "mutes")){
-                        DataHandler.Doc doc = Database.data.getDocByUuid(s);
-                        sb.append(doc.getName()).append(" [white](").append(doc.getId()).append(")[gray],");
+                    for(String s : (String[]) Database.data.get(pd.id, "mutes")){
+                        for(Document d : Database.data.byUuid(s)) {
+                            Doc doc = Doc.getNew(d);
+                            sb.append(doc.getName()).append(" [white](").append(doc.getId()).append(")[gray],");
+                        }
+
                     }
                     Call.onInfoMessage(player.con, sb.toString());
                     return;
@@ -385,18 +472,18 @@ public class InGameCommands {
                 return;
             }
 
-            if(Database.data.contains(player, "mutes", other.usid)){
-                Database.data.pull(player, "mutes", other.uuid);
+            if(Database.data.contains(pd.id, "mutes", other.usid)){
+                Database.data.pull(pd.id, "mutes", other.uuid);
                 sendMessage(player,"mute-un",other.name);
             } else {
-                Database.data.addToSet(player, "mutes", other.uuid);
+                Database.data.addToSet(pd.id, "mutes", other.uuid);
                 sendMessage(player,"mute",other.name);
             }
         });
 
         handler.<Player>register("link","<pin/refuse>",
                 "Link your account with discord if you have the pin, or refuse link attempt.",(args,player)->{
-            DataHandler.Doc doc = Database.data.getDoc(player);
+            Doc doc = getData(player).getDoc();
             long id = doc.getId();
             if(!Bot.pendingLinks.containsKey(id)){
                 sendErrMessage(player,"link-no-request");
@@ -409,7 +496,7 @@ public class InGameCommands {
             }
             if(args[0].equals(Bot.pendingLinks.get(id).pin)){
                 String link =  Bot.pendingLinks.remove(id).id;
-                Database.data.set(player, "discordLink",link);
+                Database.data.set(id, "discordLink",link);
                 sendMessage(player,"link-success");
                 return;
             }
@@ -1108,7 +1195,7 @@ public class InGameCommands {
                 sendErrMessage(player, "refuse-not-integer", "2");
                 return;
             }
-            DataHandler.Doc doc = Database.data.getDoc(Long.parseLong(args[0]));
+            Doc doc = Database.data.getDoc(Long.parseLong(args[0]));
             if(doc == null){
                 sendErrMessage(player, "player-not-found");
                 return;

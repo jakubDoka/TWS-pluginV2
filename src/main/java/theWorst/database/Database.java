@@ -2,7 +2,7 @@ package theWorst.database;
 
 import arc.Events;
 import arc.util.Strings;
-import arc.util.Time;
+
 import arc.util.Timer;
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
@@ -20,6 +20,7 @@ import org.bson.Document;
 import theWorst.Bot;
 import theWorst.Global;
 import theWorst.Tools.Bundle;
+import theWorst.Tools.Millis;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,8 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.regex.Pattern;
 
-import static mindustry.Vars.netServer;
-import static mindustry.Vars.playerGroup;
+import static mindustry.Vars.*;
 import static theWorst.Tools.Formatting.*;
 import static theWorst.Tools.General.enumContains;
 import static theWorst.Tools.General.getCore;
@@ -52,7 +52,7 @@ public class Database {
     static HashSet<String> subnet = new HashSet<>();
 
 
-    public static void Init(){
+    public static void init(){
         loadSubnet();
         new AfkMaker();
 
@@ -70,7 +70,7 @@ public class Database {
                 sendErrMessage(player, "name-modified");
             }
             PD pd = data.LoadData(player);
-            DataHandler.Doc doc = data.getDoc(player);
+            Doc doc = data.getDoc(pd.id);
             online.put(player.uuid, pd);
             //marked subnet so mark player aromatically
             if (subnet.contains(getSubnet(player.con.address)) && pd.hasPermLevel(Perm.normal)) {
@@ -78,6 +78,7 @@ public class Database {
                 setRank(pd.id, Ranks.griefer);
             }
             //resolving special rank
+            pd.updateName();
             checkAchievements(pd, doc);
             Bot.connectUser(pd, doc);
             Bundle.findBundleAndCountry(pd);
@@ -95,10 +96,11 @@ public class Database {
         //games played and games won counter
         Events.on(EventType.GameOverEvent.class, e ->{
             for(Player p:playerGroup){
+                long id = getData(p).id;
                 if(p.getTeam()==e.winner) {
-                    data.incOne(p, Stat.gamesWon);
+                    data.incOne(id, Stat.gamesWon);
                 }
-                data.incOne(p, Stat.gamesPlayed);
+                data.incOne(id, Stat.gamesPlayed);
             }
         });
 
@@ -133,10 +135,10 @@ public class Database {
         //count units killed and deaths
         Events.on(EventType.UnitDestroyEvent.class, e->{
             if(e.unit instanceof Player){
-                data.incOne((Player) e.unit, Stat.deaths);
+                data.incOne(getData((Player) e.unit).id, Stat.deaths);
             }else if(e.unit.getTeam() != Team.sharded){
                 for(Player p:playerGroup){
-                    data.incOne(p, Stat.enemiesKilled);
+                    data.incOne(getData(p).id, Stat.enemiesKilled);
                 }
             }
         });
@@ -152,10 +154,11 @@ public class Database {
         Events.on(EventType.BlockBuildEndEvent.class, e->{
             if(e.player == null) return;
             if(!e.breaking && e.tile.block().buildCost/60<1) return;
+            long id = getData(e.player).id;
             if(e.breaking){
-                data.incOne(e.player, Stat.buildingsBroken);
+                data.incOne(id, Stat.buildingsBroken);
             }else {
-                data.incOne(e.player, Stat.buildingsBuilt);
+                data.incOne(id, Stat.buildingsBuilt);
             }
         });
 
@@ -163,7 +166,8 @@ public class Database {
 
 
 
-    public static void checkAchievements(PD pd, DataHandler.Doc doc) {
+    public static void checkAchievements(PD pd, Doc doc) {
+        if(pd.isGriefer()) return;
         for(Rank r : Ranks.special.values()) {
             pd.removeRank(r);
             pd.sRank = null;
@@ -187,23 +191,20 @@ public class Database {
 
 
 
-    public static boolean hasDisabled(Player player, Perm p) {
-        return data.contains(player, "settings", p.name());
+    public static boolean hasDisabled(Player player, Perm perm) {
+        return data.contains(getData(player).id, "settings", perm.name());
     }
-
-
-
 
     public static PD getData(Player player) {
         return online.get(player.uuid);
     }
 
     public static boolean hasEnabled(Player player, Setting setting) {
-        return data.contains(player, "settings", setting.name());
+        return data.contains(getData(player).id, "settings", setting.name());
     }
 
     public static boolean hasMuted(Player player, Player other){
-        return data.contains(player, "mutes", other.uuid);
+        return data.contains(getData(player).id, "mutes", other.uuid);
     }
 
     //just for testing purposes
@@ -219,15 +220,15 @@ public class Database {
         data = new DataHandler(rawData);
     }
 
-    public static DataHandler.Doc findData(String target) {
-        DataHandler.Doc res = null;
+    public static Doc findData(String target) {
+        Doc res = null;
         if(Strings.canParsePostiveInt(target)) {
             res = data.getDoc(Long.parseLong(target));
         }
         if (res == null) {
             for(PD pd : online.values()){
                 if(pd.name.equals(target)){
-                    return data.getDoc(pd.player);
+                    return data.getDoc(pd.id);
                 }
             }
         }
@@ -238,12 +239,13 @@ public class Database {
 
 
     public static void setRank(long id, Rank rank){
-        DataHandler.Doc doc = data.getDoc(id);
+        Doc doc = data.getDoc(id);
         Rank current = doc.getRank(RankType.rank);
         boolean wosGrifer= current == Ranks.griefer;
         data.setRank(id, rank, RankType.rank);
         String uuid = doc.getUuid();
-        Administration.PlayerInfo inf=netServer.admins.getInfo(uuid);
+        if(uuid == null) return;
+        Administration.PlayerInfo inf = netServer.admins.getInfo(uuid);
         if(rank.isAdmin){
             netServer.admins.adminPlayer(inf.id,inf.adminUsid);
         } else {
@@ -258,7 +260,7 @@ public class Database {
             }
             saveSubnet();
         }
-        PD pd = online.get(doc.getUuid());
+        PD pd = online.get(uuid);
         if(pd != null) {
             pd.removeRank(pd.rank);
             pd.rank = rank;
@@ -331,9 +333,16 @@ public class Database {
     }
 
     static String docToString(Document doc) {
-        DataHandler.Doc d = DataHandler.Doc.getNew(doc);
+        Doc d = Doc.getNew(doc);
         return "[gray][yellow]" + d.getId() + "[] | " + d.getName() + " | []" + d.getRank(RankType.rank).getSuffix() ;
 
+    }
+
+    public static void reLogPlayer(Player player, long id) {
+        data.setUuid(id , player.uuid);
+        data.setIp(id , player.con.address);
+        online.put(player.uuid, data.LoadData(player));
+        sendMessage(player, "database-re-logged");//todo
     }
 
     private static class AfkMaker {
@@ -345,13 +354,13 @@ public class Database {
                     for (Player p : playerGroup) {
                         PD pd = online.get(p.uuid);
                         synchronized (pd) {
-                            if (pd.afk && Time.timeSinceMillis(pd.lastAction) < requiredTime) {
+                            if (pd.afk && Millis.since(pd.lastAction) < requiredTime) {
                                 pd.afk = false;
                                 pd.updateName();
                                 sendMessage("afk-is-not", pd.name, AFK);
                                 return;
                             }
-                            if (!pd.afk && Time.timeSinceMillis(pd.lastAction) > requiredTime) {
+                            if (!pd.afk && Millis.since(pd.lastAction) > requiredTime) {
                                 pd.afk = true;
                                 pd.updateName();
                                 sendMessage("afk-is", pd.name, AFK);

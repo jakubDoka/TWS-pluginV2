@@ -171,7 +171,7 @@ public class Vote implements Displayable, Destroyable {
             voteData.run();
             Hud.addAd(voteData.reason + "-done", 10, args);
             if(voteData.special.relation != null) {
-                Database.data.incOne(pd.player, voteData.special.relation);
+                Database.data.incOne(pd.id, voteData.special.relation);
             }
         } else {
             if(!pd.hasPermLevel(Perm.high)){

@@ -2,7 +2,7 @@ package theWorst.helpers;
 
 import arc.Events;
 import arc.math.Mathf;
-import arc.util.Time;
+
 import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
@@ -10,6 +10,7 @@ import mindustry.world.StaticTree;
 import mindustry.world.Tile;
 import theWorst.Bot;
 import theWorst.Global;
+import theWorst.Tools.Millis;
 import theWorst.database.*;
 
 import java.util.ArrayList;
@@ -91,7 +92,7 @@ public class Administration implements Displayable{
                 }
                 //handle griefer messages
                 if (pd.rank == Ranks.griefer) {
-                    if (Time.timeSinceMillis(pd.lastMessage) < Global.limits.grieferAntiSpamTime) {
+                    if (Millis.since(pd.lastMessage) < Global.limits.grieferAntiSpamTime) {
                         sendErrMessage(player, "griefer-too-match-messages");
                         return null;
                     }
@@ -99,13 +100,16 @@ public class Administration implements Displayable{
 
                 }
                 //handle users with color combo permission
-                String[] colors = pd.textColor.split("/");
-                if (pd.hasThisPerm(Perm.colorCombo) && colors.length > 1) {
-                    message = smoothColors(message,colors);
-                } else message = "[" + color + "]" + message;
+                if(pd.textColor != null) {
+                    String[] colors = pd.textColor.split("/");
+                    if (pd.hasThisPerm(Perm.colorCombo) && colors.length > 1) {
+                        message = smoothColors(message,colors);
+                    } else message = "[" + color + "]" + message;
+                } else message = "[" + pd.rank.color + "]" + message;
+
                 //updating stats
-                pd.lastMessage = Time.millis();
-                Database.data.incOne(player, Stat.messageCount);
+                pd.lastMessage = Millis.now();
+                Database.data.incOne(pd.id, Stat.messageCount);
                 //final sending message, i have my own function for this because people ca have this user muted
                 sendChatMessage(player,message);
                 return null;
@@ -127,18 +131,17 @@ public class Administration implements Displayable{
                 }
                 TileInfo ti = data[act.tile.y][act.tile.x];
                 //if player has to low permission to interact
-                if(pd.hasPermLevel(ti.lock)){
+                if(!pd.hasPermLevel(ti.lock)){
                     if(pd.isGriefer()){
                         sendErrMessage(player,"griefer-no-perm");
                     }else {
                         sendErrMessage(player,"at-least-verified", Ranks.verified.getSuffix());
                     }
                     return false;
-
                 }
                 if(pd.hasPermLevel(Perm.higher) && !(act.tile.block() instanceof StaticTree)){
                     ArrayList<Action> acts = undo.computeIfAbsent(player.uuid, k -> new ArrayList<>());
-                    long now = Time.millis();
+                    long now = Millis.now();
                     switch (act.type) {
                         case breakBlock:
                             if(act.tile.entity != null && !world.getMap().rules().bannedBlocks.contains(act.tile.block())){
@@ -182,7 +185,7 @@ public class Administration implements Displayable{
                                 }
                             } else {
                                 for (Long l : new ArrayList<>(draws)) {
-                                    if (Time.timeSinceMillis(l) > 1000) {
+                                    if (Millis.since(l) > 1000) {
                                         draws.remove(0);
                                     }
                                 }
@@ -221,7 +224,7 @@ public class Administration implements Displayable{
                         Tile currTile = acts.get(0).tile;
                         int actPerTile = 0;
                         for(Action a :acts){
-                            if(Time.timeSinceMillis(a.age) < Global.limits.rateLimitPeriod && !(a instanceof Action.Build || a instanceof Action.Break)) {
+                            if(Millis.since(a.age) < Global.limits.rateLimitPeriod && !(a instanceof Action.Build || a instanceof Action.Break)) {
                                 if(a.tile == currTile){
                                     actPerTile++;
                                 } else {
@@ -376,7 +379,7 @@ public class Administration implements Displayable{
 
         public void add(Player player){
             String uuid = player.uuid;
-            put(uuid,Time.millis());
+            put(uuid, Millis.now());
             Timer.schedule(()->{
                 if(endMessage == null) return;
                 Player found = playerGroup.find(p -> p.uuid.equals(uuid));
@@ -388,7 +391,7 @@ public class Administration implements Displayable{
         public Long contains(Player player){
             Long res = get(player.uuid);
             if(res == null) return null;
-            res = getPenalty() - Time.timeSinceMillis(res);
+            res = getPenalty() - Millis.since(res);
             if( res < 0) {
                 remove(player.uuid);
             }

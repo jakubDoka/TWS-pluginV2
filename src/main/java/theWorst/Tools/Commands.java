@@ -36,7 +36,7 @@ public class Commands {
     //beautiful spaghetti in deed
     public static Res setRankViaCommand(Player player, String target, String rank, String reason) {
 
-        DataHandler.Doc doc = Database.findData(target);
+        Doc doc = Database.findData(target);
         if (doc == null) return Res.notFound;
         String name = doc.getName();
         Rank current = doc.getRank(RankType.rank);

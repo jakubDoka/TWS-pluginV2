@@ -22,6 +22,10 @@ public class Ranks {
                 new HashMap<String, String>() {{
                     put("default", "Rank for griefers you ll see what it does when you get it.");
                 }}, 0, null, null, null, null));
+        put("paralyzed", new Rank(true, false, "paralyzed", "#" + Items.blastCompound.color.toString(),
+                new HashMap<String, String>() {{
+                    put("default", "Rank for griefers you ll see what it does when you get it.");
+                }}, 0, null, null, null, null));
         put("newcomer", new Rank(false, false, "newcomer", "#" + Items.copper.color.toString(),
                 new HashMap<String, String>() {{
                     put("default", "This is first ran you will get.");
@@ -41,7 +45,7 @@ public class Ranks {
     }};
     public static HashMap<String, Rank> special = new HashMap<>();
     public static HashMap<String, Rank> donation = new HashMap<>();
-    public static Rank griefer, newcomer, verified, candidate, admin;
+    public static Rank griefer, paralyzed, newcomer, verified, candidate, admin;
     public static Rank error = new Rank(true, false, "error", "red", new HashMap<String, String>() {{
         put("default", "When your special rank disappears you have chance to get this super rare rank");
     }}, 0, null, null, null, null);
@@ -58,6 +62,7 @@ public class Ranks {
     }
     public static void loadBuildIn() {
         griefer = buildIn.get("griefer");
+        paralyzed = buildIn.get("paralyzed");
         newcomer = buildIn.get("newcomer");
         verified = buildIn.get("verified");
         candidate = buildIn.get("candidate");

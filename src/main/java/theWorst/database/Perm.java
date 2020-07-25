@@ -1,7 +1,7 @@
 package theWorst.database;
 
 public enum Perm {
-    normal(),
+    normal(0),
     high(1),
     higher(2),
     highest(3),
@@ -19,17 +19,18 @@ public enum Perm {
     skip,
     coreBuild(Stat.buildCoreVotes);
 
-    public final int value;
-    public String description=null;
+    public int value = -1;
     public Stat relation = null;
-    Perm(Stat relation){
+
+    Perm(Stat relation) {
         this.relation = relation;
-        this.value=0;
+        this.value = 0;
     }
-    Perm(){
-        this.value=0;
+
+    Perm() {
     }
-    Perm(int value){
-        this.value=value;
+
+    Perm(int value) {
+        this.value = value;
     }
 }

@@ -1,11 +1,11 @@
 package theWorst.database;
 
-import arc.util.Time;
-import com.mongodb.DBCollection;
+
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
+import theWorst.Tools.Millis;
 
 import java.util.ArrayList;
 
@@ -15,7 +15,7 @@ public class BackupManager {
     static final MongoDatabase backups = MongoClients.create().getDatabase(databaseName);
 
     public static void addBackup(){
-        String collectionName = String.valueOf(Time.millis());
+        String collectionName = String.valueOf(Millis.now());
         backups.createCollection(collectionName);
         MongoCollection<Document> collection = backups.getCollection(collectionName);
         for(Document d : Database.rawData.find()){
@@ -69,7 +69,7 @@ public class BackupManager {
 
     public static boolean noNewBackups() {
         for(String name : backups.listCollectionNames()){
-            if(Time.timeSinceMillis(Long.parseLong(name))<oldestValid) return false;
+            if(Millis.since(Long.parseLong(name))<oldestValid) return false;
         }
         return true;
     }

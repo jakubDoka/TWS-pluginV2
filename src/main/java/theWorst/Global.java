@@ -33,7 +33,8 @@ public class Global {
     public static class Config {
         public String alertPrefix = "!!";
         public String dbName = "mindustryServer";
-        public String dbAddress = "mongodb://host1:27017";
+        public String dbAddress = "mongodb://127.0.0.1:27017";
+        public String salt = "TWS";
         public HashMap<String, String > rules;
         public HashMap<String, String > welcomeMessage;
 

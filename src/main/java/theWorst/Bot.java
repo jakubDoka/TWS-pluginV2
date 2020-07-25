@@ -44,7 +44,7 @@ public class Bot {
         }
     }
 
-    public static void Init(){
+    public static void init(){
         new BotCommands(handler);
         Events.on(EventType.PlayerChatEvent.class,e->{
             if(isCommandRelated(e.message)) return;
@@ -134,9 +134,9 @@ public class Bot {
         api.disconnect();
     }
 
-    public static void connectUser(PD pd, DataHandler.Doc doc) {
+    public static void connectUser(PD pd, Doc doc) {
 
-        if (Bot.api == null || Bot.config.serverId == null || pd.rank == Ranks.griefer) {
+        if (Bot.api == null || Bot.config.serverId == null || pd.isGriefer()) {
             sendMessage("player-connected",player.name,String.valueOf(pd.id));
             return;
         }
