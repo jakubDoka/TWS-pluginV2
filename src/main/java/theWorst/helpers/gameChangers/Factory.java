@@ -12,11 +12,10 @@ import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
 import mindustry.type.UnitType;
-import org.json.simple.JSONObject;
 import theWorst.Global;
 import theWorst.Main;
-import theWorst.Tools.Formatting;
-import theWorst.Tools.Players;
+import theWorst.tools.Formatting;
+import theWorst.tools.Players;
 import theWorst.database.PD;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
@@ -25,8 +24,8 @@ import theWorst.helpers.Hud;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import static theWorst.Tools.Formatting.secToTime;
-import static theWorst.Tools.Json.*;
+import static theWorst.tools.Formatting.secToTime;
+import static theWorst.tools.Json.*;
 
 public class Factory implements Destroyable, Displayable {
     static final String configFile = Global.configDir + "factoryConfig.json";

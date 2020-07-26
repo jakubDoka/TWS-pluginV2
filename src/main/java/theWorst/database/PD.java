@@ -3,8 +3,8 @@ package theWorst.database;
 import arc.util.Log;
 
 import mindustry.entities.type.Player;
-import theWorst.Tools.Bundle;
-import theWorst.Tools.Millis;
+import theWorst.tools.Bundle;
+import theWorst.tools.Millis;
 import theWorst.helpers.gameChangers.Pet;
 import theWorst.helpers.gameChangers.ShootingBooster;
 
@@ -12,9 +12,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.ResourceBundle;
 
-import static theWorst.Tools.Players.sendMessage;
+import static theWorst.tools.Players.sendMessage;
 import static theWorst.database.Database.data;
-import static theWorst.database.Database.hasEnabled;
 
 public class PD{
     public Player player;

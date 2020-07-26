@@ -9,15 +9,15 @@ import org.springframework.data.annotation.PersistenceConstructor;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.Query;
-import theWorst.Tools.Millis;
+import theWorst.tools.Millis;
 import theWorst.database.PD;
 
 import java.util.HashMap;
 
 import static org.springframework.data.mongodb.core.query.Criteria.where;
-import static theWorst.Tools.Formatting.format;
-import static theWorst.Tools.Formatting.milsToTime;
-import static theWorst.Tools.Players.getTranslation;
+import static theWorst.tools.Formatting.format;
+import static theWorst.tools.Formatting.milsToTime;
+import static theWorst.tools.Players.getTranslation;
 
 @Document
 public class MapD {

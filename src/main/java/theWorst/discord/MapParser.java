@@ -20,7 +20,7 @@ import java.util.Arrays;
 import java.util.zip.InflaterInputStream;
 
 import static mindustry.Vars.content;
-import static theWorst.Tools.Maps.colorFor;
+import static theWorst.tools.Maps.colorFor;
 
 public class MapParser {
 

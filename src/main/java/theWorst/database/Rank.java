@@ -1,6 +1,5 @@
 package theWorst.database;
 
-import arc.util.Log;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -10,9 +9,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import static theWorst.Tools.Commands.logInfo;
-import static theWorst.Tools.Players.getCountryCode;
-import static theWorst.Tools.Players.getTranslation;
+import static theWorst.tools.Commands.logInfo;
+import static theWorst.tools.Players.getCountryCode;
+import static theWorst.tools.Players.getTranslation;
 import static theWorst.database.Database.*;
 
 public class Rank implements Serializable {

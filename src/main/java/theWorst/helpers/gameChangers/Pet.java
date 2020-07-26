@@ -5,7 +5,6 @@ import arc.math.geom.Vec2;
 
 import arc.util.Time;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.content.Fx;
@@ -19,8 +18,7 @@ import mindustry.gen.Call;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import static theWorst.Tools.Commands.logInfo;
-import static theWorst.Tools.General.getPropertyByName;
+import static theWorst.tools.General.getPropertyByName;
 
 public class Pet {
     boolean loaded = true;

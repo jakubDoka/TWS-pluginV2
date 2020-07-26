@@ -1,13 +1,13 @@
 package theWorst.database;
 
 import org.bson.Document;
-import theWorst.Tools.Millis;
+import theWorst.tools.Millis;
 
 import java.util.ArrayList;
 
-import static theWorst.Tools.Formatting.format;
-import static theWorst.Tools.Formatting.milsToTime;
-import static theWorst.Tools.Players.getTranslation;
+import static theWorst.tools.Formatting.format;
+import static theWorst.tools.Formatting.milsToTime;
+import static theWorst.tools.Players.getTranslation;
 import static theWorst.database.Database.online;
 
 public class Doc {
@@ -45,6 +45,10 @@ public class Doc {
 
     public String getLink(){
         return (String) data.get("link");
+    }
+
+    public Long getPrevious() {
+        return (Long) data.get("previous");
     }
 
     public Long getId() {

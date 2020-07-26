@@ -33,12 +33,12 @@ import java.util.concurrent.CompletableFuture;
 
 import static mindustry.Vars.*;
 import static theWorst.Bot.*;
-import static theWorst.Tools.Bundle.locPlayer;
-import static theWorst.Tools.Commands.setEmergencyViaCommand;
-import static theWorst.Tools.Commands.setRankViaCommand;
-import static theWorst.Tools.Formatting.cleanColors;
-import static theWorst.Tools.Json.makeFullPath;
-import static theWorst.Tools.Maps.*;
+import static theWorst.tools.Bundle.locPlayer;
+import static theWorst.tools.Commands.setEmergency;
+import static theWorst.tools.Commands.setRank;
+import static theWorst.tools.Formatting.cleanColors;
+import static theWorst.tools.Json.makeFullPath;
+import static theWorst.tools.Maps.*;
 
 public class BotCommands {
 
@@ -85,7 +85,7 @@ public class BotCommands {
                     } else {
                         ctx.reply("Account with user name **" + cleanColors(found.getName()) +
                                 "** wos successfully disconnected.");
-                        Database.data.remove(found.getId(), "discordLink");
+                        Database.data.remove(found.getId(), "link");
                     }
                     return;
                 }
@@ -364,7 +364,7 @@ public class BotCommands {
 
             @Override
             public void run(CommandContext ctx) {
-                switch (setEmergencyViaCommand(ctx.args)) {
+                switch (setEmergency(ctx.args)) {
                     case success:
                         ctx.reply("Emergency started.");
                         break;
@@ -396,7 +396,7 @@ public class BotCommands {
             public void run(CommandContext ctx) {
                 Player player = new Player();
                 player.name = ctx.author.getName();
-                switch (setRankViaCommand(player, ctx.args[0], ctx.args[1], ctx.args.length == 3 ? ctx.args[2] : null)) {
+                switch (setRank(player, ctx.args[0], ctx.args[1], ctx.args.length == 3 ? ctx.args[2] : null)) {
                     case notFound:
                         ctx.reply("Player not found.");
                         break;

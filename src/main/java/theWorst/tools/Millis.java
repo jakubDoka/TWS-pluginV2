@@ -1,4 +1,4 @@
-package theWorst.Tools;
+package theWorst.tools;
 
 public class Millis {
     public static long now() {

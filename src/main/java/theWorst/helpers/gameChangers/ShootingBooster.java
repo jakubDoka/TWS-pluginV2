@@ -15,9 +15,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import static mindustry.Vars.playerGroup;
-import static theWorst.Tools.Commands.logInfo;
-import static theWorst.Tools.Json.loadSimpleHashmap;
-import static theWorst.Tools.Json.saveSimple;
+import static theWorst.tools.Commands.logInfo;
+import static theWorst.tools.Json.loadSimpleHashmap;
+import static theWorst.tools.Json.saveSimple;
 
 public class ShootingBooster {
     static final String weaponFile = Global.configDir + "weapons.json";

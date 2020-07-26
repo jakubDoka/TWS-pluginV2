@@ -1,10 +1,9 @@
-package theWorst.Tools;
+package theWorst.tools;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.jsoup.Jsoup;
-import theWorst.database.DataHandler;
 import theWorst.database.Database;
 import theWorst.database.PD;
 

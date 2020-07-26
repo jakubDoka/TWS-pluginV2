@@ -1,4 +1,4 @@
-package theWorst.Tools;
+package theWorst.tools;
 
 import arc.util.Log;
 import arc.util.Strings;
@@ -7,12 +7,19 @@ import theWorst.Bot;
 import theWorst.database.*;
 import theWorst.helpers.Administration;
 
-import static theWorst.Tools.Bundle.locPlayer;
-import static theWorst.Tools.Formatting.cleanColors;
-import static theWorst.Tools.Players.*;
-import static theWorst.Tools.Formatting.format;
+import static theWorst.tools.Bundle.locPlayer;
+import static theWorst.tools.Formatting.cleanColors;
+import static theWorst.tools.General.isAdminOnline;
+import static theWorst.tools.Players.*;
+import static theWorst.tools.Formatting.format;
 
 public class Commands {
+   static Administration.RecentMap reports = new Administration.RecentMap("report-can-use-egan") {
+        @Override
+        public long getPenalty() {
+            return 0;
+        }
+    };
     public static boolean wrongArgAmount(Player player, String[] args, int req){
         if(args.length!=req){
             if(player != null){
@@ -34,7 +41,7 @@ public class Commands {
     }
 
     //beautiful spaghetti in deed
-    public static Res setRankViaCommand(Player player, String target, String rank, String reason) {
+    public static Res setRank(Player player, String target, String rank, String reason) {
 
         Doc doc = Database.findData(target);
         if (doc == null) return Res.notFound;
@@ -79,7 +86,7 @@ public class Commands {
     }
 
     //i need to do same thing on three places so this is necessary
-    public static Res setEmergencyViaCommand(String[] args){
+    public static Res setEmergency(String[] args){
         if(args.length==0){
             if(Administration.emergency.isActive()){
                 return Res.invalid;
@@ -109,6 +116,29 @@ public class Commands {
         return Res.success;
     }
 
+    public static Res ReportPlayer(String name, String reason, long target, long id){
+        if(!isAdminOnline() && !Bot.config.channels.containsKey("report")) {
+            return Res.invalid;
+        }
+        Long penalty = reports.contains(String.valueOf(id));
+        if(penalty != 0 && penalty > 0) {
+            return Res.notPermitted;
+        }
+        Doc doc = Database.data.getDoc(target);
+        if(doc == null){
+            return Res.notFound;
+        }
+        if(doc.isAdmin()) {
+            return Res.adminReport;
+        }
+        if(doc.isGriefer()) {
+            return Res.grieferReport;
+        }
+        Bot.report(doc);
+        sendMessageToAdmins(new Player(), "report-report", name, ""+id, doc.getName(), ""+target, reason);
+        return Res.success;
+    }
+
     public enum Res{
         notFound,
         notPermitted,
@@ -117,6 +147,8 @@ public class Commands {
         success,
         permanentSuccess,
         stopSuccess,
-        invalidStop
+        adminReport,
+        invalidStop,
+        grieferReport
     }
 }

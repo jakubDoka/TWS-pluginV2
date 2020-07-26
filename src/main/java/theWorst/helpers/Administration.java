@@ -10,15 +10,15 @@ import mindustry.world.StaticTree;
 import mindustry.world.Tile;
 import theWorst.Bot;
 import theWorst.Global;
-import theWorst.Tools.Millis;
+import theWorst.tools.Millis;
 import theWorst.database.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import static mindustry.Vars.*;
-import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.Players.*;
+import static theWorst.tools.Formatting.*;
+import static theWorst.tools.Players.*;
 
 public class Administration implements Displayable{
 
@@ -122,7 +122,19 @@ public class Administration implements Displayable{
                 if (pd == null) return true;
                 pd.onAction();
                 //taping on tiles is ok.
-                if(act.type == mindustry.net.Administration.ActionType.tapTile) return true;
+                switch (act.type) {
+                    case tapTile:
+                        if(pd.isGriefer()) {
+                            player.kill();
+                        }
+                        return true;
+                    case rotate:
+                        if(!Database.hasEnabled(player, Setting.rotation)) {
+                            sendErrMessage(player, "setting-rotation-disabled");
+                            return false;
+                        }
+                }
+
                 //this is against Ag client messing up game
                 //if there is emergency
                 if(emergency.isActive() && pd.hasThisPerm(Perm.high)) {
@@ -171,7 +183,7 @@ public class Administration implements Displayable{
                         case withdrawItem:
                             ArrayList<Long> draws = recentWithdraws.computeIfAbsent(player.uuid, k -> new ArrayList<>());
                             if (draws.size() > Global.limits.withdrawLimit) {
-                                Long ban = banned.contains(player);
+                                Long ban = banned.contains(player.uuid);
                                 if (ban != null) {
                                     if (ban > 0) {
                                         sendErrMessage(player, "ag-cannot-withdraw", milsToTime(ban));
@@ -262,9 +274,9 @@ public class Administration implements Displayable{
 
     private void handleInspect(Player player, Tile tile){
         if (!Database.hasEnabled(player, Setting.inspect)) return;
-        Long pn = doubleClicks.contains(player);
+        Long pn = doubleClicks.contains(player.uuid);
         if(pn == null || pn < 0) {
-            doubleClicks.add(player);
+            doubleClicks.add(player.uuid);
             return;
         }
         StringBuilder msg = new StringBuilder();
@@ -377,19 +389,18 @@ public class Administration implements Displayable{
 
         public abstract long getPenalty();
 
-        public void add(Player player){
-            String uuid = player.uuid;
-            put(uuid, Millis.now());
+        public void add(String id){
+            put(id, Millis.now());
             Timer.schedule(()->{
                 if(endMessage == null) return;
-                Player found = playerGroup.find(p -> p.uuid.equals(uuid));
+                Player found = playerGroup.find(p -> p.uuid.equals(id));
                 if(found == null) return;
                 sendMessage(found, endMessage);
             }, getPenalty()/1000f);
         }
 
-        public Long contains(Player player){
-            Long res = get(player.uuid);
+        public Long contains(String id){
+            Long res = get(id);
             if(res == null) return null;
             res = getPenalty() - Millis.since(res);
             if( res < 0) {

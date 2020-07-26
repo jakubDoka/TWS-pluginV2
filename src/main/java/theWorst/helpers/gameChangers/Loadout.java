@@ -6,7 +6,6 @@ import mindustry.entities.type.TileEntity;
 import mindustry.type.Item;
 import mindustry.type.ItemType;
 import mindustry.world.blocks.storage.CoreBlock;
-import org.json.simple.JSONObject;
 import theWorst.Global;
 import theWorst.Main;
 import theWorst.database.PD;
@@ -17,10 +16,10 @@ import theWorst.helpers.Hud;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import static theWorst.Tools.Formatting.secToTime;
-import static theWorst.Tools.General.getCore;
-import static theWorst.Tools.Json.*;
-import static theWorst.Tools.Players.sendMessage;
+import static theWorst.tools.Formatting.secToTime;
+import static theWorst.tools.General.getCore;
+import static theWorst.tools.Json.*;
+import static theWorst.tools.Players.sendMessage;
 
 
 public class Loadout implements Displayable, Destroyable {

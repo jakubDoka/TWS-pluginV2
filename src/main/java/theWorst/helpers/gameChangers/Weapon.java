@@ -18,7 +18,7 @@ import mindustry.type.Item;
 
 import java.io.IOException;
 
-import static theWorst.Tools.General.getPropertyByName;
+import static theWorst.tools.General.getPropertyByName;
 
 public class Weapon {
     BulletType bullet = Bullets.standardCopper;

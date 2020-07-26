@@ -2,11 +2,9 @@ package theWorst;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import theWorst.Tools.Json;
+import theWorst.tools.Json;
 
 import java.util.HashMap;
-
-import static theWorst.Tools.Commands.logInfo;
 
 public class Global {
     public static final String dir = "config/mods/The_Worst/";

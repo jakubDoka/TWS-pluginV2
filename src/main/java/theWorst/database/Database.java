@@ -19,8 +19,8 @@ import org.bson.BsonInt32;
 import org.bson.Document;
 import theWorst.Bot;
 import theWorst.Global;
-import theWorst.Tools.Bundle;
-import theWorst.Tools.Millis;
+import theWorst.tools.Bundle;
+import theWorst.tools.Millis;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,12 +29,12 @@ import java.util.HashSet;
 import java.util.regex.Pattern;
 
 import static mindustry.Vars.*;
-import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.General.enumContains;
-import static theWorst.Tools.General.getCore;
-import static theWorst.Tools.Json.loadSimpleCollection;
-import static theWorst.Tools.Json.saveSimple;
-import static theWorst.Tools.Players.*;
+import static theWorst.tools.Formatting.*;
+import static theWorst.tools.General.enumContains;
+import static theWorst.tools.General.getCore;
+import static theWorst.tools.Json.loadSimpleCollection;
+import static theWorst.tools.Json.saveSimple;
+import static theWorst.tools.Players.*;
 
 public class Database {
     public static final String playerCollection = "PlayerData";
@@ -332,6 +332,16 @@ public class Database {
         return result;
     }
 
+    public static void disconnectAccount(PD pd){
+        if(pd.paralyzed) return;
+        if(!pd.getDoc().isProtected()) {
+            Database.data.delete(pd.id);
+        } else {
+            Database.data.setUuid(pd.id, "why cant i just die");
+            Database.data.setIp(pd.id, "because you are too week");
+        }
+    }
+
     static String docToString(Document doc) {
         Doc d = Doc.getNew(doc);
         return "[gray][yellow]" + d.getId() + "[] | " + d.getName() + " | []" + d.getRank(RankType.rank).getSuffix() ;
@@ -339,10 +349,10 @@ public class Database {
     }
 
     public static void reLogPlayer(Player player, long id) {
-        data.setUuid(id , player.uuid);
-        data.setIp(id , player.con.address);
+        player.name = getData(player).name;
+        data.bind(player, id);
         online.put(player.uuid, data.LoadData(player));
-        sendMessage(player, "database-re-logged");//todo
+        sendMessage(player, "database-re-logged");
     }
 
     private static class AfkMaker {

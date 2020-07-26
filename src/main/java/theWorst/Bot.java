@@ -5,6 +5,7 @@ import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import org.javacord.api.DiscordApi;
+import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.permission.Role;
 import org.javacord.api.entity.server.Server;
 import org.javacord.api.entity.user.User;
@@ -13,6 +14,7 @@ import theWorst.discord.BotConfig;
 import theWorst.discord.Command;
 import theWorst.discord.DiscordCommands;
 
+import javax.jws.soap.SOAPBinding;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -20,12 +22,12 @@ import java.util.concurrent.ExecutionException;
 
 import static mindustry.Vars.*;
 import static mindustry.Vars.player;
-import static theWorst.Tools.Commands.isCommandRelated;
-import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.Json.loadSimpleHashmap;
-import static theWorst.Tools.Json.saveSimple;
-import static theWorst.Tools.Maps.hasMapAttached;
-import static theWorst.Tools.Players.sendMessage;
+import static theWorst.tools.Commands.isCommandRelated;
+import static theWorst.tools.Formatting.*;
+import static theWorst.tools.Json.loadSimpleHashmap;
+import static theWorst.tools.Json.saveSimple;
+import static theWorst.tools.Maps.hasMapAttached;
+import static theWorst.tools.Players.sendMessage;
 
 public class Bot {
     public static String dir = Global.configDir + "bot/";
@@ -34,6 +36,8 @@ public class Bot {
     public static DiscordApi api = null;
     public static final HashMap<Long,LinkData> pendingLinks = new HashMap<>();
     private static final DiscordCommands handler = new DiscordCommands();
+
+
 
     public static class LinkData{
         public String name,pin,id;
@@ -59,7 +63,7 @@ public class Bot {
             if(!isCommandRelated(e.message)) return;
             PD pd = Database.getData(e.player);
             config.channels.get("commandLog").sendMessage(String.format("**%s** - %s (%d): %s",
-                    pd.name, pd.rank, pd.id, e.message));
+                    pd.name, pd.rank.name, pd.id, e.message));
         });
         loadRestrictions();
         connect();
@@ -137,17 +141,17 @@ public class Bot {
     public static void connectUser(PD pd, Doc doc) {
 
         if (Bot.api == null || Bot.config.serverId == null || pd.isGriefer()) {
-            sendMessage("player-connected",player.name,String.valueOf(pd.id));
+            sendMessage("player-connected",pd.player.name,String.valueOf(pd.id));
             return;
         }
 
         Runnable conMess = () ->{
-            sendMessage("player-connected",player.name,String.valueOf(pd.id));
-            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes connected.", player.name, pd.id));
+            sendMessage("player-connected",pd.player.name,String.valueOf(pd.id));
+            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes connected.", cleanColors(pd.player.name), pd.id));
         };
 
         if (Bot.pendingLinks.containsKey(pd.id)){
-            sendMessage(player,"discord-pending-link",Bot.pendingLinks.get(pd.id).name);
+            sendMessage(pd.player,"discord-pending-link",Bot.pendingLinks.get(pd.id).name);
         }
         String link = doc.getLink();
         if (link == null) {
@@ -155,50 +159,58 @@ public class Bot {
             return ;
         }
         CompletableFuture<User> optionalUser = Bot.api.getUserById(link);
-        Timer.schedule(() -> {
-            while (true) {
-                if (optionalUser.isDone()) break;
-            }
+        Timer.schedule(new Timer.Task() {
+            @Override
+            public void run() {
+                processUser(pd, conMess, optionalUser, this);
+            }}, 0, .1f);
+    }
 
-            User user;
-            try {
-                user = optionalUser.get();
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-                conMess.run();
-                return;
-            }
+    static void processUser(PD pd, Runnable message, CompletableFuture<User> fUser, Timer.Task task){
+        if (!fUser.isDone()) return;
+        task.cancel();
+        User user;
+        try {
+            user = fUser.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            message.run();
+            return;
+        }
 
-            Optional<Server> server = Bot.api.getServerById(Bot.config.serverId);
-            if (!server.isPresent()) {
-                conMess.run();
-                return;
-            }
+        Optional<Server> server = Bot.api.getServerById(Bot.config.serverId);
+        if (!server.isPresent()) {
+            message.run();
+            return;
+        }
 
-            Rank current = pd.rank;
-            Rank crDl = null;
-            for (Role r : user.getRoles(server.get())) {
-                String roleName = r.getName();
-                Rank dl = Ranks.donation.get(roleName);
-                Rank rk = Ranks.buildIn.get(roleName);
+        Rank current = pd.rank;
+        Rank crDl = null;
+        for (Role r : user.getRoles(server.get())) {
+            String roleName = r.getName();
+            Rank dl = Ranks.donation.get(roleName);
+            Rank rk = Ranks.buildIn.get(roleName);
 
-                if (rk != null && pd.rank.value < rk.value) {
-                    current = rk;
-                } else if (dl != null) {
-                    if (crDl == null || dl.value > crDl.value) {
-                        crDl = dl;
-                    }
-                    pd.addRank(dl);
+            if (rk != null && pd.rank.value < rk.value) {
+                current = rk;
+            } else if (dl != null) {
+                if (crDl == null || dl.value > crDl.value) {
+                    crDl = dl;
                 }
+                pd.addRank(dl);
             }
+        }
 
-            synchronized (pd) {
-                Database.setRank(pd.id, current);
-                pd.dRank = crDl;
-                pd.updateName();
-            }
+        synchronized (pd) {
+            Database.setRank(pd.id, current);
+            pd.dRank = crDl;
+            pd.updateName();
+        }
 
-            conMess.run();
-        }, 0, .1f);
+        message.run();
+    }
+
+    public static void report(Doc doc) {
+        Channel channel = config.channels.get("report");
     }
 }

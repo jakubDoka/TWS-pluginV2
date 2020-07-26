@@ -17,9 +17,9 @@ import java.util.ArrayList;
 
 import static mindustry.Vars.player;
 import static mindustry.Vars.playerGroup;
-import static theWorst.Tools.Formatting.format;
-import static theWorst.Tools.Json.loadJackson;
-import static theWorst.Tools.Players.getTranslation;
+import static theWorst.tools.Formatting.format;
+import static theWorst.tools.Json.loadJackson;
+import static theWorst.tools.Players.getTranslation;
 
 public class Hud {
     final static String messageFile = Global.configDir + "hudMessages.json";

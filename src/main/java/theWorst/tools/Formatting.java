@@ -1,4 +1,4 @@
-package theWorst.Tools;
+package theWorst.tools;
 
 import arc.math.Mathf;
 

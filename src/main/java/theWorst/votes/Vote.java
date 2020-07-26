@@ -21,12 +21,12 @@ import java.util.Set;
 
 import static mindustry.Vars.player;
 import static mindustry.Vars.playerGroup;
-import static theWorst.Tools.Formatting.format;
-import static theWorst.Tools.Formatting.milsToTime;
-import static theWorst.Tools.Json.loadSimpleHashmap;
-import static theWorst.Tools.Json.saveSimple;
-import static theWorst.Tools.Players.getTranslation;
-import static theWorst.Tools.Players.sendErrMessage;
+import static theWorst.tools.Formatting.format;
+import static theWorst.tools.Formatting.milsToTime;
+import static theWorst.tools.Json.loadSimpleHashmap;
+import static theWorst.tools.Json.saveSimple;
+import static theWorst.tools.Players.getTranslation;
+import static theWorst.tools.Players.sendErrMessage;
 
 public class Vote implements Displayable, Destroyable {
     static String passiveFile = Global.saveDir + "passive.json";
@@ -79,7 +79,7 @@ public class Vote implements Displayable, Destroyable {
             sendErrMessage(player, "griefer-no-perm");
             return;
         }
-        Long pen = recent.contains(player);
+        Long pen = recent.contains(player.uuid);
         if (pen != null && pen > 0) {
             sendErrMessage(player, "vote-is-recent", milsToTime(pen));
             return;
@@ -175,7 +175,7 @@ public class Vote implements Displayable, Destroyable {
             }
         } else {
             if(!pd.hasPermLevel(Perm.high)){
-                recent.add(voteData.by);
+                recent.add(voteData.by.uuid);
                 sendErrMessage(voteData.by, "vote-failed-penalty");
             }
             Hud.addAd(voteData.reason + "-fail", 10, args);

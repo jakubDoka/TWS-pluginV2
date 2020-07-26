@@ -10,10 +10,10 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Locale;
 
-import static theWorst.Tools.Json.loadSimpleHashmap;
-import static theWorst.Tools.Json.saveJson;
-import static theWorst.Tools.Players.sendErrMessage;
-import static theWorst.Tools.Players.sendMessage;
+import static theWorst.tools.Json.loadSimpleHashmap;
+import static theWorst.tools.Json.saveJson;
+import static theWorst.tools.Players.sendErrMessage;
+import static theWorst.tools.Players.sendMessage;
 import static theWorst.database.Database.getData;
 
 public class Tester {
@@ -74,7 +74,7 @@ public class Tester {
                     Database.setRank(getData(player).id, Ranks.verified);
                 } else {
                     sendErrMessage(player,"test-fail","" + points,"" + size);
-                    recent.add(player);
+                    recent.add(player.uuid);
                 }
                 tests.remove(player.uuid);
                 return;

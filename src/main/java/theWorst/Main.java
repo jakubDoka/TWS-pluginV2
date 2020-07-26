@@ -11,7 +11,7 @@ import mindustry.core.GameState;
 import mindustry.game.EventType;
 import mindustry.plugin.Plugin;
 import mindustry.world.blocks.logic.MessageBlock;
-import theWorst.Tools.Millis;
+import theWorst.tools.Millis;
 import theWorst.database.*;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
@@ -26,7 +26,7 @@ import java.util.Date;
 
 import static arc.util.Log.info;
 import static mindustry.Vars.*;
-import static theWorst.Tools.Commands.*;
+import static theWorst.tools.Commands.*;
 
 public class Main extends Plugin {
     static ArrayList<Destroyable> destroyable = new ArrayList<>();
@@ -210,7 +210,7 @@ public class Main extends Plugin {
 
         handler.register("setrank", "<uuid/name/id> <rank/restart> [reason...]",
                 "Sets rank of the player.", args -> {
-            switch (setRankViaCommand(null,args[0],args[1],args.length==3 ? args[2] : null)){
+            switch (setRank(null,args[0],args[1],args.length==3 ? args[2] : null)){
                 case notFound:
                     logInfo("player-not-found");
                     break;
@@ -222,7 +222,7 @@ public class Main extends Plugin {
         });
 
         handler.register("emergency","<time/permanent/stop>","Emergency control.",args->{
-            switch (setEmergencyViaCommand(args)) {
+            switch (setEmergency(args)) {
                 case success:
                     logInfo("emergency-started");
                     break;

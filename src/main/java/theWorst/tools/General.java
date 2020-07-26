@@ -1,11 +1,13 @@
-package theWorst.Tools;
+package theWorst.tools;
 
+import mindustry.entities.type.Player;
 import mindustry.game.Team;
 import mindustry.world.blocks.storage.CoreBlock;
 import theWorst.Global;
 
 import java.lang.reflect.Field;
 
+import static mindustry.Vars.playerGroup;
 import static mindustry.Vars.state;
 
 public class General {
@@ -47,5 +49,12 @@ public class General {
             res = res + (long)Math.pow(password.charAt(i), 2);
         }
         return res;
+    }
+
+    public static boolean isAdminOnline() {
+        for(Player p : playerGroup) {
+            if(p.isAdmin) return true;
+        }
+        return false;
     }
 }

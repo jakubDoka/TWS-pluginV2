@@ -7,6 +7,7 @@ import arc.math.geom.Vec2;
 import arc.struct.Array;
 import arc.util.CommandHandler;
 import arc.util.Strings;
+import com.mongodb.client.model.Filters;
 import mindustry.Vars;
 import mindustry.content.Blocks;
 import mindustry.entities.type.BaseUnit;
@@ -24,8 +25,7 @@ import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
 import org.bson.Document;
-import theWorst.Tools.Formatting;
-import theWorst.Tools.Players;
+import theWorst.tools.Formatting;
 import theWorst.database.*;
 import theWorst.helpers.*;
 import theWorst.helpers.gameChangers.*;
@@ -36,12 +36,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import static mindustry.Vars.*;
-import static theWorst.Tools.Commands.*;
-import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.General.*;
-import static theWorst.Tools.Maps.findMap;
-import static theWorst.Tools.Maps.getFreeTiles;
-import static theWorst.Tools.Players.*;
+import static theWorst.database.Database.online;
+import static theWorst.tools.Commands.*;
+import static theWorst.tools.Formatting.*;
+import static theWorst.tools.General.*;
+import static theWorst.tools.Maps.findMap;
+import static theWorst.tools.Maps.getFreeTiles;
+import static theWorst.tools.Players.*;
 import static theWorst.database.Database.getData;
 
 
@@ -100,9 +101,20 @@ public class InGameCommands {
         handler.removeCommand("help");
         handler.removeCommand("t");
 
-        handler.<Player>register("login", "[ServerID] [password]", "Logs you in, so you can play normally.", (args, player)->{
+        handler.<Player>register("login", "[ServerID/new] [password]", "Logs you in, so you can play normally.", (args, player)->{
+            PD pd = getData(player);
+            if(pd.rank == Ranks.griefer) {
+                sendErrMessage(player, "griefer-no-perm");
+                return;
+            }
             if (args.length == 0) {
-                sendInfoPopup(player, "logon-help", Database.data.getSuggestions(player.uuid, player.con.address));//todo
+                sendInfoPopup(player, "login-help", Database.data.getSuggestions(player.uuid, player.con.address));
+                return;
+            }else if (args[0].equals("new")){
+                Database.data.MakeNewAccount(player);
+                Database.disconnectAccount(pd);
+                online.put(player.uuid,Database.data.LoadData(player));
+                sendErrMessage(player, "login-new");
                 return;
             } else if(args.length == 1) {
                 wrongArgAmount(player, args, 2);
@@ -112,32 +124,22 @@ public class InGameCommands {
                 sendErrMessage(player, "refuse-not-integer", "1");
                 return;
             }
-            PD pd = getData(player);
+
             long id = Long.parseLong(args[0]);
             Doc doc = Database.data.getDoc(id);
             if(doc == null) {
-                sendErrMessage(player, "login-not-found");//todo
+                sendErrMessage(player, "login-not-found");
                 return;
             }
-            if(pd.rank == Ranks.griefer) {
-                sendErrMessage(player, "griefer-no-perm");
-                return;
-            }
+
             Long password = doc.getPassword();
             if(!player.con.address.equals(doc.getIp()) && !player.uuid.equals(doc.getUuid()) && password == null) {
-                sendErrMessage(player, "login-invalid");//todo
+                sendErrMessage(player, "login-invalid");
             } else if(password == null || password == Hash(args[1])){
-                if(!pd.paralyzed) {
-                    if(!pd.getDoc().isProtected()) {
-                        Database.data.delete(pd.id);
-                    } else {
-                        Database.data.setUuid(id, "why cant i just die");
-                        Database.data.setIp(id, "because you are too week");
-                    }
-                }
+                Database.disconnectAccount(pd);
                 Database.reLogPlayer(player, id);
             } else {
-                sendErrMessage(player, "login-password-invalid");
+                sendErrMessage(player, "login-password-incorrect");
             }
         });
 
@@ -147,11 +149,13 @@ public class InGameCommands {
             Long hashed = Hash(args[0]);
             if (password != null) {
                 if (password.equals(args[0])) {
-                    sendMessage(player, "protect");//todo
+                    sendMessage(player, "protect");
                     Database.data.set(pd.id, "password", hashed);
+                    passwordConfirm.remove(pd.id);
+                    Database.data.bind(player, pd.id);
                     return;
                 }
-                sendErrMessage(player, "protect-confirm-failed");//todo
+                sendErrMessage(player, "protect-confirm-failed");
                 passwordConfirm.remove(pd.id);
                 return;
             }
@@ -159,35 +163,41 @@ public class InGameCommands {
             if(current != null) {
                 if(hashed.equals(current)) {
                     Database.data.remove(pd.id, "password");
-                    sendMessage(player, "protect-protection-deleted");//todo
+                    sendMessage(player, "protect-protection-deleted");
+                    return;
                 }
-                sendErrMessage(player, "protect-already-protected");//todo
+                sendErrMessage(player, "protect-already-protected");
+                return;
             }
             if (args[0].length() < 8) {
-                sendErrMessage(player, "protect-too-short");//todo
+                sendErrMessage(player, "protect-too-short");
                 return;
             }
             if (args[0].toLowerCase().equals(args[0])) {
-                sendErrMessage(player, "protect-missing-capital");//todo
+                sendErrMessage(player, "protect-missing-capital");
                 return;
             }
             if (Formatting.hasNoDigit(args[0])) {
-                sendErrMessage(player, "protect-missing-digit");//todo
+                sendErrMessage(player, "protect-missing-digit");
                 return;
             }
-            sendMessage(player, "protect-confirm");//todo
+            sendMessage(player, "protect-confirm");
             passwordConfirm.put(pd.id, args[0]);
         });
 
+        /*handler.<Player>register("report", "<id>", "Report the griefer to admins. Usage is limited to prevent spamm.", (args, player)->{
+
+        });*/
+
         handler.<Player>register("t", "<text...>", "This command straight up bans you from server, don't use it.",(args, player)->{
-            Long pen = spammers.contains(player);
+            Long pen = spammers.contains(player.uuid);
             if (pen != null && pen > 0){
                 netServer.admins.addSubnetBan(getSubnet(player.con.address));
                 player.con.kick("Sorry but we don't need spammers here");
                 spammers.remove(player.uuid);
                 return;
             }
-            spammers.add(player);
+            spammers.add(player.uuid);
             sendErrMessage(player, "t-stop-spamming");
         });
 
@@ -214,7 +224,9 @@ public class InGameCommands {
                     "" + Database.getDatabaseSize(),
                     "" + currentFreeSpace,
                     "" + totalFreeSpace,
-                    "" + (int)( (float) currentFreeSpace / totalFreeSpace * 100));
+                    "" + (int)( (float) currentFreeSpace / totalFreeSpace * 100),
+                    "" + Database.data.count(Filters.eq("rank", "griefer")),
+                    "" + Database.data.count(Filters.eq("rank", "verified")));
         });
 
         handler.<Player>register("rules","Shows rules of this server.",(args,player)->{
@@ -321,7 +333,6 @@ public class InGameCommands {
             Call.onInfoMessage(player.con,data);
         });
 
-        //todo test
         handler.<Player>register("set","[setting/permission/help] [on/off/argument]",
                 "/set to see setting options. /set help for more info.",(args,player)->{
             PD pd = getData(player);
@@ -496,7 +507,7 @@ public class InGameCommands {
             }
             if(args[0].equals(Bot.pendingLinks.get(id).pin)){
                 String link =  Bot.pendingLinks.remove(id).id;
-                Database.data.set(id, "discordLink",link);
+                Database.data.set(id, "link",link);
                 sendMessage(player,"link-success");
                 return;
             }
@@ -508,7 +519,7 @@ public class InGameCommands {
                 sendErrMessage(player,"refuse-not-admin");
                 return;
             }
-            switch (setRankViaCommand(player,args[0],args[1],args.length==3 ? args[2] : null)){
+            switch (setRank(player,args[0],args[1],args.length==3 ? args[2] : null)){
                 case notFound:
                     sendErrMessage(player,"player-not-found");
                     break;
@@ -653,7 +664,7 @@ public class InGameCommands {
                 sendErrMessage(player,"refuse-not-admin");
                 return;
             }
-            switch (setEmergencyViaCommand(args)) {
+            switch (setEmergency(args)) {
                 case success:
                     sendMessage(player,"emergency-started");
                     break;
@@ -690,7 +701,7 @@ public class InGameCommands {
         });
 
         handler.<Player>register("test","<start/egan/help/answer>","More info via /test help.", (args,player)-> {
-            Long penalty = Tester.recent.contains(player);
+            Long penalty = Tester.recent.contains(player.uuid);
             PD pd = Database.getData(player);
             boolean isTested = Tester.tests.containsKey(player.uuid);
             switch (args[0]) {
@@ -748,8 +759,8 @@ public class InGameCommands {
                     sendInfoPopup(player, "ranks-help");
                     return;
                 case "update":
-                    Database.checkAchievements(pd, Database.data.getDoc(pd.id));
-                    sendMessage(player, "ranks-updated");//todo
+                    Database.checkAchievements(pd, pd.getDoc());
+                    sendMessage(player, "ranks-updated");
                     return;
                 case "info":
                     if(wrongArgAmount(player,args,2)) return;

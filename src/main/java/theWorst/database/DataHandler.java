@@ -1,6 +1,7 @@
 package theWorst.database;
 
 
+import arc.util.Log;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
@@ -9,13 +10,10 @@ import com.mongodb.client.model.Updates;
 import mindustry.entities.type.Player;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import theWorst.Tools.Millis;
-
-import java.util.ArrayList;
+import theWorst.tools.Millis;
 
 import static com.mongodb.client.model.Filters.and;
-import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.Players.*;
+import static theWorst.tools.Players.*;
 import static theWorst.database.Database.*;
 
 public class DataHandler {
@@ -25,7 +23,7 @@ public class DataHandler {
 
 
     enum Indexed {
-        serverId,
+        uuid,
         ip,
         discordLink
     }
@@ -63,14 +61,16 @@ public class DataHandler {
         return data.find(findUuid(uuid));
     }
 
-
+    public long count(Bson filter) {
+        return data.countDocuments(filter);
+    }
 
     public String getSuggestions(String uuid, String ip) {
         StringBuilder sb = new StringBuilder("[yellow]");
         FindIterable<Document> fits = data.find(Filters.or(findUuid(uuid), find(ip)));
         for(Document fit : fits) {
             Doc doc = Doc.getNew(fit);
-            sb.append(doc.getName()).append("[gray]||[]").append(doc.getId()).append("\n");
+            sb.append(doc.getName()).append("[gray] || []").append(doc.getId()).append("\n");
         }
         return sb.toString();
     }
@@ -194,14 +194,22 @@ public class DataHandler {
                 exists = true;
                 Doc doc = Doc.getNew(d);
                 if(doc.isProtected()) continue;
+                Log.info("fit found");
                 return doc;
             }
             if (!exists) {
+                Log.info("no fit making new");
                 return null;
             }
         }
-        sendInfoPopup(player,"database-must-log-in", getSuggestions(player.uuid, player.con.address));//todo
+
+        sendInfoPopup(player,"database-must-log-in", getSuggestions(player.uuid, player.con.address));
         return Doc.getNew(new Document("paralyzed", true));
+    }
+
+    public void bind(Player player, long id) {
+        setUuid(id, player.uuid);
+        setIp(id, player.con.address);
     }
 
     public PD LoadData(Player player) {
@@ -209,22 +217,24 @@ public class DataHandler {
         if(doc != null && doc.isParalyzed()) {
             return new PD(player);
         } else if(doc == null) {
-            long id = getDatabaseSize();
-            data.insertOne(new Document("_id", id));
-            for(Setting s :Setting.values()) {
-                addToSet(id, "settings", s.name());
-            }
-            setUuid(id, player.uuid);
-            setRank(id, Ranks.newcomer, RankType.rank);
-            setIp(id, player.con.address);
-            set(id, "age", Millis.now());
-            doc = getDoc(id);
+            doc = MakeNewAccount(player);
         }
         PD pd = new PD(player, doc);
         set(pd.id, "name", player.name);
         return pd;
     }
 
+    public Doc MakeNewAccount(Player player){
+        long id = getDatabaseSize();
+        data.insertOne(new Document("_id", id));
+        for(Setting s :Setting.values()) {
+            addToSet(id, "settings", s.name());
+        }
+        bind(player, id);
+        setRank(id, Ranks.newcomer, RankType.rank);
+        set(id, "age", Millis.now());
+        return getDoc(id);
+    }
 
 }
 

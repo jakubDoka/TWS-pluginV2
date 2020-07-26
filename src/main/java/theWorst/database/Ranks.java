@@ -1,7 +1,6 @@
 package theWorst.database;
 
 import arc.graphics.Color;
-import arc.util.Log;
 import mindustry.content.Items;
 import theWorst.Global;
 
@@ -10,10 +9,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import static theWorst.Tools.Commands.logInfo;
-import static theWorst.Tools.General.enumContains;
-import static theWorst.Tools.Json.loadSimpleHashmap;
-import static theWorst.Tools.Json.saveSimple;
+import static theWorst.tools.Commands.logInfo;
+import static theWorst.tools.General.enumContains;
+import static theWorst.tools.Json.loadSimpleHashmap;
+import static theWorst.tools.Json.saveSimple;
 
 public class Ranks {
     static final String rankFile = Global.configDir + "specialRanks.json";
@@ -33,15 +32,15 @@ public class Ranks {
         put("verified", new Rank(false, false, "verified", "#" + Items.titanium.color.toString(),
                 new HashMap<String, String>() {{
                     put("default", "pass the test and you ll get this. Protects your blocks against newcomers.");
-                }}, 0, new HashSet<>(Collections.singletonList(Perm.high.name())), null, null, null));
+                }}, 1, new HashSet<>(Collections.singletonList(Perm.high.name())), null, null, null));
         put("candidate", new Rank(true, false, "candidate", "#" + Items.plastanium.color.toString(),
                 new HashMap<String, String>() {{
                     put("default", "This is middle step between normal player and admin.");
-                }}, 0, new HashSet<>(Collections.singletonList(Perm.higher.name())), null, null, null));
+                }}, 2, new HashSet<>(Collections.singletonList(Perm.higher.name())), null, null, null));
         put("admin", new Rank(true, true, "admin", "#" + Items.surgealloy.color.toString(),
                 new HashMap<String, String>() {{
                     put("default", "You have power to protect others.");
-                }}, 0, new HashSet<>(Collections.singletonList(Perm.highest.name())), null, null, null));
+                }}, 3, new HashSet<>(Collections.singletonList(Perm.highest.name())), null, null, null));
     }};
     public static HashMap<String, Rank> special = new HashMap<>();
     public static HashMap<String, Rank> donation = new HashMap<>();
@@ -78,11 +77,18 @@ public class Ranks {
         if (srs == null) return;
         boolean invalid = false;
         for (Rank r : srs) {
-            if(buildIn.containsKey(r.name)) {
+            if(r.permissions != null) {
+                for(String p : r.permissions) {
+                    if(!enumContains(Perm.values(), p)){
+                        invalid = true;
+                        logInfo("special-error-invalid-perm", p, r.name);
+                    }
+                }
+            }
+            if(buildIn.containsKey(r.name) && !invalid) {
                 buildIn.put(r.name, r);
                 continue;
             }
-
             if (r.quests != null) {
                 for (String s : r.quests.keySet()) {
                     if (!enumContains(Stat.values(), s)) {
@@ -113,7 +119,8 @@ public class Ranks {
             special.put(r.name, r);
         }
         if (invalid) {
-            ranks.clear();
+            special.clear();
+            donation.clear();
             logInfo("special-rank-file-invalid");
         }
 
