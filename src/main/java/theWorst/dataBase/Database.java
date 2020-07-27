@@ -21,6 +21,7 @@ public class Database {
     public static MongoClient client = MongoClients.create();
     static MongoOperations Data = new MongoTemplate(client, "mindustryServer");
     static HashMap<String, PlayerData> data = new HashMap<>();
+    static MongoCollection<Document> rawData;
 
     public static SpecialRank getSpecialRank(PlayerData d){
         return new SpecialRank();
@@ -37,6 +38,7 @@ public class Database {
             client = MongoClients.create(settings);
             Log.info("Connected.");
         }
+        rawData = client.getDatabase(database).getCollection("counter");
         Data = new MongoTemplate(client, database);
     }
 
@@ -83,6 +85,7 @@ public class Database {
             }
         }
         Log.info("All " + counter + "are converted");
+        rawData.insertOne(new Document().append("_id", 0).append("id", counter));
     }
 
     static class SpecialRank {
