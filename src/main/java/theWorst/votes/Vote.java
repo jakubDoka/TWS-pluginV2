@@ -117,8 +117,8 @@ public class Vote implements Displayable, Destroyable {
         for (Player p : playerGroup) {
             PD pd = Database.getData(p);
             if (pd.isGriefer() || pd.afk) continue;
-            if (pd.getPlayTime() < Global.limits.minVotePlayTime) continue;
-            if (passivePlayers.getOrDefault(p.uuid, 0) > 1) continue;
+            if (pd.getPlayTime() < Global.limits.minVotePlayTimeReq) continue;
+            if (passivePlayers.getOrDefault(p.uuid, 0) > Global.config.consideredPassive) continue;
             count += 1;
         }
         if (count == 2) {
@@ -140,7 +140,7 @@ public class Vote implements Displayable, Destroyable {
             sendErrMessage( player, "vote-already-voted");
             return;
         }
-        if(totalPT < Global.limits.minVotePlayTime){
+        if(totalPT < Global.limits.minVotePlayTimeReq){
             sendErrMessage(player, "vote-low-play-time", milsToTime(totalPT));
             return;
         }

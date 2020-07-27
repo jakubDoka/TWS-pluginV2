@@ -35,10 +35,12 @@ public class Global {
         public String salt = "TWS";
         public HashMap<String, String > rules;
         public HashMap<String, String > welcomeMessage;
+        public int consideredPassive = 10;
 
         public Config() {}
 
         @JsonCreator public Config(
+                @JsonProperty("consideredPassive") int consideredPassive,
                 @JsonProperty("dbAddress") String dbAddress,
                 @JsonProperty("alertPrefix") String alertPrefix,
                 @JsonProperty("dbName") String dbName,
@@ -47,6 +49,7 @@ public class Global {
             if(dbAddress != null) this.dbAddress = dbAddress;
             if(alertPrefix != null) this.alertPrefix = alertPrefix;
             if(dbName != null) this.dbName = dbName;
+            this.consideredPassive = consideredPassive;
             this.rules = rules;
             this.welcomeMessage = welcomeMessage;
         }
@@ -61,7 +64,8 @@ public class Global {
         public int countedActionsPerTile = 5;
         public long withdrawPenalty = 30 * 1000;
         public long testPenalty = 15 * 60 * 1000;
-        public long minVotePlayTime = 1000 * 60 * 30;
+        public long minVotePlayTimeReq = 1000 * 60 * 30;
+        public int builderMinMaterialReq = 10;
 
         public RateLimits() {}
 
@@ -73,18 +77,20 @@ public class Global {
                 @JsonProperty("withdrawPenalty") long withdrawPenalty,
                 @JsonProperty("rateLimitPeriod") long rateLimitPeriod,
                 @JsonProperty("testPenalty") long testPenalty,
-                @JsonProperty("minVotePlayTime") long minVotePlayTime,
-                @JsonProperty("countedActionsPerTile") int countedActionsPerTile){
+                @JsonProperty("minVotePlayTimeReq") long minVotePlayTimeReq,
+                @JsonProperty("countedActionsPerTile") int countedActionsPerTile,
+                @JsonProperty("builderMinMaterialReq") int builderMinMaterialReq) {
 
-            this.grieferAntiSpamTime = grieferAntiSpamTime;
-            this.countedActionsPerTile = countedActionsPerTile;
-            this.configLimit = configLimit;
-            this.revertCacheSize = revertCacheSize;
-            this.withdrawLimit = withdrawLimit;
-            this.rateLimitPeriod = rateLimitPeriod;
-            this.testPenalty = testPenalty;
-            this.minVotePlayTime = minVotePlayTime;
-            this.withdrawPenalty = withdrawPenalty;
+            if (grieferAntiSpamTime != 0) this.grieferAntiSpamTime = grieferAntiSpamTime;
+            if (countedActionsPerTile != 0) this.countedActionsPerTile = countedActionsPerTile;
+            if (configLimit != 0) this.configLimit = configLimit;
+            if (revertCacheSize != 0) this.revertCacheSize = revertCacheSize;
+            if (withdrawLimit != 0) this.withdrawLimit = withdrawLimit;
+            if (rateLimitPeriod != 0) this.rateLimitPeriod = rateLimitPeriod;
+            if (testPenalty != 0) this.testPenalty = testPenalty;
+            if (minVotePlayTimeReq != 0) this.minVotePlayTimeReq = minVotePlayTimeReq;
+            if (withdrawPenalty != 0) this.withdrawPenalty = withdrawPenalty;
+            if (builderMinMaterialReq != 0) this.builderMinMaterialReq = builderMinMaterialReq;
         }
     }
 

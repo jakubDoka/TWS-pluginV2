@@ -29,10 +29,13 @@ import theWorst.tools.Formatting;
 import theWorst.database.*;
 import theWorst.helpers.*;
 import theWorst.helpers.gameChangers.*;
+import theWorst.tools.General;
+import theWorst.tools.Players;
 import theWorst.votes.Vote;
 import theWorst.votes.VoteData;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import static mindustry.Vars.*;
@@ -687,7 +690,7 @@ public class InGameCommands {
 
         handler.<Player>register("search","<searchKey/sort/rank/specialrank/donationlevel> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
             if(args[0].equals("help")) {
-                sendInfoPopup(player, "search-help");
+                sendInfoPopup(player, "search-help", Arrays.toString(Stat.values()));
             }
             new Thread(()-> {
                 ArrayList<String> res = Database.search(args, 40, Database.getData(player));
@@ -757,10 +760,6 @@ public class InGameCommands {
             switch (args[0]){
                 case "help":
                     sendInfoPopup(player, "ranks-help");
-                    return;
-                case "update":
-                    Database.checkAchievements(pd, pd.getDoc());
-                    sendMessage(player, "ranks-updated");
                     return;
                 case "info":
                     if(wrongArgAmount(player,args,2)) return;
@@ -1292,6 +1291,14 @@ public class InGameCommands {
                     }
                 }
             }, 3, core.name, tile.x + " " + tile.y);
+        });
+
+        handler.<Player>register("a", "<text...>", "Sends message just to admins.", (args, player)->{
+            if(!General.isAdminOnline()) {
+                sendErrMessage(player, "a-no-admin-online");//todo
+                return;
+            }
+            Players.sendMessageToAdmins(player, "blank", args[0]);
         });
     }
 }

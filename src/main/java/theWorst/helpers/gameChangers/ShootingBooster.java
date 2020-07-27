@@ -44,7 +44,7 @@ public class ShootingBooster {
             PD pd = Database.getData(player);
             if (pd == null) return;
             if (!pd.pets.isEmpty()) {
-                for(Pet p : pd.pets){
+                for(Pet p : new ArrayList<>(pd.pets)){
                     p.update(player, pd.pets);
                 }
             }

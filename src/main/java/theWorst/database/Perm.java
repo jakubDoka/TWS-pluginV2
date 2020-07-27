@@ -15,7 +15,7 @@ public enum Perm {
     destruct,
     suicide,
     colorCombo,
-    antiGrief,
+    antiGrief(Stat.mkgfVotes),
     skip,
     coreBuild(Stat.buildCoreVotes);
 

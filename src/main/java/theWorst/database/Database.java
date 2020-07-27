@@ -51,6 +51,7 @@ public class Database {
 
     static HashSet<String> subnet = new HashSet<>();
 
+    static PD defaultPd = new PD(player);
 
     public static void init(){
         loadSubnet();
@@ -119,7 +120,7 @@ public class Database {
                 }
                 Call.onDeconstructFinish(request.tile(), request.block, ((Player) e.builder).id);
             } else if (pd.hasThisPerm(Perm.build) && !request.breaking && request.block.buildCost > 30) {
-                if (core.items.has(request.block.requirements)) {
+                if (core.items.has(multiplyReq(request.block.requirements, Global.limits.builderMinMaterialReq))) {
                     for (ItemStack s : request.block.requirements) {
                         core.items.remove(s);
                     }
@@ -162,8 +163,19 @@ public class Database {
             }
         });
 
+        Events.on(EventType.WithdrawEvent.class, e-> data.inc(getData(e.player).id, Stat.itemsTransported, e.amount));
+
+        Events.on(EventType.DepositEvent.class, e-> data.inc(getData(e.player).id, Stat.itemsTransported, e.amount));
+
     }
 
+    private static ItemStack[] multiplyReq(ItemStack[] requirements, int multiplier) {
+        ItemStack[] res = new ItemStack[requirements.length];
+        for(int i = 0; i < res.length; i++){
+            res[i] = new ItemStack(requirements[i].item, requirements[i].amount * multiplier);
+        }
+        return res;
+    }
 
 
     public static void checkAchievements(PD pd, Doc doc) {
@@ -196,7 +208,7 @@ public class Database {
     }
 
     public static PD getData(Player player) {
-        return online.get(player.uuid);
+        return online.getOrDefault(player.uuid, defaultPd);
     }
 
     public static boolean hasEnabled(Player player, Setting setting) {

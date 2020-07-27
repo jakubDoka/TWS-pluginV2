@@ -10,11 +10,14 @@ public enum Stat {
     enemiesKilled(1),
     deaths(100),
     gamesPlayed(1000),
-    gamesWon(10000),
+    gamesWon(100000),
     factoryVotes(5000),
     messageCount(0),
     loadoutVotes(3000),
-    buildCoreVotes(10000);
+    buildCoreVotes(10000),
+    itemsTransported(100),
+    mkgfVotes(10000);
+
 
     public int value;
     public boolean inStats = true;

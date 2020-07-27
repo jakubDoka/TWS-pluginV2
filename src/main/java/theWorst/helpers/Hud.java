@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
+import mindustry.game.Team;
 import mindustry.gen.Call;
 import theWorst.Global;
 import theWorst.database.Database;
@@ -32,6 +33,7 @@ public class Hud {
     public Hud(){
         //this is necessary, if local player is null, team core damage event will not be triggered
         player = new Player();
+        player.setTeam(Team.sharded);
         Events.on(EventType.Trigger.teamCoreDamage,()->{
             if(!showCoreAlert) return;
             addAd("hud-core-under-attack",10,"!scarlet","!gray");
