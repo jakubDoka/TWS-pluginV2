@@ -455,6 +455,7 @@ public class InGameCommands {
                         }
                         Database.data.addToSet(id, "settings", args[0]);
                     }
+                    break;
                 default:
                     sendErrMessage(player,"no-such-option",args[1],"on/off");
             }

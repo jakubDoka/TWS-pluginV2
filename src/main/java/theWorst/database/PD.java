@@ -96,8 +96,8 @@ public class PD{
     }
 
     public void onAction() {
-        if(!afk) return;
         lastAction = Millis.now();
+        if(!afk) return;
         afk = false;
         updateName();
         sendMessage("afk-is-not", name, Database.AFK);

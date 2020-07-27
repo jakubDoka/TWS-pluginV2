@@ -12,12 +12,15 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import theWorst.tools.Millis;
 
+import java.util.Objects;
+
 import static com.mongodb.client.model.Filters.and;
 import static theWorst.tools.Players.*;
 import static theWorst.database.Database.*;
 
 public class DataHandler {
     MongoCollection<Document> data;
+    MongoCollection<Document> counter;
     public final static long paralyzedId = -1;
 
 
@@ -85,8 +88,6 @@ public class DataHandler {
 
     public void delete(long id){
         data.deleteOne(find(id));
-        data.updateMany(Filters.gt("_id", id), Updates.inc("_id", -1));
-
     }
 
     public void set(long id, String field, Object value) {
@@ -225,7 +226,7 @@ public class DataHandler {
     }
 
     public Doc MakeNewAccount(Player player){
-        long id = getDatabaseSize();
+        long id = getNewId();
         data.insertOne(new Document("_id", id));
         for(Setting s :Setting.values()) {
             addToSet(id, "settings", s.name());
@@ -234,6 +235,11 @@ public class DataHandler {
         setRank(id, Ranks.newcomer, RankType.rank);
         set(id, "age", Millis.now());
         return getDoc(id);
+    }
+
+    private long getNewId() {
+        counter.updateOne(find(0), Updates.inc("id", 1));
+        return (long) Objects.requireNonNull(counter.find(find(0)).first()).get("id");
     }
 
 }
