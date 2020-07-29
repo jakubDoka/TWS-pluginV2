@@ -34,9 +34,9 @@ import java.util.concurrent.CompletableFuture;
 import static mindustry.Vars.*;
 import static theWorst.Bot.*;
 import static theWorst.tools.Bundle.locPlayer;
-import static theWorst.tools.Commands.setEmergency;
-import static theWorst.tools.Commands.setRank;
+import static theWorst.tools.Commands.*;
 import static theWorst.tools.Formatting.cleanColors;
+import static theWorst.tools.Formatting.milsToTime;
 import static theWorst.tools.Json.makeFullPath;
 import static theWorst.tools.Maps.*;
 
@@ -409,6 +409,36 @@ public class BotCommands {
                         break;
                     case success:
                         ctx.reply("Rank successfully changed.");
+                }
+            }
+        });
+
+        handler.registerCommand(new Command("report", "<id> <reason...> |optional screenshot|") {//todo test
+            {
+                description = "Simply reports the player to admins.";
+            }
+            @Override
+            public void run(CommandContext ctx) {
+                switch (ReportPlayer(null, ctx, ctx.ExtractMessage(1), ctx.args[0], DataHandler.invalidId)){
+                    case notFound:
+                        ctx.reply("Player not found");
+                        break;
+                    case invalidNotInteger:
+                        ctx.reply("First argument has to be integer.");
+                    case invalid:
+                        ctx.reply("No one would see your report anyway.");
+                        break;
+                    case notPermitted:
+                        ctx.reply("You still have penalty from last time.Penalty duration is: " + milsToTime(Global.limits.reportPenalty));
+                        break;
+                    case adminReport:
+                        ctx.reply("You cannot report admin.");
+                        break;
+                    case grieferReport:
+                        ctx.reply("This player is already marked griefer.");
+                        break;
+                    case success:
+                        ctx.reply("Player reported.");
                 }
             }
         });

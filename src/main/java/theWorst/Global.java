@@ -66,6 +66,7 @@ public class Global {
         public long testPenalty = 15 * 60 * 1000;
         public long minVotePlayTimeReq = 1000 * 60 * 30;
         public int builderMinMaterialReq = 10;
+        public long reportPenalty = 1000 * 60 * 30;
 
         public RateLimits() {}
 
@@ -79,7 +80,8 @@ public class Global {
                 @JsonProperty("testPenalty") long testPenalty,
                 @JsonProperty("minVotePlayTimeReq") long minVotePlayTimeReq,
                 @JsonProperty("countedActionsPerTile") int countedActionsPerTile,
-                @JsonProperty("builderMinMaterialReq") int builderMinMaterialReq) {
+                @JsonProperty("builderMinMaterialReq") int builderMinMaterialReq,
+                @JsonProperty("reportPenalty") long reportPenalty) {
 
             if (grieferAntiSpamTime != 0) this.grieferAntiSpamTime = grieferAntiSpamTime;
             if (countedActionsPerTile != 0) this.countedActionsPerTile = countedActionsPerTile;
@@ -91,6 +93,7 @@ public class Global {
             if (minVotePlayTimeReq != 0) this.minVotePlayTimeReq = minVotePlayTimeReq;
             if (withdrawPenalty != 0) this.withdrawPenalty = withdrawPenalty;
             if (builderMinMaterialReq != 0) this.builderMinMaterialReq = builderMinMaterialReq;
+            if (reportPenalty != 0) this.reportPenalty = reportPenalty;
         }
     }
 

@@ -187,10 +187,31 @@ public class InGameCommands {
             sendMessage(player, "protect-confirm");
             passwordConfirm.put(pd.id, args[0]);
         });
-
-        /*handler.<Player>register("report", "<id>", "Report the griefer to admins. Usage is limited to prevent spamm.", (args, player)->{
-
-        });*/
+        //todo test
+        handler.<Player>register("report", "<id> <reason...>", "Report the griefer to admins. Usage is limited to prevent spam.", (args, player)->{
+            switch (ReportPlayer(getData(player).getDoc(), null, args[1], args[0], DataHandler.invalidId)){
+                case invalidNotInteger:
+                    sendErrMessage(player, "refuse-not-integer", "1");
+                    break;
+                case notFound:
+                    sendErrMessage(player, "player-not-found");
+                    break;
+                case invalid:
+                    sendErrMessage(player, "report-disabled");
+                    break;
+                case notPermitted:
+                    sendErrMessage(player, "report-penalty", milsToTime(Global.limits.reportPenalty));
+                    break;
+                case adminReport:
+                    sendErrMessage(player, "report-admin");
+                    break;
+                case grieferReport:
+                    sendErrMessage(player, "report-already-marked");
+                    break;
+                case success:
+                    sendMessage(player, "report-reported");
+            }
+        });
 
         handler.<Player>register("t", "<text...>", "This command straight up bans you from server, don't use it.",(args, player)->{
             Long pen = spammers.contains(player.uuid);
@@ -383,7 +404,7 @@ public class InGameCommands {
                         return;
                     }
                     //checking if player has permission for this
-                    if (pd.hasThisPerm(Perm.colorCombo)) {
+                    if (!pd.hasThisPerm(Perm.colorCombo)) {
                         sendErrMessage(player, "set-color-no-perm");
                         return;
                     }

@@ -22,6 +22,7 @@ public class DataHandler {
     MongoCollection<Document> data;
     MongoCollection<Document> counter;
     public final static long paralyzedId = -1;
+    public final static long invalidId = -2;
 
 
 
@@ -33,8 +34,9 @@ public class DataHandler {
 
 
 
-    public DataHandler(MongoCollection<Document> data){
+    public DataHandler(MongoCollection<Document> data, MongoCollection<Document> counter){
         this.data = data;
+        this.counter = counter;
         for(Indexed i : Indexed.values()) {
             data.createIndex(Indexes.descending(i.name()));
         }

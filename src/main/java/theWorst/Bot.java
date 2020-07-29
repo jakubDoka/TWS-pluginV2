@@ -2,20 +2,31 @@ package theWorst;
 
 import arc.Events;
 import arc.util.Timer;
+import com.sun.xml.internal.ws.api.message.Attachment;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.Channel;
+import org.javacord.api.entity.channel.TextChannel;
+import org.javacord.api.entity.message.MessageAttachment;
+import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.entity.permission.Role;
 import org.javacord.api.entity.server.Server;
 import org.javacord.api.entity.user.User;
+import org.javacord.api.event.message.MessageCreateEvent;
 import theWorst.database.*;
 import theWorst.discord.BotConfig;
 import theWorst.discord.Command;
+import theWorst.discord.CommandContext;
 import theWorst.discord.DiscordCommands;
 
 import javax.jws.soap.SOAPBinding;
+import java.awt.Color;
+import java.beans.Transient;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -210,7 +221,25 @@ public class Bot {
         message.run();
     }
 
-    public static void report(Doc doc) {
-        Channel channel = config.channels.get("report");
+    public static void report(Doc doc, CommandContext ctx, long targetId, String reason){
+        Doc target = Database.data.getDoc(targetId);
+        TextChannel channel = config.channels.get("report");
+        if(channel == null) return;
+        EmbedBuilder eb = new EmbedBuilder().setTitle("Griefer Report").setColor(Color.pink);
+        if(doc != null) {
+            eb.setAuthor(doc.getName() + "(id: " + doc.getId() + ")");
+        } else {
+            eb.setAuthor(ctx.author);
+            List<MessageAttachment> attachments = ctx.event.getMessageAttachments();
+            if(!attachments.isEmpty() ) {
+                try {
+                    eb.setImage(attachments.get(0).downloadAsInputStream());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        eb.setDescription("reported: **" + target.getName() + "(id:" + targetId + ")" + "**\nreason: " + reason);
+        channel.sendMessage(eb);
     }
 }

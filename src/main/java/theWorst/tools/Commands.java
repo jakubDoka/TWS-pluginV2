@@ -1,10 +1,13 @@
 package theWorst.tools;
 
+import arc.graphics.Color;
 import arc.util.Log;
 import arc.util.Strings;
 import mindustry.entities.type.Player;
 import theWorst.Bot;
+import theWorst.Global;
 import theWorst.database.*;
+import theWorst.discord.CommandContext;
 import theWorst.helpers.Administration;
 
 import static theWorst.tools.Bundle.locPlayer;
@@ -17,7 +20,7 @@ public class Commands {
    static Administration.RecentMap reports = new Administration.RecentMap("report-can-use-egan") {
         @Override
         public long getPenalty() {
-            return 0;
+            return Global.limits.reportPenalty;
         }
     };
     public static boolean wrongArgAmount(Player player, String[] args, int req){
@@ -116,15 +119,19 @@ public class Commands {
         return Res.success;
     }
 
-    public static Res ReportPlayer(String name, String reason, long target, long id){
+    public static Res ReportPlayer(Doc reporter, CommandContext ctx, String reason, String target, long id){
         if(!isAdminOnline() && !Bot.config.channels.containsKey("report")) {
             return Res.invalid;
         }
         Long penalty = reports.contains(String.valueOf(id));
-        if(penalty != 0 && penalty > 0) {
+        if(penalty != null && penalty > 0) {
             return Res.notPermitted;
         }
-        Doc doc = Database.data.getDoc(target);
+        if(!Strings.canParsePostiveInt(target)) {
+            return Res.invalidNotInteger;
+        }
+        long targetId = Long.parseLong(target);
+        Doc doc = Database.data.getDoc(targetId);
         if(doc == null){
             return Res.notFound;
         }
@@ -134,8 +141,15 @@ public class Commands {
         if(doc.isGriefer()) {
             return Res.grieferReport;
         }
-        Bot.report(doc);
-        sendMessageToAdmins(new Player(), "report-report", name, ""+id, doc.getName(), ""+target, reason);
+        Bot.report(reporter, ctx, targetId, reason);
+        Player sender = new Player(){{name = "Server";color = Color.red;}};
+        String reporterName = reporter != null ? reporter.getName() : ctx.author.getName();
+        sendMessageToAdmins(sender, "report-report", reporterName, ""+id, doc.getName(), target, reason);
+        if(ctx != null) {
+            reports.add(ctx.author.getIdAsString());
+        } else {
+            reports.add(reporter.getUuid());
+        }
         return Res.success;
     }
 

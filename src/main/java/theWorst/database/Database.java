@@ -39,13 +39,13 @@ import static theWorst.tools.Players.*;
 public class Database {
     public static final String playerCollection = "PlayerData";
     public static final String AFK = "[gray]<AFK>[]";
-
+    public static final String counter = "counter";
     static final String subnetFile = Global.saveDir + "subnetBuns.json";
 
     public static MongoClient client = MongoClients.create(Global.config.dbAddress);
     static MongoDatabase database = client.getDatabase(Global.config.dbName);
     static MongoCollection<Document> rawData = database.getCollection(playerCollection);
-    public static DataHandler data = new DataHandler(rawData);
+    public static DataHandler data = new DataHandler(rawData, database.getCollection(counter));
 
     public static HashMap<String,PD> online = new HashMap<>();
 
@@ -229,7 +229,7 @@ public class Database {
         client = MongoClients.create(Global.config.dbAddress);
         database = client.getDatabase(Global.config.dbName);
         rawData = database.getCollection(playerCollection);
-        data = new DataHandler(rawData);
+        data = new DataHandler(rawData, database.getCollection(counter));
     }
 
     public static Doc findData(String target) {
