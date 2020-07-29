@@ -189,7 +189,8 @@ public class InGameCommands {
         });
         //todo test
         handler.<Player>register("report", "<id> <reason...>", "Report the griefer to admins. Usage is limited to prevent spam.", (args, player)->{
-            switch (ReportPlayer(getData(player).getDoc(), null, args[1], args[0], DataHandler.invalidId)){
+            Doc doc = getData(player).getDoc();
+            switch (ReportPlayer(doc, null, args[1], args[0], doc.getId())){
                 case invalidNotInteger:
                     sendErrMessage(player, "refuse-not-integer", "1");
                     break;

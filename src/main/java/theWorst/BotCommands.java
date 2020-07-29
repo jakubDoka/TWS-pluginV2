@@ -419,7 +419,7 @@ public class BotCommands {
             }
             @Override
             public void run(CommandContext ctx) {
-                switch (ReportPlayer(null, ctx, ctx.ExtractMessage(1), ctx.args[0], DataHandler.invalidId)){
+                switch (ReportPlayer(null, ctx, ctx.ExtractMessage(1), ctx.args[0], ctx.author.getId())){
                     case notFound:
                         ctx.reply("Player not found");
                         break;
