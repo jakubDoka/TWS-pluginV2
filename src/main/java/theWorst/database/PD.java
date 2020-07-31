@@ -121,7 +121,7 @@ public class PD{
     }
 
     void addPets(Rank rank){
-        if(data.contains(id, "settings", Setting.pets.name())) return;
+        if(!data.contains(id, "settings", Setting.pets.name())) return;
         if(rank != null && rank.pets != null){
             for(String pet : rank.pets){
                 Pet found = ShootingBooster.pets.get(pet);

@@ -9,12 +9,13 @@ import arc.util.Strings;
 import arc.util.Timer;
 import mindustry.core.GameState;
 import mindustry.game.EventType;
+import mindustry.net.Administration.Config;
 import mindustry.plugin.Plugin;
 import mindustry.world.blocks.logic.MessageBlock;
 import theWorst.tools.Millis;
 import theWorst.database.*;
-import theWorst.helpers.Administration;
 import theWorst.helpers.Destroyable;
+import theWorst.helpers.Administration;
 import theWorst.helpers.Hud;
 import theWorst.helpers.MapManager;
 import theWorst.helpers.gameChangers.Factory;
@@ -38,7 +39,7 @@ public class Main extends Plugin {
         Events.on(EventType.BlockDestroyEvent.class, e ->{
             if(Global.config.alertPrefix == null) return;
             if(e.tile == null) {
-                Log.info("Tile is null for some reason.");
+                info("Tile is null for some reason.");
                 return;
             }
             if (e.tile.entity instanceof MessageBlock.MessageBlockEntity) {
@@ -59,6 +60,7 @@ public class Main extends Plugin {
         Events.on(EventType.WorldLoadEvent.class,e-> destroyable.forEach(Destroyable::destroy));
 
         Events.on(EventType.ServerLoadEvent.class, e->{
+            Config.showConnectMessages.set(false);
             Ranks.loadRanks();
             Ranks.loadBuildIn();
             Global.loadConfig();

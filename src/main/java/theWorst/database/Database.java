@@ -57,7 +57,7 @@ public class Database {
         loadSubnet();
         new AfkMaker();
 
-        Events.on(EventType.PlayerConnect.class,e-> {
+        Events.on(EventType.PlayerJoin.class,e-> {
             //remove fake ranks and colors
             Player player = e.player;
             String originalName = player.name;

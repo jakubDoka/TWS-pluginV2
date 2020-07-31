@@ -65,7 +65,7 @@ public class Bot {
 
         Events.on(EventType.PlayerChatEvent.class,e->{
             if(api == null || !config.channels.containsKey("commandLog")) return;
-            if(!isCommandRelated(e.message)) return;
+            if(!isCommandRelated(e.message) || e.message.startsWith("/protect")) return;
             PD pd = Database.getData(e.player);
             config.channels.get("commandLog").sendMessage(String.format("**%s** - %s (%d): %s",
                     pd.name, pd.rank.name, pd.id, e.message));

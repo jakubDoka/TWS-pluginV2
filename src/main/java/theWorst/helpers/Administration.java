@@ -6,6 +6,7 @@ import arc.math.Mathf;
 import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
+import mindustry.gen.Call;
 import mindustry.world.StaticTree;
 import mindustry.world.Tile;
 import theWorst.Bot;
@@ -290,11 +291,11 @@ public class Administration implements Displayable{
                 for (PD pd : ti.data.get(s)){
                     msg.append(pd.id).append("=").append(pd.name).append("|");
                 }
-                msg.delete(msg.length() - 2, msg.length() - 1);
+                msg.delete(msg.length() - 1, msg.length());
                 msg.append("\n");
             }
         }
-        player.sendMessage(msg.toString().substring(0, msg.length() - 1));
+        Call.onLabel(player.con, msg.toString().substring(0, msg.length() - 1), 8, tile.getX(), tile.getY());
     }
 
     @Override
