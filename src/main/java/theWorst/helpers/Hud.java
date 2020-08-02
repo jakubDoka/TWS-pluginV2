@@ -7,31 +7,33 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
+import mindustry.game.Team;
 import mindustry.gen.Call;
 import theWorst.Global;
 import theWorst.database.Database;
-import theWorst.database.PlayerD;
+import theWorst.database.PD;
 import theWorst.database.Setting;
 
 import java.util.ArrayList;
 
 import static mindustry.Vars.player;
 import static mindustry.Vars.playerGroup;
-import static theWorst.Tools.Formatting.format;
-import static theWorst.Tools.Json.loadJackson;
-import static theWorst.Tools.Players.getTranslation;
+import static theWorst.tools.Formatting.format;
+import static theWorst.tools.Json.loadJackson;
+import static theWorst.tools.Players.getTranslation;
 
 public class Hud {
     final static String messageFile = Global.configDir + "hudMessages.json";
     static MessageCycle cycle = new MessageCycle();
     static Timer.Task update;
     static ArrayList<Displayable> displayable = new ArrayList<>();
-    boolean showCoreAlert;
+    boolean showCoreAlert = true;
     static Array<Ad> adQueue= new Array<>();
 
     public Hud(){
         //this is necessary, if local player is null, team core damage event will not be triggered
         player = new Player();
+        player.setTeam(Team.sharded);
         Events.on(EventType.Trigger.teamCoreDamage,()->{
             if(!showCoreAlert) return;
             addAd("hud-core-under-attack",10,"!scarlet","!gray");
@@ -58,7 +60,7 @@ public class Hud {
                         Call.hideHudText(p.con);
                         continue;
                     }
-                    PlayerD pd = Database.getData(p);
+                    PD pd = Database.getData(p);
                     StringBuilder b = new StringBuilder().append("[#cbcbcb]");
                     if (cycle.on) b.append(cycle.getMessage()).append("\n");
                     //displayable are registered in their constructors
@@ -105,7 +107,7 @@ public class Hud {
             expiration = Timer.schedule(()-> adQueue.remove(this),liveTime);
         }
 
-       String getMessage(PlayerD pd){
+       String getMessage(PD pd){
            String currentColor;
            if (colors.isEmpty()){
                currentColor="white";

@@ -1,4 +1,4 @@
-package theWorst.Tools;
+package theWorst.tools;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,7 +9,7 @@ import org.json.simple.parser.ParseException;
 import java.io.*;
 import java.util.HashMap;
 
-import static theWorst.Tools.Commands.logInfo;
+import static theWorst.tools.Commands.logInfo;
 
 public class Json {
     public interface RunLoad{

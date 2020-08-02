@@ -1,14 +1,13 @@
 package theWorst.database;
 
 public enum Perm {
-    none(-1),
-    normal(),
+    normal(0),
     high(1),
-    higher(4),
-    highest(100),
+    higher(2),
+    highest(3),
 
-    loadout,
-    factory,
+    loadout(Stat.loadoutVotes),
+    factory(Stat.factoryVotes),
     restart,
     change,
     gameOver,
@@ -16,18 +15,22 @@ public enum Perm {
     destruct,
     suicide,
     colorCombo,
-    antiGrief,
-    skip;
+    antiGrief(Stat.mkgfVotes),
+    skip,
+    coreBuild(Stat.buildCoreVotes);
 
-    private final int value;
-    public String description=null;
-    Perm(){
-        this.value=0;
+    public int value = -1;
+    public Stat relation = null;
+
+    Perm(Stat relation) {
+        this.relation = relation;
+        this.value = 0;
     }
-    Perm(int value){
-        this.value=value;
+
+    Perm() {
     }
-    public int getValue() {
-        return value;
+
+    Perm(int value) {
+        this.value = value;
     }
 }

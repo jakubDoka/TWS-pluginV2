@@ -1,10 +1,8 @@
 package theWorst.database;
 
 import arc.Events;
-import arc.graphics.Color;
-import arc.util.Log;
 import arc.util.Strings;
-import arc.util.Time;
+
 import arc.util.Timer;
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
@@ -19,178 +17,91 @@ import mindustry.world.blocks.storage.CoreBlock;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.Document;
-import org.javacord.api.entity.permission.Role;
-import org.javacord.api.entity.server.Server;
-import org.javacord.api.entity.user.User;
-import org.springframework.data.mongodb.core.MongoOperations;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Query;
 import theWorst.Bot;
 import theWorst.Global;
-import theWorst.helpers.gameChangers.Pet;
+import theWorst.tools.Bundle;
+import theWorst.tools.Millis;
 
-import java.lang.reflect.Field;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.regex.Pattern;
 
-import static mindustry.Vars.netServer;
-import static mindustry.Vars.playerGroup;
-import static org.springframework.data.mongodb.core.query.Criteria.where;
-import static theWorst.Tools.Commands.logInfo;
-import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.General.*;
-import static theWorst.Tools.Json.*;
-import static theWorst.Tools.Players.sendErrMessage;
-import static theWorst.Tools.Players.sendMessage;
+import static mindustry.Vars.*;
+import static theWorst.tools.Formatting.*;
+import static theWorst.tools.General.enumContains;
+import static theWorst.tools.General.getCore;
+import static theWorst.tools.Json.loadSimpleCollection;
+import static theWorst.tools.Json.saveSimple;
+import static theWorst.tools.Players.*;
 
 public class Database {
-    public static final String playerCollection = "playerD";
+    public static final String playerCollection = "PlayerData";
     public static final String AFK = "[gray]<AFK>[]";
-    static final String rankFile = Global.configDir + "specialRanks.json";
-    static final String petFile = Global.configDir + "pets.json";
+    public static final String counter = "counter";
     static final String subnetFile = Global.saveDir + "subnetBuns.json";
-    public static MongoClient client = MongoClients.create();
+
+    public static MongoClient client = MongoClients.create(Global.config.dbAddress);
     static MongoDatabase database = client.getDatabase(Global.config.dbName);
     static MongoCollection<Document> rawData = database.getCollection(playerCollection);
-    static MongoOperations data = new MongoTemplate(client, Global.config.dbName);
-    static HashMap<String,PlayerD> online = new HashMap<>();
-    public static HashMap<String,SpecialRank> ranks=new HashMap<>();
-    public static HashMap<String, Pet> pets=new HashMap<>();
+    public static DataHandler data = new DataHandler(rawData, database.getCollection(counter));
+
+    public static HashMap<String,PD> online = new HashMap<>();
+
     static HashSet<String> subnet = new HashSet<>();
 
-    private static final PlayerD defaultPD = new PlayerD(){{
-            oldMeta = new PlayerD();
-            uuid = "default";
-    }};
+    static PD defaultPd = new PD(player);
 
-    public Database(){
-        autocorrect();
+    public static void init(){
         loadSubnet();
-        Events.on(EventType.ServerLoadEvent.class, e->{
-            loadPets();
-            loadRanks();
-        });
-
         new AfkMaker();
-        Events.on(EventType.PlayerConnect.class,e->{
-            //remove fake ranks
-            String originalName = e.player.name;
-            e.player.name = cleanName(e.player.name);
-            if(!originalName.equals(e.player.name)){
+
+        Events.on(EventType.PlayerJoin.class,e-> {
+            //remove fake ranks and colors
+            Player player = e.player;
+            String originalName = player.name;
+            player.name = cleanName(player.name);
+            if (!originalName.equals(player.name)) {
                 //name cannot be blank
-                if(e.player.name.replace(" ","").isEmpty()){
-                    e.player.name = e.player.id +"&#@";
+                if (player.name.replace(" ", "").isEmpty()) {
+                    player.name = player.id + "&#@";
                 }
                 //let player know
-                sendErrMessage(e.player,"name-modified");
+                sendErrMessage(player, "name-modified");
             }
-            PlayerD pd = new PlayerD(e.player);
-            online.put(e.player.uuid, pd);
+            PD pd = data.LoadData(player);
+            Doc doc = data.getDoc(pd.id);
+            online.put(player.uuid, pd);
             //marked subnet so mark player aromatically
-            Rank r = getRank(pd);
-            if(subnet.contains(getSubnet(pd)) && r != Rank.griefer){
-                Bot.onRankChange(pd.originalName, pd.serverId,r.name(), Rank.griefer.name(), "Server", "Subnet ban.");
-                setRank(pd, Rank.griefer, e.player);
+            if (subnet.contains(getSubnet(player.con.address)) && pd.hasPermLevel(Perm.normal)) {
+                Bot.onRankChange(pd.name, pd.id, pd.rank.name, Ranks.griefer.name, "Server", "Subnet ban.");
+                setRank(pd.id, Ranks.griefer);
             }
             //resolving special rank
-            SpecialRank sr = getSpecialRank(pd);
-            if(sr != null && !sr.isPermanent()){
-                pd.specialRank = null;
-                sr = null;
-            }
-
-            for(SpecialRank rank : ranks.values()){
-                if(rank.condition(pd) && (sr==null || sr.value < rank.value)){
-                   pd.specialRank = rank.name;
-                   sr = rank;
-                }
-            }
-            addPets(pd, sr);
-            //modify name based of rank
-            updateName(e.player,pd);
-
-            Runnable conMess = () -> sendMessage("player-connected",e.player.name,String.valueOf(pd.serverId));
-
-            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes connected.", cleanColors(e.player.name), pd.serverId));
-            if (Bot.api == null || Bot.config.serverId == null || pd.rank.equals(Rank.griefer.name())) return;
-            if (Bot.pendingLinks.containsKey(pd.serverId)){
-                sendMessage(e.player,"discord-pending-link",Bot.pendingLinks.get(pd.serverId).name);
-            }
-            if (pd.discordLink == null) {
-                conMess.run();
-                return;
-            }
-            CompletableFuture<User> optionalUser = Bot.api.getUserById(pd.discordLink);
-            Timer.schedule(new Timer.Task() {
-                @Override
-                public void run() {
-                    if (!optionalUser.isDone()) return;
-                    this.cancel();
-                    try {
-                        User user = optionalUser.get();
-                        if (user == null) {
-                            conMess.run();
-                            return;
-                        }
-                        Optional<Server> server = Bot.api.getServerById(Bot.config.serverId);
-                        if (!server.isPresent()) {
-                            conMess.run();
-                            return;
-                        }
-                        Rank finalR = null;
-                        SpecialRank finalDl = null;
-                        for (Role r : user.getRoles(server.get())) {
-                            String roleName = r.getName();
-                            if (enumContains(Rank.values(), roleName)) {
-                                Rank rank = Rank.valueOf(roleName);
-                                if (Rank.valueOf(pd.rank).getValue() < rank.getValue()) {
-                                    finalR = rank;
-                                }
-                            }else if (ranks.containsKey(roleName)) {
-                                SpecialRank dl = ranks.get(pd.donationLevel);
-                                SpecialRank ndl = ranks.get(roleName);
-                                if (pd.donationLevel == null || dl == null || dl.value < ndl.value) {
-                                    pd.donationLevel = roleName;
-                                    finalDl = ndl;
-                                }
-                            }
-                        }
-                        if (finalDl != null) {
-                            addPets(pd, finalDl);
-                        } else {
-                            pd.donationLevel = null;
-                        }
-                        updateName(e.player, pd);
-
-                        if (finalR != null) {
-                            setRank(pd, finalR, e.player);
-                        }
-                        conMess.run();
-                    } catch (InterruptedException | ExecutionException interruptedException) {
-                        interruptedException.printStackTrace();
-                    }
-                }
-            }, 0, .1f);
+            pd.updateName();
+            checkAchievements(pd, doc);
+            Bot.connectUser(pd, doc);
+            Bundle.findBundleAndCountry(pd);
         });
 
         Events.on(EventType.PlayerLeave.class,e->{
-            PlayerD pd = online.remove(e.player.uuid);
+            PD pd = online.remove(e.player.uuid);
             if(pd == null) return;
-            sendMessage("player-disconnected",e.player.name,String.valueOf(pd.serverId));
-            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes disconnected.", cleanColors(e.player.name), pd.serverId));
-            pd.disconnect();
+
+            sendMessage("player-disconnected",e.player.name,String.valueOf(pd.id));
+            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes disconnected.", cleanColors(e.player.name), pd.id));
+            data.free(pd);
         });
 
         //games played and games won counter
         Events.on(EventType.GameOverEvent.class, e ->{
             for(Player p:playerGroup){
-                PlayerD pd=getData(p);
+                long id = getData(p).id;
                 if(p.getTeam()==e.winner) {
-                    pd.gamesWon++;
+                    data.incOne(id, Stat.gamesWon);
                 }
-                pd.gamesPlayed++;
+                data.incOne(id, Stat.gamesPlayed);
             }
         });
 
@@ -198,17 +109,18 @@ public class Database {
         Events.on(EventType.BuildSelectEvent.class, e-> {
             if (!(e.builder instanceof Player)) return;
             Player player = (Player) e.builder;
+            PD pd = online.get(player.uuid);
             CoreBlock.CoreEntity core = getCore();
             if (core == null) return;
             BuilderTrait.BuildRequest request = player.buildRequest();
             if (request == null) return;
-            if (hasSpecialPerm(player, Perm.destruct) && request.breaking) {
+            if (pd.hasThisPerm(Perm.destruct) && request.breaking) {
                 for (ItemStack s : request.block.requirements) {
                     core.items.add(s.item, s.amount / 2);
                 }
                 Call.onDeconstructFinish(request.tile(), request.block, ((Player) e.builder).id);
-            } else if (hasSpecialPerm(player, Perm.build) && !request.breaking && request.block.buildCost > 30) {
-                if (core.items.has(request.block.requirements)) {
+            } else if (pd.hasThisPerm(Perm.build) && !request.breaking && request.block.buildCost > 30) {
+                if (core.items.has(multiplyReq(request.block.requirements, Global.limits.builderMinMaterialReq))) {
                     for (ItemStack s : request.block.requirements) {
                         core.items.remove(s);
                     }
@@ -224,86 +136,135 @@ public class Database {
         //count units killed and deaths
         Events.on(EventType.UnitDestroyEvent.class, e->{
             if(e.unit instanceof Player){
-                getData((Player) e.unit).deaths++;
+                data.incOne(getData((Player) e.unit).id, Stat.deaths);
             }else if(e.unit.getTeam() != Team.sharded){
                 for(Player p:playerGroup){
-                    getData(p).enemiesKilled++;
+                    data.incOne(getData(p).id, Stat.enemiesKilled);
                 }
             }
         });
 
         //handle hammer event
         Events.on(EventType.PlayerIpBanEvent.class,e->{
-            netServer.admins.unbanPlayerIP(e.ip);
-            for(PlayerD pd : getAllMeta()){
-                if(pd.ip.equals(e.ip)){
-                    pd.rank=Rank.griefer.name();
-                    netServer.admins.getInfo(pd.uuid).lastKicked=Time.millis();
-                    subnet.add(getSubnet(pd));
-                    break;
-                }
-            }
+           data.setRank(e.ip, Ranks.griefer, RankType.rank);
+           subnet.add(getSubnet(e.ip));
+           netServer.admins.unbanPlayerIP(e.ip);
         });
 
         //count buildings and destroys
         Events.on(EventType.BlockBuildEndEvent.class, e->{
             if(e.player == null) return;
             if(!e.breaking && e.tile.block().buildCost/60<1) return;
-            PlayerD pd=getData(e.player);
+            long id = getData(e.player).id;
             if(e.breaking){
-                pd.buildingsBroken++;
+                data.incOne(id, Stat.buildingsBroken);
             }else {
-                pd.buildingsBuilt++;
+                data.incOne(id, Stat.buildingsBuilt);
             }
         });
 
+        Events.on(EventType.WithdrawEvent.class, e-> data.inc(getData(e.player).id, Stat.itemsTransported, e.amount));
+
+        Events.on(EventType.DepositEvent.class, e-> data.inc(getData(e.player).id, Stat.itemsTransported, e.amount));
+
     }
 
-    void addPets(PlayerD pd, SpecialRank sr){
-        if(!pd.settings.contains(Setting.pets.name())) return;
-        if(sr != null && sr.pets != null){
-            for(String pet : sr.pets){
-                Pet found = pets.get(pet);
-                if(found == null){
-                    Log.info("missing pet :" + pet);
-                } else {
-                    pd.pets.add(new Pet(found));
+    private static ItemStack[] multiplyReq(ItemStack[] requirements, int multiplier) {
+        ItemStack[] res = new ItemStack[requirements.length];
+        for(int i = 0; i < res.length; i++){
+            res[i] = new ItemStack(requirements[i].item, requirements[i].amount * multiplier);
+        }
+        return res;
+    }
+
+
+    public static void checkAchievements(PD pd, Doc doc) {
+        if(pd.isGriefer()) return;
+        for(Rank r : Ranks.special.values()) {
+            pd.removeRank(r);
+            pd.sRank = null;
+        }
+        new Thread(()->{
+            for(Rank rank : Ranks.special.values()){
+                if(rank.condition(doc,pd)){
+                    if (pd.sRank == null || pd.sRank.value < rank.value) {
+                        synchronized (pd) {
+                            pd.sRank = rank;
+                        }
+                    }
+                    pd.addRank(rank);
                 }
             }
-        }
+            synchronized (pd){
+                pd.updateName();
+            }
+        }).start();
     }
 
-    public static void reload(){
-        database = client.getDatabase(Global.config.dbName);
-        rawData = database.getCollection(playerCollection);
-        data = new MongoTemplate(client, Global.config.dbName);
+
+
+    public static boolean hasDisabled(Player player, Perm perm) {
+        return data.contains(getData(player).id, "settings", perm.name());
+    }
+
+    public static PD getData(Player player) {
+        return online.getOrDefault(player.uuid, defaultPd);
+    }
+
+    public static boolean hasEnabled(Player player, Setting setting) {
+        return data.contains(getData(player).id, "settings", setting.name());
+    }
+
+    public static boolean hasMuted(Player player, Player other){
+        return data.contains(getData(player).id, "mutes", other.uuid);
     }
 
     //just for testing purposes
-    public static void clean(){
+    public static void clear(){
         rawData.drop();
-        data = new MongoTemplate(client,Global.config.dbName);
-        rawData = MongoClients.create().getDatabase(Global.config.dbName).getCollection(playerCollection);
+        reconnect();
     }
 
-    public static String getSubnet(PlayerD pd){
-        String address=pd.ip;
-        return address.substring(0,address.lastIndexOf("."));
+    public static void reconnect() {
+        client = MongoClients.create(Global.config.dbAddress);
+        database = client.getDatabase(Global.config.dbName);
+        rawData = database.getCollection(playerCollection);
+        data = new DataHandler(rawData, database.getCollection(counter));
     }
 
-    public static void setRank(PlayerD pd,Rank rank,Player player){
-        Rank current = getRank(pd);
-        boolean wosGrifer= current == Rank.griefer;
-        boolean wosAdmin = current.isAdmin;
-        pd.rank=rank.name();
-        Administration.PlayerInfo inf=netServer.admins.getInfo(pd.uuid);
+    public static Doc findData(String target) {
+        Doc res = null;
+        if(Strings.canParsePostiveInt(target)) {
+            res = data.getDoc(Long.parseLong(target));
+        }
+        if (res == null) {
+            for(PD pd : online.values()){
+                if(pd.name.equals(target)){
+                    return data.getDoc(pd.id);
+                }
+            }
+        }
+        return res;
+
+    }
+
+
+
+    public static void setRank(long id, Rank rank){
+        Doc doc = data.getDoc(id);
+        Rank current = doc.getRank(RankType.rank);
+        boolean wosGrifer= current == Ranks.griefer;
+        data.setRank(id, rank, RankType.rank);
+        String uuid = doc.getUuid();
+        if(uuid == null) return;
+        Administration.PlayerInfo inf = netServer.admins.getInfo(uuid);
         if(rank.isAdmin){
-            if(!wosAdmin) netServer.admins.adminPlayer(inf.id,inf.adminUsid);
-        }else if(wosAdmin) {
+            netServer.admins.adminPlayer(inf.id,inf.adminUsid);
+        } else {
             netServer.admins.unAdminPlayer(inf.id);
         }
-        if (rank == Rank.griefer || wosGrifer) {
-            String sub = getSubnet(pd);
+        if (rank == Ranks.griefer || wosGrifer) {
+            String sub = getSubnet(doc.getIp());
             if(wosGrifer) {
                 subnet.remove(sub);
             } else {
@@ -311,15 +272,17 @@ public class Database {
             }
             saveSubnet();
         }
-        if(player==null){
-            player=playerGroup.find(p->p.con.address.equals(pd.ip));
-            if(player==null){
-                pd.update();
-                return;
+        PD pd = online.get(uuid);
+        if(pd != null) {
+            pd.removeRank(pd.rank);
+            pd.rank = rank;
+            if (pd.isGriefer()) {
+                pd.perms.clear();
             }
+            pd.addRank(rank);
+            pd.updateName();
+            pd.player.isAdmin = rank.isAdmin;
         }
-        updateName(player,pd);
-        player.isAdmin=rank.isAdmin;
     }
 
     private static void saveSubnet() {
@@ -332,331 +295,79 @@ public class Database {
         Database.subnet.addAll(Arrays.asList(subnet));
     }
 
-    public static void loadRanks() {
-        ranks.clear();
-        HashMap<String, SpecialRank[]> ranks = loadSimpleHashmap(rankFile, SpecialRank[].class, Database::defaultRanks);
-        if (ranks == null) return;
-        SpecialRank[] srs = ranks.get("ranks");
-        if (srs == null) return;
-        boolean invalid = false;
-        for (SpecialRank r : srs) {
-            if (r.quests != null) {
-                for (String s : r.quests.keySet()) {
-                    if (!enumContains(Stat.values(), s)) {
-                        logInfo("special-error-invalid-stat", r.name, s);
-                        invalid = true;
-                    }
-                    for (String l : r.quests.get(s).keySet()) {
-                        if (!enumContains(SpecialRank.Mod.values(), l)) {
-                            logInfo("special-error-invalid-stat-property", r.name, s, l);
-                            invalid = true;
-                        }
-                    }
-                }
-            }
-            if (r.linked != null) {
-                for (String l : r.linked) {
-                    if (!ranks.containsKey(l)) {
-                        logInfo("special-rank-error-missing-rank", l, r.name);
-                        invalid = true;
-                    }
-
-                }
-            }
-            Database.ranks.put(r.name, r);
-        }
-        if (invalid) {
-            ranks.clear();
-            logInfo("special-rank-file-invalid");
-        }
-
-    }
-
-    public static void defaultRanks(){
-
-        ArrayList<SpecialRank> arr = new ArrayList<>();
-        arr.add(new SpecialRank(){
-            {
-                name = "kamikaze";
-                color = "scarlet";
-                description = new HashMap<String, String>(){{
-                    put("default","put your description here.");
-                    put("en_US","Put translation like this.");
-                }};
-                value = 1;
-                permissions = new HashSet<String>(){{add(Perm.suicide.name());}};
-                quests = new HashMap<String, HashMap<String, Integer>>(){{
-                    put(Stat.deaths.name(), new HashMap<String, Integer>(){{
-                        put(Mod.best.name(), 10);
-                        put(Mod.required.name(), 100);
-                        put(Mod.frequency.name(), 20);
-                    }});
-                }};
-            }
-        });
-        arr.add(new SpecialRank(){{
-            name = "donor";
-            color = "#" + Color.gold.toString();
-            description = new HashMap<String, String>(){{
-                put("default","For people who support server financially.");
-            }};
-            permissions = new HashSet<String>(){{
-                add(Perm.colorCombo.name());
-                add(Perm.suicide.name());
-            }};
-            pets = new ArrayList<String>(){{
-                add("fire-pet");
-                add("fire-pet");
-            }};
-        }});
-        HashMap<String, ArrayList<SpecialRank>> ranks = new HashMap<>();
-        ranks.put("ranks", arr);
-        saveSimple(rankFile, ranks, "special ranks");
-        for(SpecialRank sr : arr){
-            Database.ranks.put(sr.name, sr);
-        }
-    }
-
-    public static void loadPets(){
-        pets.clear();
-        HashMap<String, Pet[]> pets = loadSimpleHashmap(petFile, Pet[].class, Database::defaultPets);
-        if(pets == null) return;
-        Pet[] pts = pets.get("pets");
-        if(pts == null) return;
-        for(Pet p : pts) {
-            if(p.trail == null) {
-                logInfo("pet-invalid-trail", p.name);
-                continue;
-            }
-            Database.pets.put(p.name,p);
-        }
-
-    }
-
-    public static void defaultPets(){
-        saveSimple(petFile, new HashMap<String, ArrayList<Pet>>(){{
-            put("pets",new ArrayList<Pet>(){{ add(new Pet()); }});
-        }},"pets");
-
-    }
-
-    public static SpecialRank getSpecialRank(PlayerD pd) {
-        if (pd.specialRank == null) return null;
-        SpecialRank sr = ranks.get(pd.specialRank);
-        if (sr == null) pd.specialRank = null;
-        return sr;
-    }
-
-    public static SpecialRank getDonationLevel(PlayerD pd) {
-        if (pd.donationLevel == null) return null;
-        SpecialRank sr = ranks.get(pd.donationLevel);
-        if (sr == null) pd.donationLevel = null;
-        return sr;
-    }
-
-    public static void updateName(Player player,PlayerD pd){
-        player.name=pd.originalName;
-        if (pd.afk){
-            player.name += AFK;
-        } else if(pd.donationLevel != null) {
-            SpecialRank rank = getDonationLevel(pd);
-            if(rank == null){
-                updateName(player,pd);
-                return;
-            }
-            player.name += rank.getSuffix();
-        } else if(pd.specialRank != null) {
-            SpecialRank rank = getSpecialRank(pd);
-            if(rank == null){
-                updateName(player,pd);
-                return;
-            }
-            player.name += rank.getSuffix();
-        } else {
-            player.name += getRank(pd).getSuffix();
-        }
-        //name changes for some reason removes admin tag so this is necessary
-        player.isAdmin = getRank(pd).isAdmin;
-    }
-
-    public static void updateMeta(PlayerD pd){
-        Database.data.findAndReplace(new Query(where("_id").is(pd.uuid)),pd);
-    }
-
-    public static PlayerD query(String property, Object value){
-        return data.findOne(new Query(where(property).is(value)),PlayerD.class);
-    }
-
-    public static PlayerD getMeta(String uuid){
-        return query("_id", uuid);
-    }
-
-    public static PlayerD getMetaById(long id){
-        return query("serverId", id);
-    }
-
-    public static Document getRawMeta(String uuid) {
-        return rawData.find(Filters.eq("_id",uuid)).first();
-    }
-
     public static int getDatabaseSize(){
         return (int) database.runCommand(new Document("collStats", playerCollection)).get("count");
     }
 
-    public static List<PlayerD> getAllMeta(){
-        return data.findAll(PlayerD.class);
-    }
-
-    public static FindIterable<Document> getAllRawMeta(){
-        return rawData.find();
-    }
-
-    public static PlayerD getData(Player player){
-        return online.getOrDefault(player.uuid,defaultPD);
-    }
-
-    public static PlayerD findData(String key){
-        PlayerD pd;
-        if(Strings.canParsePostiveInt(key)){
-            pd = getMetaById(Long.parseLong(key));
-        } else {
-            pd = getMeta(key);
-        }
-        if(pd == null){
-            for(PlayerD data : online.values()){
-                if(cleanName(data.originalName).equals(key)) return data;
-            }
-            return null;
-        }
-        //making changes to the instance of data of player that is online has no effect
-        if(online.containsKey(pd.uuid)){
-            return online.get(pd.uuid);
-        }
-        return pd;
-    }
 
 
-
-    public static boolean hasEnabled(Player player, Setting setting){
-        return getData(player).settings.contains(setting.name());
-    }
-
-    public static boolean hasPerm(Player player,Perm perm){
-        return Rank.valueOf(getData(player).rank).permission.getValue()>=perm.getValue();
-    }
-
-    public static boolean hasThisPerm(Player player,Perm perm){
-        Rank rank = Rank.valueOf(getData(player).rank);
-        return rank.permission==perm;
-    }
-
-    public static boolean hasSpecialPerm(Player player,Perm perm){
-        PlayerD pd = getData(player);
-        if(!pd.settings.contains(Setting.ability.name())) return false;
-        SpecialRank sr = getSpecialRank(pd);
-        SpecialRank dl = getDonationLevel(pd);
-        boolean srh = false, dlh = false;
-        if(sr != null) srh = sr.permissions.contains(perm.name());
-        if(dl != null) dlh = dl.permissions.contains(perm.name());
-        return  srh || dlh;
-    }
-
-    //when structure of playerD is changed this function tries its bet to make database still compatible
-    //mongoDB surly has tools for this kind of actions its just too complex for me to figure out
-    private static void autocorrect(){
-        //creates document from updated class
-        PlayerD pd = new PlayerD();
-        for(Field f : PlayerD.class.getDeclaredFields()){
-            try {
-                Object val = f.get(pd);
-                if(val == null && f.getType() == String.class){
-                    f.set(pd, "");
-                }
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-            }
-        }
-        data.save(pd,"pref");
-        //assuming that all documents have same structure, and they should we are taking one o the old ones
-        Document oldDoc = rawData.find().first();
-        Document currentDoc = data.getCollection("pref").find().first();
-        data.getCollection("pref").drop();
-        //i don't know how this can happen but i want that database the database that produced it
-        if(currentDoc == null || oldDoc == null){
-            Log.err(currentDoc == null ? "missing current doc" : "missing old doc");
-            return;
-        }
-        //if there is new field added
-        for(String s : currentDoc.keySet()){
-            if(!currentDoc.containsKey(s)){
-                for(Document d : getAllRawMeta()){
-                    if(d.containsKey(s)) continue;
-                    d.append(s, oldDoc.get(s));
-                    rawData.replaceOne(Filters.eq("_id",d.get("_id")),d);
-                }
-                logInfo("autocorrect-field-add",s);
-            }
-        }
-        //if field wos removed
-        for(String s : oldDoc.keySet()){
-            if(!currentDoc.containsKey(s)){
-                for(Document d : getAllRawMeta()){
-                    if(!d.containsKey(s)) continue;
-                    d.remove(s);
-                    rawData.replaceOne(Filters.eq("_id",d.get("_id")),d);
-                }
-                logInfo("autocorrect-field-remove",s);
-            }
-        }
-    }
-
-    public static ArrayList<String> search(String[] args, int limit){
+    public static ArrayList<String> search(String[] args, int limit, PD pd){
         ArrayList<String> result = new ArrayList<>();
         FindIterable<Document> res;
-        switch (args[0]){
-            case "sort":
-                if(!enumContains(Stat.values(), args[1])){
-                    result.add("Invalid sort type.");
+        if(args.length > 1) {
+            switch (args[0]){
+                case "sort":
+                    if(!enumContains(Stat.values(), args[1])){
+                        result.add(format(getTranslation(pd, "search-invalid-mode"), Arrays.toString(Stat.values())));
+                        return result;
+                    }
+                    res = rawData.find().sort(new BsonDocument(args[1], new BsonInt32(args.length == 3 ? -1 : 1))).limit(limit);
+                    break;
+                case "rank":
+
+                    if(!Ranks.buildIn.containsKey(args[1])) {
+                        result.add(getTranslation(pd, "search-non-existent-rank"));
+                        return result;
+                    }
+                    res = rawData.find(Filters.eq(RankType.rank.name(), args[1])).limit(limit);
+                    break;
+                case "specialrank":
+
+                    if(!Ranks.special.containsKey(args[1])) {
+                        result.add(getTranslation(pd, "search-non-existent-special-rank"));
+                        return result;
+                    }
+                    res = rawData.find(Filters.eq(RankType.specialRank.name(), args[1])).limit(limit);
+                    if (res.first() == null){
+                        res = rawData.find(Filters.eq(RankType.specialRank.name(), args[1])).limit(limit);
+                    }
+                    break;
+                default:
+                    result.add(getTranslation(pd, "invalid-mode"));
                     return result;
-                }
-                res = rawData.find().sort(new BsonDocument(args[1], new BsonInt32(args.length == 3 ? -1 : 1))).limit(limit);
-                break;
-            case "rank":
-                if(!enumContains(Rank.values(), args[1])) {
-                    result.add("This rank does not exist.");
-                    return result;
-                }
-                res = rawData.find(Filters.eq("rank", args[1])).limit(limit);
-                break;
-            case "specialrank":
-                if(!ranks.containsKey(args[1])) {
-                    result.add("This special rank does not exist.");
-                    return result;
-                }
-                res = rawData.find(Filters.eq("specialRank", args[1])).limit(limit);
-                break;
-            case "donationlevel":
-                if(!ranks.containsKey(args[1])) {
-                    result.add("This donation level does not exist.");
-                    return result;
-                }
-                res = rawData.find(Filters.eq("donationLevel", args[1])).limit(limit);
-                break;
-            default:
-                Pattern pattern = Pattern.compile("^"+Pattern.quote(args[0]), Pattern.CASE_INSENSITIVE);
-                res = rawData.find(Filters.regex("originalName", pattern));
-                break;
+            }
+        } else {
+            Pattern pattern = Pattern.compile("^"+Pattern.quote(args[0]), Pattern.CASE_INSENSITIVE);
+            res = rawData.find(Filters.regex("originalName", pattern)).limit(limit);
         }
+
         for(Document d : res) {
             result.add(docToString(d));
         }
         return result;
     }
 
-    static String docToString(Document doc) {
-        String r = (String) doc.get("rank");
-        return "[gray][yellow]" + doc.get("serverId") + "[] | " + doc.get("originalName") + " | []" + Rank.valueOf(r).getName();
+    public static void disconnectAccount(PD pd){
+        if(pd.paralyzed) return;
+        if(!pd.getDoc().isProtected()) {
+            Database.data.delete(pd.id);
+        } else {
+            Database.data.setUuid(pd.id, "why cant i just die");
+            Database.data.setIp(pd.id, "because you are too week");
+        }
+    }
 
+    static String docToString(Document doc) {
+        Doc d = Doc.getNew(doc);
+        return "[gray][yellow]" + d.getId() + "[] | " + d.getName() + " | []" + d.getRank(RankType.rank).getSuffix() ;
+
+    }
+
+    public static void reLogPlayer(Player player, long id) {
+        player.name = getData(player).name;
+        data.bind(player, id);
+        online.put(player.uuid, data.LoadData(player));
+        sendMessage(player, "database-re-logged");
     }
 
     private static class AfkMaker {
@@ -664,21 +375,27 @@ public class Database {
         private static final int requiredTime = 1000*60*5;
         private AfkMaker(){
             Timer.schedule(()->{
-                for(Player p : playerGroup){
-                    PlayerD pd = getData(p);
-                    if(pd.afk && Time.timeSinceMillis(pd.lastAction)<requiredTime){
-                        pd.afk = false;
-                        updateName(p,pd);
-                        sendMessage("afk-is-not",pd.originalName,AFK);
-                        return;
+                try {
+                    for (Player p : playerGroup) {
+                        PD pd = online.get(p.uuid);
+                        synchronized (pd) {
+                            if (pd.afk && Millis.since(pd.lastAction) < requiredTime) {
+                                pd.afk = false;
+                                pd.updateName();
+                                sendMessage("afk-is-not", pd.name, AFK);
+                                return;
+                            }
+                            if (!pd.afk && Millis.since(pd.lastAction) > requiredTime) {
+                                pd.afk = true;
+                                pd.updateName();
+                                sendMessage("afk-is", pd.name, AFK);
+                            }
+                        }
                     }
-                    if (!pd.afk && Time.timeSinceMillis(pd.lastAction)>requiredTime){
-                        pd.afk = true;
-                        updateName(p,pd);
-                        sendMessage("afk-is",pd.originalName,AFK);
-                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                 }
-            },0,updateRate);
+            }, 0, updateRate);
         }
     }
 }

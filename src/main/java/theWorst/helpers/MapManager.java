@@ -4,7 +4,7 @@ import arc.Events;
 import arc.files.Fi;
 import arc.math.Mathf;
 import arc.struct.Array;
-import arc.util.Time;
+
 import mindustry.Vars;
 import mindustry.game.EventType;
 import mindustry.game.Gamemode;
@@ -15,6 +15,7 @@ import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import theWorst.Global;
+import theWorst.tools.Millis;
 import theWorst.database.Database;
 
 import java.io.File;
@@ -34,7 +35,7 @@ public class MapManager {
 
         Events.on(EventType.PlayEvent.class, e-> {
             played = getData(world.getMap());
-            played.started = Time.millis();
+            played.started = Millis.now();
             Hud.addAd(played.hasNoAirWave() ? "map-no-air-wave" : "map-first-air-wave", 30, "" + played.firstAirWave);
         });
     }
@@ -120,7 +121,7 @@ public class MapManager {
 
     public void endGame(boolean won) {
         if(played==null) return;
-        long playtime = Time.timeSinceMillis(played.started);
+        long playtime = Millis.since(played.started);
         played.playtime+= playtime;
         if(played.longestTime < playtime) played.longestTime = playtime;
         if(played.shortestTime > playtime) played.shortestTime = playtime;

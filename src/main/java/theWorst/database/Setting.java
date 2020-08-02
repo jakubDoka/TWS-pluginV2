@@ -5,6 +5,6 @@ public enum Setting {
     chat,
     inspect,
     translate,
-    ability,
-    pets
+    pets,
+    rotation
 }

@@ -1,11 +1,11 @@
 package theWorst.database;
 
-import arc.util.Time;
-import com.mongodb.DBCollection;
+
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
+import theWorst.tools.Millis;
 
 import java.util.ArrayList;
 
@@ -15,10 +15,10 @@ public class BackupManager {
     static final MongoDatabase backups = MongoClients.create().getDatabase(databaseName);
 
     public static void addBackup(){
-        String collectionName = String.valueOf(Time.millis());
+        String collectionName = String.valueOf(Millis.now());
         backups.createCollection(collectionName);
         MongoCollection<Document> collection = backups.getCollection(collectionName);
-        for(Document d : Database.getAllRawMeta()){
+        for(Document d : Database.rawData.find()){
             collection.insertOne(d);
         }
     }
@@ -37,8 +37,8 @@ public class BackupManager {
         if(idx>=b.size()){
             return false;
         }
-        //we have to eras everything, jus replacing can leave some outdated data behind
-        Database.clean();
+        //have to erase everything, jus replacing can leave some outdated data behind
+        Database.clear();
         for(Document d : backups.getCollection(b.get(idx)).find()){
             Database.rawData.insertOne(d);
         }
@@ -69,7 +69,7 @@ public class BackupManager {
 
     public static boolean noNewBackups() {
         for(String name : backups.listCollectionNames()){
-            if(Time.timeSinceMillis(Long.parseLong(name))<oldestValid) return false;
+            if(Millis.since(Long.parseLong(name))<oldestValid) return false;
         }
         return true;
     }
