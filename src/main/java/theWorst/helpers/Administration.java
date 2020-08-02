@@ -104,7 +104,15 @@ public class Administration implements Displayable{
                 if(pd.textColor != null) {
                     String[] colors = pd.textColor.split("/");
                     if (pd.hasThisPerm(Perm.colorCombo) && colors.length > 1) {
-                        message = smoothColors(message,colors);
+                        StringBuilder indentedMassage = new StringBuilder();
+                        int lineLength = 54;
+                        for(int i = 0; i < message.length(); i++) {
+                            indentedMassage.append(message.charAt(i));
+                            if (i % lineLength == 0) {
+                                indentedMassage.append("\n");
+                            }
+                        }
+                        message = smoothColors(indentedMassage.toString(),colors);
                     } else message = "[" + color + "]" + message;
                 } else message = "[" + pd.rank.color + "]" + message;
 

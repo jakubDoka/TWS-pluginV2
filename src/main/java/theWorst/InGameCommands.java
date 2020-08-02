@@ -328,13 +328,13 @@ public class InGameCommands {
         handler.<Player>register("mkgf","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            vote.aVote(voteData, 4, ((PD)voteData.target).name);
+            vote.aVote(voteData, 4, ((Doc)voteData.target).getName());
         });
 
         handler.<Player>register("votekick","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            voteKick.aVote(voteData, 4,((PD)voteData.target).name);
+            voteKick.aVote(voteData, 4,((Doc)voteData.target).getName());
         });
 
         handler.<Player>register("info","<s/n> [id]","Displays players profile.",(args, player)->{
@@ -1050,7 +1050,7 @@ public class InGameCommands {
                             sendErrMessage(player, "factory-cannot-drop-units");
                             return;
                         }
-                        arg2 = tile.x + "," + tile.x;
+                        arg2 = tile.x + "," + tile.y;
                         UnitStack available = factory.canWithdraw(unitStack);
                         if(available.amount == 0){
                             sendErrMessage(player, "factory-no-unis-available");
@@ -1208,7 +1208,7 @@ public class InGameCommands {
                     sendErrMessage(player, "dm-target-offline");
                     return;
                 }
-                String msg = "[#ffdfba]<[#" + player.color + "]" + player.name + "[]>:[white]" + args[0];
+                String msg = Formatting.formatMessage(player, Formatting.MessageMode.direct) + args[0];
                 player.sendMessage(msg);
                 found.sendMessage(msg);
             }
@@ -1253,7 +1253,8 @@ public class InGameCommands {
             sendMessage(player, "revert-reverted");
         });
 
-        handler.<Player>register("buidcore", "<small/normal/big>", "Builds core on your coordinates.", (args, player)-> {
+        //todo test
+        handler.<Player>register("buiidcore", "<small/normal/big>", "Builds core on your coordinates.", (args, player)-> {
             Block core = Blocks.coreShard;
             TileEntity existingCore = player.getClosestCore();
             if (existingCore == null) {
@@ -1264,11 +1265,11 @@ public class InGameCommands {
             Tile tile = player.tileOn();
             switch (args[0]) {
                 case "normal":
-                    core = Blocks.coreNucleus;
+                    core = Blocks.coreFoundation;
                     priceRatio = .3f;
                     break;
                 case "big":
-                    core = Blocks.coreFoundation;
+                    core = Blocks.coreNucleus;
                     priceRatio = .4f;
             }
             ArrayList<ItemStack> price = new ArrayList<>();
@@ -1294,6 +1295,7 @@ public class InGameCommands {
                 return;
             }
             Block finalCore = core;
+            Block finalCore1 = core;
             vote.aVote(new VoteData() {
                 {
                     by = player;
@@ -1308,7 +1310,7 @@ public class InGameCommands {
                         for (ItemStack i : price) {
                             existingCore.items.remove(i.item, i.amount);
                         }
-                        sendMessage("buildcore-success");
+                        sendMessage("buildcore-success", finalCore1.name, tile.x + " " + tile.y);
                     } else {
                         sendMessage("buildcore-failed");
                     }
@@ -1322,6 +1324,7 @@ public class InGameCommands {
                 return;
             }
             Players.sendMessageToAdmins(player, "blank", args[0]);
+            player.sendMessage(formatMessage(player, MessageMode.direct) + args[0]);
         });
     }
 }

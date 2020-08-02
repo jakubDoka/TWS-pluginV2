@@ -13,8 +13,7 @@ import java.util.Locale;
 import static mindustry.Vars.playerGroup;
 import static theWorst.database.Database.getData;
 import static theWorst.tools.Bundle.*;
-import static theWorst.tools.Formatting.format;
-import static theWorst.tools.Formatting.cleanName;
+import static theWorst.tools.Formatting.*;
 
 public class Players {
     private static final String prefix = "[coral][[[scarlet]Server[]]:[#cbcbcb]";
@@ -89,19 +88,21 @@ public class Players {
         for(Player p : playerGroup){
             //filtering messages
             if(!Database.hasEnabled(p,Setting.chat) || Database.hasMuted(p, sender)) continue;
-            p.sendMessage("[coral][[[#"+sender.color+"]"+sender.name+"[]]:[]"+message);
+            p.sendMessage(formatMessage(sender, MessageMode.normal)+message);
         }
     }
 
     public static void sendMessageToAdmins(Player sender, String message, String ... args) {
         for(Player p : playerGroup) {
             if(Database.hasMuted(p, sender)) continue;
-            p.sendMessage("[blue]||[#"+sender.color+"]"+sender.name+"[]||:[]"+ format(getTranslation(getData(p), message), args));
+            p.sendMessage(formatMessage(sender, MessageMode.admin)+ format(getTranslation(getData(p), message), args));
         }
     }
 
     public static String getCountryCode(Locale loc){
         return loc.getLanguage() + "_" + loc.getCountry();
     }
+
+
 
 }
