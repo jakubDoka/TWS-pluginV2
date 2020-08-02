@@ -108,7 +108,7 @@ public class Administration implements Displayable{
                         int lineLength = 54;
                         for(int i = 0; i < message.length(); i++) {
                             indentedMassage.append(message.charAt(i));
-                            if (i % lineLength == 0) {
+                            if (i % lineLength == 0 && i != 0) {
                                 indentedMassage.append("\n");
                             }
                         }

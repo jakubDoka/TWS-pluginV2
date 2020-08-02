@@ -27,7 +27,7 @@ public class Hud {
     static MessageCycle cycle = new MessageCycle();
     static Timer.Task update;
     static ArrayList<Displayable> displayable = new ArrayList<>();
-    boolean showCoreAlert;
+    boolean showCoreAlert = true;
     static Array<Ad> adQueue= new Array<>();
 
     public Hud(){

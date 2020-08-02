@@ -130,7 +130,7 @@ public class Formatting {
         }
     }
     public static String formatMessage(Player player, MessageMode mode) {
-        return String.format("[%s]%s[%s]%s[]%s:[]", mode.color, mode.start, player.color, getData(player).name,mode.end);
+        return String.format("[%s]%s[#%s]%s[]%s:[]", mode.color, mode.start, player.color, getData(player).name,mode.end);
     }
 
     public static class Color {

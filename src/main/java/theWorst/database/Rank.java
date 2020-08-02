@@ -21,7 +21,7 @@ public class Rank implements Serializable {
     public boolean displayed = true;
     public boolean isAdmin = false;
     public int value=0;
-    public HashSet<String> permissions = new HashSet<String>(){{ add(Perm.normal.name());}};
+    public HashSet<String> permissions = new HashSet<>();
     public HashSet<String> linked = null;
     public HashMap<String,String> description = null;
     public HashMap<String, HashMap<String,Integer>> quests = null;
