@@ -275,10 +275,10 @@ public class Database {
         PD pd = online.get(uuid);
         if(pd != null) {
             pd.removeRank(pd.rank);
+            pd.rank = rank;
             if (pd.isGriefer()) {
                 pd.perms.clear();
             }
-            pd.rank = rank;
             pd.addRank(current);
             pd.updateName();
             pd.player.isAdmin = rank.isAdmin;
