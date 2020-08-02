@@ -1,10 +1,12 @@
-package theWorst.Tools;
+package theWorst.tools;
 
 import arc.math.Mathf;
+import mindustry.entities.type.Player;
 
 import java.util.ArrayList;
 
 import static java.lang.Math.min;
+import static theWorst.database.Database.getData;
 
 public class Formatting {
     public static String milsToTime(long mils){
@@ -108,6 +110,29 @@ public class Formatting {
         return b.toString();
     }
 
+    public static boolean hasNoDigit(String arg) {
+        for(int i = 0; i < arg.length(); i++){
+            if(Character.isDigit(arg.charAt(i))) return false;
+        }
+        return true;
+    }
+
+    public enum MessageMode {
+        normal("[[","]", "coral"),
+        admin("||", "||", "blue"),
+        direct("<", ">", "#ffdfba");
+
+        String start, end, color;
+        MessageMode(String start, String end, String color) {
+            this.start = start;
+            this.end = end;
+            this.color = color;
+        }
+    }
+    public static String formatMessage(Player player, MessageMode mode) {
+        return String.format("[%s]%s[#%s]%s[]%s:[]", mode.color, mode.start, player.color, getData(player).name,mode.end);
+    }
+
     public static class Color {
         public int r,g,b;
         public Color(int r,int g,int b){
@@ -131,5 +156,9 @@ public class Formatting {
 
             return parts[0] + parts[1] + parts[2];
         }
+    }
+
+    public static String getSubnet(String address){
+        return address.substring(0,address.lastIndexOf("."));
     }
 }

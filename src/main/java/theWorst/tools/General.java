@@ -1,12 +1,13 @@
-package theWorst.Tools;
+package theWorst.tools;
 
+import mindustry.entities.type.Player;
 import mindustry.game.Team;
 import mindustry.world.blocks.storage.CoreBlock;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
+import theWorst.Global;
 
 import java.lang.reflect.Field;
 
+import static mindustry.Vars.playerGroup;
 import static mindustry.Vars.state;
 
 public class General {
@@ -17,9 +18,6 @@ public class General {
         return false;
     }
 
-    public static Rank getRank(PlayerD pd){
-        return Rank.valueOf(pd.rank);
-    }
 
     public static CoreBlock.CoreEntity getCore(){
         if(state.teams.cores(Team.sharded).isEmpty()) return null;
@@ -35,12 +33,28 @@ public class General {
         }
     }
 
-    public static <T> String[] getPropertyNameList(Class<T> tClass){
+    /*public static <T> String[] getPropertyNameList(Class<T> tClass){
         Field[] fields = tClass.getDeclaredFields();
         String[] res = new String[fields.length];
         for(int i = 0; i < res.length; i++){
             res[i] = fields[i].getName();
         }
         return res;
+    }*/
+
+    public static long Hash(String password) {
+        password += Global.config.salt;
+        long res = 0;
+        for(int i = 0; i < password.length(); i++) {
+            res = res + (long)Math.pow(password.charAt(i), 2);
+        }
+        return res;
+    }
+
+    public static boolean isAdminOnline() {
+        for(Player p : playerGroup) {
+            if(p.isAdmin) return true;
+        }
+        return false;
     }
 }

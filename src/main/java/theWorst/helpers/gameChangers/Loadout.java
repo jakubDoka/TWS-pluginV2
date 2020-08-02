@@ -2,13 +2,13 @@ package theWorst.helpers.gameChangers;
 
 import arc.math.Mathf;
 import mindustry.Vars;
+import mindustry.entities.type.TileEntity;
 import mindustry.type.Item;
 import mindustry.type.ItemType;
 import mindustry.world.blocks.storage.CoreBlock;
-import org.json.simple.JSONObject;
 import theWorst.Global;
 import theWorst.Main;
-import theWorst.database.PlayerD;
+import theWorst.database.PD;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Displayable;
 import theWorst.helpers.Hud;
@@ -16,10 +16,10 @@ import theWorst.helpers.Hud;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import static theWorst.Tools.Formatting.secToTime;
-import static theWorst.Tools.General.getCore;
-import static theWorst.Tools.Json.*;
-import static theWorst.Tools.Players.sendMessage;
+import static theWorst.tools.Formatting.secToTime;
+import static theWorst.tools.General.getCore;
+import static theWorst.tools.Json.*;
+import static theWorst.tools.Players.sendMessage;
 
 
 public class Loadout implements Displayable, Destroyable {
@@ -31,7 +31,7 @@ public class Loadout implements Displayable, Destroyable {
     public ArrayList<Ship> ships = new ArrayList<>();
 
     @Override
-    public String getMessage(PlayerD pd) {
+    public String getMessage(PD pd) {
         StringBuilder sb = new StringBuilder();
         for(Ship s: ships){
             String f = "[orange]" + new String[]{"-->", "->-", ">--"}[s.time % 3] + "[]";
@@ -187,5 +187,11 @@ public class Loadout implements Displayable, Destroyable {
         return res;
     }
 
+    public static boolean CoreHas(TileEntity core, ArrayList<ItemStack> itemStacks) {
+        for(ItemStack i : itemStacks) {
+            if(!core.items.has(i.item, i.amount)) return false;
+        }
+        return true;
+    }
 
 }

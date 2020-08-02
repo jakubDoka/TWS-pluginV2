@@ -1,10 +1,11 @@
-package theWorst.Tools;
+package theWorst.tools;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.jsoup.Jsoup;
-import theWorst.database.PlayerD;
+import theWorst.database.Database;
+import theWorst.database.PD;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -12,9 +13,9 @@ import java.util.ResourceBundle;
 
 public class Bundle {
     public static final String bundlePath = "bundles.bundle";
-    public static final Locale locale = new Locale(System.getProperty("user.language"),System.getProperty("user.country"));
-    public static final ResourceBundle defaultBundle = ResourceBundle.getBundle(bundlePath,new Locale("en","US"));
-    public static final PlayerD locPlayer = new PlayerD(){{bundle=ResourceBundle.getBundle(bundlePath,locale);}};
+    public static final Locale locale = new Locale("en","US");
+    public static final ResourceBundle defaultBundle = ResourceBundle.getBundle(bundlePath, locale);
+    public static final PD locPlayer = new PD(){{bundle = defaultBundle;}};
 
     public static JSONObject getLocData(String ip){
         try {
@@ -26,8 +27,7 @@ public class Bundle {
         return null;
     }
 
-    public static Locale getLocale(String ip,JSONObject data){
-        if(data == null) data = getLocData(ip);
+    public static Locale getLocale(JSONObject data){
         if(data==null) return locale;
         String languages = (String) data.get("languages");
         if(languages==null) return locale;
@@ -38,4 +38,16 @@ public class Bundle {
         return new Locale(resResolvedL[0],resResolvedL[1]);
     }
 
+    public static void findBundleAndCountry(PD pd) {
+        new Thread(()->{
+            JSONObject data = getLocData(pd.player.con.address);
+            if(data != null){
+                Database.data.set(pd.id, "country", data.getOrDefault("country_name", "unknown"));
+            }
+            synchronized (pd){
+                pd.bundle = ResourceBundle.getBundle(bundlePath, getLocale(data));
+            }
+        }).start();
+
+    }
 }

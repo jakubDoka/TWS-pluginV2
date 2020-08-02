@@ -2,18 +2,20 @@ package theWorst;
 
 import arc.Core;
 import arc.Events;
-import arc.util.*;
+
+import arc.util.CommandHandler;
+import arc.util.Log;
+import arc.util.Strings;
+import arc.util.Timer;
 import mindustry.core.GameState;
 import mindustry.game.EventType;
-import mindustry.gen.Call;
+import mindustry.net.Administration.Config;
 import mindustry.plugin.Plugin;
 import mindustry.world.blocks.logic.MessageBlock;
-import theWorst.database.BackupManager;
-import theWorst.database.Database;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
-import theWorst.helpers.Administration;
+import theWorst.tools.Millis;
+import theWorst.database.*;
 import theWorst.helpers.Destroyable;
+import theWorst.helpers.Administration;
 import theWorst.helpers.Hud;
 import theWorst.helpers.MapManager;
 import theWorst.helpers.gameChangers.Factory;
@@ -21,24 +23,23 @@ import theWorst.helpers.gameChangers.Loadout;
 import theWorst.helpers.gameChangers.ShootingBooster;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 
 import static arc.util.Log.info;
 import static mindustry.Vars.*;
-import static theWorst.Tools.Commands.*;
+import static theWorst.tools.Commands.*;
 
 public class Main extends Plugin {
-    static Administration administration =  new Administration();
     static ArrayList<Destroyable> destroyable = new ArrayList<>();
-    static Hud hud = new Hud();
     static InGameCommands inGameCommands = new InGameCommands();
 
     public Main() {
+        new Administration();
+        new Hud();
         Events.on(EventType.BlockDestroyEvent.class, e ->{
             if(Global.config.alertPrefix == null) return;
             if(e.tile == null) {
-                Log.info("Tile is null for some reason.");
+                info("Tile is null for some reason.");
                 return;
             }
             if (e.tile.entity instanceof MessageBlock.MessageBlockEntity) {
@@ -53,20 +54,21 @@ public class Main extends Plugin {
             float original = state.rules.respawnTime;
             float spawnBoost = .1f;
             state.rules.respawnTime = spawnBoost;
-            Timer.schedule(()->{
-                state.rules.respawnTime = original;
-            }, playerGroup.size() * spawnBoost + 1f);
+            Timer.schedule(()-> state.rules.respawnTime = original, playerGroup.size() * spawnBoost + 1f);
         });
 
         Events.on(EventType.WorldLoadEvent.class,e-> destroyable.forEach(Destroyable::destroy));
 
         Events.on(EventType.ServerLoadEvent.class, e->{
+            Config.showConnectMessages.set(false);
+            Ranks.loadRanks();
+            Ranks.loadBuildIn();
             Global.loadConfig();
             Global.loadLimits();
             new ShootingBooster();
-            new Database();
+            Database.init();
             new MapManager();
-            new Bot();
+            Bot.init();
             MapManager.cleanMaps();
         });
     }
@@ -82,7 +84,7 @@ public class Main extends Plugin {
                 logInfo("dbdrop-refuse-because-playing");
                 return;
             }
-            Database.clean();
+            Database.clear();
             logInfo("dbdrop-erased");
         });
 
@@ -140,13 +142,13 @@ public class Main extends Plugin {
         });
 
         handler.register("unkick", "<ID/uuid>", "Erases kick status of player player.", args -> {
-            PlayerD pd = Database.findData(args[0]);
+            Doc pd = Database.findData(args[0]);
             if (pd == null) {
                 logInfo("player-not-found");
                 return;
             }
-            netServer.admins.getInfo(pd.uuid).lastKicked = Time.millis();
-            logInfo("unkick",pd.originalName);
+            netServer.admins.getInfo(pd.getUuid()).lastKicked = Millis.now();
+            logInfo("unkick",pd.getName());
         });
 
         handler.register("mapstats","Shows all maps with statistics.",args-> Log.info(MapManager.statistics()));
@@ -157,14 +159,14 @@ public class Main extends Plugin {
                     logInfo("show-modes","ranks, pets, general, limits, discord, discordrolerestrict, loadout, factory, weapons");
                     return;
                 case "ranks":
-                    Database.loadRanks();
+                    Ranks.loadRanks();
                     return;
                 case "pets":
-                    Database.loadPets();
+                    ShootingBooster.loadPets();
                     return;
                 case "general":
                     Global.loadConfig();
-                    Database.reload();
+                    Database.reconnect();
                     return;
                 case "limits":
                     Global.loadLimits();
@@ -210,19 +212,19 @@ public class Main extends Plugin {
 
         handler.register("setrank", "<uuid/name/id> <rank/restart> [reason...]",
                 "Sets rank of the player.", args -> {
-            switch (setRankViaCommand(null,args[0],args[1],args.length==3 ? args[2] : null)){
+            switch (setRank(null,args[0],args[1],args.length==3 ? args[2] : null)){
                 case notFound:
                     logInfo("player-not-found");
                     break;
                 case invalid:
                     logInfo("rank-not-found");
-                    logInfo("rank-s",Arrays.toString(Rank.values()));
-                    logInfo("rank-s-custom",Database.ranks.keySet().toString());
+                    logInfo("rank-s", Ranks.buildIn.keySet().toString());
+                    logInfo("rank-s-custom", Ranks.special.keySet().toString());
             }
         });
 
         handler.register("emergency","<time/permanent/stop>","Emergency control.",args->{
-            switch (setEmergencyViaCommand(args)) {
+            switch (setEmergency(args)) {
                 case success:
                     logInfo("emergency-started");
                     break;

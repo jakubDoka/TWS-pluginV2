@@ -7,9 +7,12 @@ import arc.math.geom.Vec2;
 import arc.struct.Array;
 import arc.util.CommandHandler;
 import arc.util.Strings;
+import com.mongodb.client.model.Filters;
 import mindustry.Vars;
+import mindustry.content.Blocks;
 import mindustry.entities.type.BaseUnit;
 import mindustry.entities.type.Player;
+import mindustry.entities.type.TileEntity;
 import mindustry.game.EventType;
 import mindustry.game.Gamemode;
 import mindustry.game.Team;
@@ -18,12 +21,16 @@ import mindustry.maps.Map;
 import mindustry.type.Item;
 import mindustry.type.ItemType;
 import mindustry.type.UnitType;
+import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
-import theWorst.Tools.Formatting;
+import org.bson.Document;
+import theWorst.tools.Formatting;
 import theWorst.database.*;
 import theWorst.helpers.*;
 import theWorst.helpers.gameChangers.*;
+import theWorst.tools.General;
+import theWorst.tools.Players;
 import theWorst.votes.Vote;
 import theWorst.votes.VoteData;
 
@@ -32,14 +39,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 import static mindustry.Vars.*;
-import static theWorst.Tools.Commands.*;
-import static theWorst.Tools.Formatting.*;
-import static theWorst.Tools.General.*;
-import static theWorst.Tools.Maps.findMap;
-import static theWorst.Tools.Maps.getFreeTiles;
-import static theWorst.Tools.Players.*;
+import static theWorst.database.Database.online;
+import static theWorst.tools.Commands.*;
+import static theWorst.tools.Formatting.*;
+import static theWorst.tools.General.*;
+import static theWorst.tools.Maps.findMap;
+import static theWorst.tools.Maps.getFreeTiles;
+import static theWorst.tools.Players.*;
 import static theWorst.database.Database.getData;
-import static theWorst.database.Database.getSpecialRank;
 
 
 public class InGameCommands {
@@ -50,11 +57,14 @@ public class InGameCommands {
         }
     };
 
+
+
     public static Vote vote = new Vote("vote-y-n");
     public static Vote voteKick = new Vote("vote-/vote-y-/vote-n");
     public static Loadout loadout;
     public static Factory factory;
     public HashMap<String, String> dms = new HashMap<>();
+    HashMap<Long, String> passwordConfirm = new HashMap<>();
 
     interface Command {
         VoteData run(String[] args, Player player);
@@ -64,7 +74,7 @@ public class InGameCommands {
     public InGameCommands(){
         Vote.loadPassive();
         Events.on(EventType.PlayerChatEvent.class,e->{
-            getData(e.player).onAction(e.player);
+            getData(e.player).onAction();
             if(e.message.equalsIgnoreCase("y") || e.message.equalsIgnoreCase("n")) {
                 vote.addVote(e.player,e.message.toLowerCase());
             }
@@ -81,8 +91,8 @@ public class InGameCommands {
         });
     }
 
-    private boolean handleHammer(Vote vote, PlayerD pd,Player player) {
-        if(vote.voting && vote.voteData.target instanceof PlayerD && ((PlayerD) vote.voteData.target).uuid.equals(pd.uuid)){
+    private boolean handleHammer(Vote vote, Doc doc, Player player) {
+        if(vote.voting && vote.voteData.target instanceof PD && ((PD) vote.voteData.target).player.uuid.equals(doc.getUuid())){
             vote.addVote(player, "y");
             return true;
         }
@@ -94,21 +104,131 @@ public class InGameCommands {
         handler.removeCommand("help");
         handler.removeCommand("t");
 
+        handler.<Player>register("login", "[ServerID/new] [password]", "Logs you in, so you can play normally.", (args, player)->{
+            PD pd = getData(player);
+            if(pd.rank == Ranks.griefer) {
+                sendErrMessage(player, "griefer-no-perm");
+                return;
+            }
+            if (args.length == 0) {
+                sendInfoPopup(player, "login-help", Database.data.getSuggestions(player.uuid, player.con.address));
+                return;
+            }else if (args[0].equals("new")){
+                Database.data.MakeNewAccount(player);
+                Database.disconnectAccount(pd);
+                online.put(player.uuid,Database.data.LoadData(player));
+                sendErrMessage(player, "login-new");
+                return;
+            } else if(args.length == 1) {
+                wrongArgAmount(player, args, 2);
+                return;
+            }
+            if(!Strings.canParsePostiveInt(args[0])){
+                sendErrMessage(player, "refuse-not-integer", "1");
+                return;
+            }
+
+            long id = Long.parseLong(args[0]);
+            Doc doc = Database.data.getDoc(id);
+            if(doc == null) {
+                sendErrMessage(player, "login-not-found");
+                return;
+            }
+
+            Long password = doc.getPassword();
+            if(!player.con.address.equals(doc.getIp()) && !player.uuid.equals(doc.getUuid()) && password == null) {
+                sendErrMessage(player, "login-invalid");
+            } else if(password == null || password == Hash(args[1])){
+                Database.disconnectAccount(pd);
+                Database.reLogPlayer(player, id);
+            } else {
+                sendErrMessage(player, "login-password-incorrect");
+            }
+        });
+
+        handler.<Player>register("protect", "<password>", "Protect your account with password",(args, player)-> {
+            PD pd = getData(player);
+            String password = passwordConfirm.get(pd.id);
+            Long hashed = Hash(args[0]);
+            if (password != null) {
+                if (password.equals(args[0])) {
+                    sendMessage(player, "protect");
+                    Database.data.set(pd.id, "password", hashed);
+                    passwordConfirm.remove(pd.id);
+                    Database.data.bind(player, pd.id);
+                    return;
+                }
+                sendErrMessage(player, "protect-confirm-failed");
+                passwordConfirm.remove(pd.id);
+                return;
+            }
+            Long current = pd.getDoc().getPassword();
+            if(current != null) {
+                if(hashed.equals(current)) {
+                    Database.data.remove(pd.id, "password");
+                    sendMessage(player, "protect-protection-deleted");
+                    return;
+                }
+                sendErrMessage(player, "protect-already-protected");
+                return;
+            }
+            if (args[0].length() < 8) {
+                sendErrMessage(player, "protect-too-short");
+                return;
+            }
+            if (args[0].toLowerCase().equals(args[0])) {
+                sendErrMessage(player, "protect-missing-capital");
+                return;
+            }
+            if (Formatting.hasNoDigit(args[0])) {
+                sendErrMessage(player, "protect-missing-digit");
+                return;
+            }
+            sendMessage(player, "protect-confirm");
+            passwordConfirm.put(pd.id, args[0]);
+        });
+        //todo test
+        handler.<Player>register("report", "<id> <reason...>", "Report the griefer to admins. Usage is limited to prevent spam.", (args, player)->{
+            Doc doc = getData(player).getDoc();
+            switch (ReportPlayer(doc, null, args[1], args[0], doc.getId())){
+                case invalidNotInteger:
+                    sendErrMessage(player, "refuse-not-integer", "1");
+                    break;
+                case notFound:
+                    sendErrMessage(player, "player-not-found");
+                    break;
+                case invalid:
+                    sendErrMessage(player, "report-disabled");
+                    break;
+                case notPermitted:
+                    sendErrMessage(player, "report-penalty", milsToTime(Global.limits.reportPenalty));
+                    break;
+                case adminReport:
+                    sendErrMessage(player, "report-admin");
+                    break;
+                case grieferReport:
+                    sendErrMessage(player, "report-already-marked");
+                    break;
+                case success:
+                    sendMessage(player, "report-reported");
+            }
+        });
+
         handler.<Player>register("t", "<text...>", "This command straight up bans you from server, don't use it.",(args, player)->{
-            Long pen = spammers.contains(player);
+            Long pen = spammers.contains(player.uuid);
             if (pen != null && pen > 0){
-                netServer.admins.addSubnetBan(Database.getSubnet(getData(player)));
+                netServer.admins.addSubnetBan(getSubnet(player.con.address));
                 player.con.kick("Sorry but we don't need spammers here");
                 spammers.remove(player.uuid);
                 return;
             }
-            spammers.add(player);
+            spammers.add(player.uuid);
             sendErrMessage(player, "t-stop-spamming");
         });
 
         handler.<Player>register("help","[page]","Shows all available commands and how to use them.",(args,player)->{
             ArrayList<String> res = new ArrayList<>();
-            PlayerD pd = getData(player);
+            PD pd = getData(player);
             for(CommandHandler.Command c : handler.getCommandList()){
                 String paramKey = c.text + "-params";
                 String descriptionKey = c.text + "-description";
@@ -129,7 +249,9 @@ public class InGameCommands {
                     "" + Database.getDatabaseSize(),
                     "" + currentFreeSpace,
                     "" + totalFreeSpace,
-                    "" + (int)( (float) currentFreeSpace / totalFreeSpace * 100));
+                    "" + (int)( (float) currentFreeSpace / totalFreeSpace * 100),
+                    "" + Database.data.count(Filters.eq("rank", "griefer")),
+                    "" + Database.data.count(Filters.eq("rank", "verified")));
         });
 
         handler.<Player>register("rules","Shows rules of this server.",(args,player)->{
@@ -148,47 +270,51 @@ public class InGameCommands {
         });
 
         Command mkgfCommand = (args,player)-> {
-            PlayerD pd = Database.findData(cleanName(args[0]));
-            if (pd == null) {
+            Doc doc = Database.findData(cleanName(args[0]));
+
+            if (doc == null) {
                 sendErrMessage(player, "player-not-found");
-                return null;
-            }
-            if (pd.uuid.equals(player.uuid)) {
-                sendErrMessage(player, "mkgf-self");
-                return null;
-            }
-            if (getRank(pd).isAdmin) {
-                sendErrMessage(player, "mkgf-target-admin");
+                player.sendMessage(getPlayerList());
                 return null;
             }
 
+            if(handleHammer(vote, doc, player) || handleHammer(voteKick, doc, player)){
+                return null;
+            }
+
+            if (doc.getUuid().equals(player.uuid)) {
+                sendErrMessage(player, "mkgf-self");
+                return null;
+            }
+            if (doc.isAdmin()) {
+                sendErrMessage(player, "mkgf-target-admin");
+                return null;
+            }
+            Rank prev = doc.getRank(RankType.rank);
+            boolean isGriefer = prev == Ranks.griefer;
             VoteData voteData = new VoteData() {
                 {
                     special = Perm.antiGrief;
                     by = player;
-                    target = pd;
-                    reason = pd.rank.equals(Rank.griefer.name()) ? "mkgf-remove" : "mkgf-add";
+                    target = doc;
+                    reason = isGriefer ? "mkgf-remove" : "mkgf-add";
                 }
 
                 @Override
                 public void run() {
-                    Rank old = getRank(pd);
-                    if (pd.rank.equals(Rank.griefer.name())) {
-                        Database.setRank(pd, Rank.newcomer, null);
-                    } else {
-                        Database.setRank(pd, Rank.griefer, null);
+                    Rank nw = Ranks.newcomer;
+                    if (!isGriefer) {
+                        nw = Ranks.griefer;
                     }
-                    Bot.onRankChange(pd.originalName, pd.serverId, old.name(), getRank(pd).name(), cleanName(by.name), "mkgf");
+                    Database.setRank(doc.getId(), nw);
+                    Bot.onRankChange(doc.getName(), doc.getId(), prev.name, nw.name, cleanName(by.name), "mkgf");
+
                 }
             };
 
             if (player.isAdmin) {
                 voteData.run();
-                sendMessage(pd.rank.equals(Rank.griefer.name()) ? "mkgf-admin-marked" : "mkgf-admin-removed", getData(player).originalName, pd.originalName);
-                return null;
-            }
-
-            if(handleHammer(vote, pd, player) || handleHammer(voteKick, pd, player)){
+                sendMessage(isGriefer ?  "mkgf-admin-removed" : "mkgf-admin-marked" , getData(player).name, doc.getName());
                 return null;
             }
 
@@ -202,44 +328,48 @@ public class InGameCommands {
         handler.<Player>register("mkgf","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            vote.aVote(voteData, 4, Database.getSpecialRank(Database.getData(player)), ((PlayerD)voteData.target).originalName);
+            vote.aVote(voteData, 4, ((Doc)voteData.target).getName());
         });
 
         handler.<Player>register("votekick","<name/id...>","Opens vote for marking player a griefer.",(args,player)->{
             VoteData voteData = mkgfCommand.run(args,player);
             if(voteData==null) return;
-            voteKick.aVote(voteData, 4, Database.getSpecialRank(Database.getData(player)),((PlayerD)voteData.target).originalName);
+            voteKick.aVote(voteData, 4,((Doc)voteData.target).getName());
         });
 
-        handler.<Player>register("info","[id]","Displays players profile.",(args, player)->{
+        handler.<Player>register("info","<s/n> [id]","Displays players profile.",(args, player)->{
             String data;
-            PlayerD pd = getData(player);
-            if(args.length == 0){
-                data = pd.toString(pd);
+            PD pd = getData(player);
+            if(args.length == 1){
+                Doc doc = pd.getDoc();
+                data = args[0].equals("s") ?  doc.statsToString(pd) : doc.toString(pd);
             } else {
-                if(!Strings.canParsePostiveInt(args[0])){
-                    sendErrMessage(player,"refuse-not-integer","1");
+                if(!Strings.canParsePostiveInt(args[1])){
+                    sendErrMessage(player,"refuse-not-integer","2");
                     return;
                 }
-                PlayerD other = Database.findData(args[0]);
-                if(other == null){
+                Doc doc = Database.data.getDoc(Long.parseLong(args[1]));
+                if(doc == null){
                     sendErrMessage(player,"player-not-found");
                     return;
                 }
-                data = other.toString(pd);
+                data = args[0].equals("s") ?  doc.statsToString(pd) : doc.toString(pd);
             }
-            Call.onInfoMessage(player.con,"[orange]==PLAYER PROFILE==[]\n\n"+data);
+            Call.onInfoMessage(player.con,data);
         });
 
-        handler.<Player>register("set","[setting/help/info] [on/off/argument]",
+        handler.<Player>register("set","[setting/permission/help] [on/off/argument]",
                 "/set to see setting options. /set help for more info.",(args,player)->{
-            PlayerD pd = getData(player);
-
+            PD pd = getData(player);
             if(args.length==0) {
                 StringBuilder sb = new StringBuilder("[orange]==SETTINGS==[gray]\n\n");
                 for(Setting s : Setting.values()){
-                    String val = pd.settings.contains(s.name()) ? "[green]on[]" : "[scarlet]off[]";
+                    String val = Database.hasEnabled(player, s) ? "[green]on[]" : "[scarlet]off[]";
                     sb.append(s.name()).append(":").append(val).append("\n");
+                }
+                for(Perm p : pd.perms){
+                    String val = Database.hasDisabled(player, p) ?  "[scarlet]off[]" : "[green]on[]";
+                    sb.append(p.name()).append(": ").append(val).append("\n");
                 }
                 Call.onInfoMessage(player.con, sb.toString());
                 return;
@@ -275,7 +405,7 @@ public class InGameCommands {
                         return;
                     }
                     //checking if player has permission for this
-                    if (Database.hasSpecialPerm(player, Perm.colorCombo)) {
+                    if (!pd.hasThisPerm(Perm.colorCombo)) {
                         sendErrMessage(player, "set-color-no-perm");
                         return;
                     }
@@ -283,8 +413,8 @@ public class InGameCommands {
                     sendMessage(player, "set-color-preview", preview);
                 } else {
                     //checking if player is verified
-                    if (!Database.hasPerm(player, Perm.high)) {
-                        sendErrMessage(player, "at-least-verified", Rank.verified.getName());
+                    if (!pd.hasPermLevel(Perm.high)) {
+                        sendErrMessage(player, "at-least-verified", Ranks.verified.getSuffix());
                         return;
                     }
                     boolean tooDark = false;
@@ -309,24 +439,44 @@ public class InGameCommands {
                 pd.textColor = args[1];
                 return;
             }
-            if(!enumContains(Setting.values(),args[0])){
+            boolean isSetting = enumContains(Setting.values(),args[0]);
+            if(!isSetting && !enumContains(Perm.values(), args[0])){
                 sendErrMessage(player,"set-invalid");
                 return;
             }
+            Setting s = isSetting ? Setting.valueOf(args[0]) : null;
+            Perm p = !isSetting ? Perm.valueOf(args[0]) : null;
+            long id = pd.id;
             switch (args[1]){
                 case "on" :
-                    if(pd.settings.contains(args[0])){
-                        sendErrMessage(player, "set-already-enabled");
-                        return;
+                    if(isSetting) {
+                        if(Database.hasEnabled(player, s)){
+                            sendErrMessage(player, "set-already-enabled");
+                            return;
+                        }
+                        Database.data.addToSet(id, "settings", args[0]);
+                    } else {
+                        if(!Database.hasDisabled(player, p)){
+                            sendErrMessage(player, "set-already-enabled");
+                            return;
+                        }
+                        Database.data.pull(id, "settings", args[0]);
                     }
-                    pd.settings.add(args[0]);
                     break;
                 case "off" :
-                    if(!pd.settings.contains(args[0])){
-                        sendErrMessage(player,"set-already-disabled");
-                        return;
+                    if(isSetting) {
+                        if(!Database.hasEnabled(player, s)){
+                            sendErrMessage(player, "set-already-disabled");
+                            return;
+                        }
+                        Database.data.pull(id, "settings", args[0]);
+                    } else {
+                        if(Database.hasDisabled(player, p)){
+                            sendErrMessage(player, "set-already-disabled");
+                            return;
+                        }
+                        Database.data.addToSet(id, "settings", args[0]);
                     }
-                    pd.settings.remove(args[0]);
                     break;
                 default:
                     sendErrMessage(player,"no-such-option",args[1],"on/off");
@@ -336,15 +486,17 @@ public class InGameCommands {
 
         handler.<Player>register("mute","<name/id/info>","Mutes or, if muted, unmutes player for you. " +
                 "It can be used only on online players.",(args,player)->{
-            PlayerD pd = getData(player);
             Player other = findPlayer(args[0]);
-
+            PD pd = getData(player);
             if(other == null){
                 if(args[0].equals("info")){
                     StringBuilder sb = new StringBuilder("[orange]==MUTES==[]\n\n");
-                    for(String s : pd.mutes){
-                        PlayerD o = Database.getMeta(s);
-                        sb.append(o.originalName).append(" [white](").append(o.serverId).append(")[gray],");
+                    for(String s : (String[]) Database.data.get(pd.id, "mutes")){
+                        for(Document d : Database.data.byUuid(s)) {
+                            Doc doc = Doc.getNew(d);
+                            sb.append(doc.getName()).append(" [white](").append(doc.getId()).append(")[gray],");
+                        }
+
                     }
                     Call.onInfoMessage(player.con, sb.toString());
                     return;
@@ -357,29 +509,31 @@ public class InGameCommands {
                 return;
             }
 
-            if(pd.mutes.contains(other.uuid)){
-                pd.mutes.remove(other.uuid);
+            if(Database.data.contains(pd.id, "mutes", other.usid)){
+                Database.data.pull(pd.id, "mutes", other.uuid);
                 sendMessage(player,"mute-un",other.name);
             } else {
-                pd.mutes.add(other.uuid);
+                Database.data.addToSet(pd.id, "mutes", other.uuid);
                 sendMessage(player,"mute",other.name);
             }
         });
 
         handler.<Player>register("link","<pin/refuse>",
                 "Link your account with discord if you have the pin, or refuse link attempt.",(args,player)->{
-            PlayerD pd = getData(player);
-            if(!Bot.pendingLinks.containsKey(pd.serverId)){
+            Doc doc = getData(player).getDoc();
+            long id = doc.getId();
+            if(!Bot.pendingLinks.containsKey(id)){
                 sendErrMessage(player,"link-no-request");
                 return;
             }
             if(args[0].equals("refuse")){
-                Bot.pendingLinks.remove(pd.serverId);
+                Bot.pendingLinks.remove(id);
                 sendMessage(player,"link-request-refuse");
                 return;
             }
-            if(args[0].equals(Bot.pendingLinks.get(pd.serverId).pin)){
-                pd.discordLink = Bot.pendingLinks.remove(pd.serverId).id;
+            if(args[0].equals(Bot.pendingLinks.get(id).pin)){
+                String link =  Bot.pendingLinks.remove(id).id;
+                Database.data.set(id, "link",link);
                 sendMessage(player,"link-success");
                 return;
             }
@@ -391,14 +545,14 @@ public class InGameCommands {
                 sendErrMessage(player,"refuse-not-admin");
                 return;
             }
-            switch (setRankViaCommand(player,args[0],args[1],args.length==3 ? args[2] : null)){
+            switch (setRank(player,args[0],args[1],args.length==3 ? args[2] : null)){
                 case notFound:
                     sendErrMessage(player,"player-not-found");
                     break;
                 case invalid:
                     sendErrMessage(player,"rank-not-found");
-                    sendMessage(player,"rank-s",Arrays.toString(Rank.values()));
-                    sendMessage(player,"rank-s-custom",Database.ranks.keySet().toString());
+                    sendMessage(player,"rank-s", Ranks.buildIn.keySet().toString());
+                    sendMessage(player,"rank-s-custom", Ranks.special.keySet().toString());
                     break;
                 case notPermitted:
                     sendErrMessage(player,"rank-using-admin-rank");
@@ -409,7 +563,7 @@ public class InGameCommands {
                 "More info via /map help",(args,player)->{
             VoteData voteData;
             String what = "map-restart";
-            PlayerD pd = getData(player);
+            PD pd = getData(player);
             Map map = world.getMap();
             MapD md = MapManager.played;
             Perm spec = Perm.restart;
@@ -528,7 +682,7 @@ public class InGameCommands {
                     sendErrMessage(player,"invalid-mode");
                     return;
             }
-            vote.aVote(voteData,10, getSpecialRank(pd),voteData.target != null ? ((Map)voteData.target).name() : "");
+            vote.aVote(voteData,10,voteData.target != null ? ((Map)voteData.target).name() : "");
         });
 
         handler.<Player>register("emergency","<time/permanent/stop>","Emergency control.",(args,player)->{
@@ -536,7 +690,7 @@ public class InGameCommands {
                 sendErrMessage(player,"refuse-not-admin");
                 return;
             }
-            switch (setEmergencyViaCommand(args)) {
+            switch (setEmergency(args)) {
                 case success:
                     sendMessage(player,"emergency-started");
                     break;
@@ -557,36 +711,36 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("search","<searchKey/sort/rank> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
+        handler.<Player>register("search","<searchKey/sort/rank/specialrank/donationlevel> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
+            if(args[0].equals("help")) {
+                sendInfoPopup(player, "search-help", Arrays.toString(Stat.values()));
+            }
             new Thread(()-> {
-                ArrayList<String> res = Database.search(args, 40);
-                StringBuilder mb = new StringBuilder();
+                ArrayList<String> res = Database.search(args, 40, Database.getData(player));
                 for (String s : res) {
-                    mb.append(s).append("\n");
+                    player.sendMessage(s);
                 }
                 if (res.isEmpty()) {
                     sendErrMessage(player, "search-no-results");
-                } else {
-                    player.sendMessage(mb.toString());
                 }
             }).start();
         });
 
         handler.<Player>register("test","<start/egan/help/answer>","More info via /test help.", (args,player)-> {
-            Long penalty = Tester.recent.contains(player);
-            PlayerD pd = Database.getData(player);
+            Long penalty = Tester.recent.contains(player.uuid);
+            PD pd = Database.getData(player);
             boolean isTested = Tester.tests.containsKey(player.uuid);
             switch (args[0]) {
                 case "help":
                     sendInfoPopup(player, "test-help");
                     return;
                 case "start":
-                    if (pd.rank.equals(Rank.griefer.name())) {
+                    if (pd.isGriefer()) {
                         sendErrMessage(player, "griefer-no-perm");
                         return;
                     }
-                    if (Database.hasPerm(player, Perm.high)) {
-                        sendErrMessage(player, "test-no-need", Rank.verified.getName());
+                    if (pd.hasPermLevel(Perm.high)) {
+                        sendErrMessage(player, "test-no-need", Ranks.verified.getSuffix());
                         return;
                     }
                     if (penalty != null && penalty > 0) {
@@ -621,9 +775,9 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("ranks","<help/normal/special/info> [name/page]",
+        handler.<Player>register("ranks","<help/normal/special/info/update> [name/page]",
                 "More info via /ranks help.", (args,player)->{
-            PlayerD pd = Database.getData(player);
+            PD pd = Database.getData(player);
             ArrayList<String> res = new ArrayList<>();
             int page = args.length == 2 && Strings.canParsePostiveInt(args[1]) ? Integer.parseInt(args[1]) : 1;
             switch (args[0]){
@@ -632,7 +786,13 @@ public class InGameCommands {
                     return;
                 case "info":
                     if(wrongArgAmount(player,args,2)) return;
-                    SpecialRank sr = Database.ranks.get(args[1]);
+                    Rank sr = Ranks.special.get(args[1]);
+                    if(sr == null) {
+                        sr = Ranks.buildIn.get(args[1]);
+                    }
+                    if(sr == null) {
+                        sr = Ranks.donation.get(args[1]);
+                    }
                     if(sr == null){
                         sendErrMessage(player,"ranks-rank-not-exist");
                         return;
@@ -640,12 +800,18 @@ public class InGameCommands {
                     Call.onInfoMessage(player.con, sr.getDescription(pd));
                     return;
                 case "normal":
-                    for(Rank r : Rank.values()){
-                        res.add(r.getName());
+                    for(Rank r : Ranks.buildIn.values()){
+                        res.add(r.getSuffix());
                     }
                     break;
                 case "special":
-                    for(SpecialRank s : Database.ranks.values()){
+                    for(Rank s : Ranks.special.values()){
+                        String indicator = pd.obtained.contains(s) ? "[green]V[]":"[scarlet]X[]";
+                        res.add(indicator + s.getSuffix() + indicator);
+                    }
+                    break;
+                case "donation":
+                    for(Rank s : Ranks.donation.values()){
                         res.add(s.getSuffix());
                     }
                     break;
@@ -807,12 +973,7 @@ public class InGameCommands {
                 }
                 data.by = player;
                 data.target = stack;
-                if(Database.hasSpecialPerm(player, Perm.loadout)) {
-                    data.run();
-                    Hud.addAd("loadout-player-launch", 10, player.name, "!gray");
-                    return;
-                }
-                vote.aVote(data, 3, getSpecialRank(getData(player)), arg, secToTime(Loadout.config.shipSpeed));
+                vote.aVote(data, 3, arg, secToTime(Loadout.config.shipSpeed));
             } else {
                 wrongArgAmount(player, args, 3);
             }
@@ -889,7 +1050,7 @@ public class InGameCommands {
                             sendErrMessage(player, "factory-cannot-drop-units");
                             return;
                         }
-                        arg2 = tile.x + "," + tile.x;
+                        arg2 = tile.x + "," + tile.y;
                         UnitStack available = factory.canWithdraw(unitStack);
                         if(available.amount == 0){
                             sendErrMessage(player, "factory-no-unis-available");
@@ -952,12 +1113,7 @@ public class InGameCommands {
                 }
                 data.target = unitStack;
                 data.by = player;
-                if(Database.hasSpecialPerm(player, Perm.factory)) {
-                    data.run();
-                    Hud.addAd("factory-player-launch", 10, player.name, "!gray");
-                    return;
-                }
-                vote.aVote(data, 3, getSpecialRank(getData(player)), arg, arg2);
+                vote.aVote(data, 3, arg, arg2);
             } else {
                 wrongArgAmount(player, args, 3);
             }
@@ -975,8 +1131,7 @@ public class InGameCommands {
                         kick(p, "kickafk-kick", 0);
                     }
                 }
-            }
-        }, 4, getSpecialRank(getData(player))));
+            }}, 4));
 
         handler.<Player>register("skipwave", "[1-5]", "Skips amount of waves.",(args, player)->{
             if(args.length == 1 && !Strings.canParsePostiveInt(args[0])){
@@ -999,7 +1154,7 @@ public class InGameCommands {
                         logic.runWave();
                     }
                 }
-            }, 6, getSpecialRank(getData(player)), "" + amount);
+            }, 6, "" + amount);
         });
 
         handler.removeCommand("vote");
@@ -1015,7 +1170,7 @@ public class InGameCommands {
         });
 
         handler.<Player>register("suicide","Kill your self.",(arg, player) -> {
-            if(!Database.hasSpecialPerm(player,Perm.suicide)){
+            if(getData(player).hasThisPerm(Perm.suicide)){
                 sendErrMessage(player, "suicide-no-perm");
                 return;
             }
@@ -1053,7 +1208,7 @@ public class InGameCommands {
                     sendErrMessage(player, "dm-target-offline");
                     return;
                 }
-                String msg = "[#ffdfba]<[#" + player.color + "]" + player.name + "[]>:[white]" + args[0];
+                String msg = Formatting.formatMessage(player, Formatting.MessageMode.direct) + args[0];
                 player.sendMessage(msg);
                 found.sendMessage(msg);
             }
@@ -1073,16 +1228,16 @@ public class InGameCommands {
                 sendErrMessage(player, "refuse-not-integer", "2");
                 return;
             }
-            PlayerD pd = Database.getMetaById(Integer.parseInt(args[0]));
-            if(pd == null){
+            Doc doc = Database.data.getDoc(Long.parseLong(args[0]));
+            if(doc == null){
                 sendErrMessage(player, "player-not-found");
                 return;
             }
-            if(getRank(pd).isAdmin){
+            if(doc.isAdmin()){
                 sendErrMessage(player, "revert-cannot-revert");
                 return;
             }
-            ArrayList<Action> acts = Administration.undo.get(pd.uuid);
+            ArrayList<Action> acts = Administration.undo.get(doc.getUuid());
             if(acts == null || acts.isEmpty()){
                 sendErrMessage(player, "revert-no-actions");
                 return;
@@ -1096,6 +1251,80 @@ public class InGameCommands {
                 count++;
             }
             sendMessage(player, "revert-reverted");
+        });
+
+        //todo test
+        handler.<Player>register("buiidcore", "<small/normal/big>", "Builds core on your coordinates.", (args, player)-> {
+            Block core = Blocks.coreShard;
+            TileEntity existingCore = player.getClosestCore();
+            if (existingCore == null) {
+                sendChatMessage(player, "buildcore-no-resources");
+                return;
+            }
+            float priceRatio = .2f;
+            Tile tile = player.tileOn();
+            switch (args[0]) {
+                case "normal":
+                    core = Blocks.coreFoundation;
+                    priceRatio = .3f;
+                    break;
+                case "big":
+                    core = Blocks.coreNucleus;
+                    priceRatio = .4f;
+            }
+            ArrayList<ItemStack> price = new ArrayList<>();
+            int storageSize = 0;
+            for (CoreBlock.CoreEntity c : state.teams.cores(Team.sharded)) {
+                storageSize += c.block.itemCapacity;
+            }
+            for (Item i : content.items()) {
+                if (i.type == ItemType.resource) continue;
+                price.add(new ItemStack(i, (int) (storageSize * priceRatio)));
+            }
+            boolean has = true;
+            StringBuilder sb = new StringBuilder();
+            for (ItemStack i : price) {
+                if (!existingCore.items.has(i.item, i.amount)) {
+                    i.amount -= existingCore.items.get(i.item);
+                    sb.append(i).append(" ");
+                    has = false;
+                }
+            }
+            if (!has) {
+                sendErrMessage(player, "buildcore-missing", sb.toString());
+                return;
+            }
+            Block finalCore = core;
+            Block finalCore1 = core;
+            vote.aVote(new VoteData() {
+                {
+                    by = player;
+                    reason = "buildcore";
+                    special = Perm.coreBuild;
+                }
+
+                @Override
+                public void run() {
+                    Call.onConstructFinish(tile, finalCore, 0, (byte) 0, player.getTeam(), true);
+                    if (tile.block() == finalCore) {
+                        for (ItemStack i : price) {
+                            existingCore.items.remove(i.item, i.amount);
+                        }
+                        sendMessage("buildcore-success", finalCore1.name, tile.x + " " + tile.y);
+                    } else {
+                        sendMessage("buildcore-failed");
+                    }
+                }
+            }, 3, core.name, tile.x + " " + tile.y);
+        });
+
+        handler.<Player>register("a", "<text...>", "Sends message just to admins.", (args, player)->{
+            if(!General.isAdminOnline()) {
+                sendErrMessage(player, "a-no-admin-online");//todo
+                return;
+            }
+            Players.sendMessageToAdmins(player, "blank", args[0]);
+            player.sendMessage(formatMessage(player, MessageMode.direct) + args[0]);
         });
     }
 }

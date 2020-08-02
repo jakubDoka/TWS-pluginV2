@@ -25,4 +25,12 @@ public class CommandContext {
         mb.append(message);
         mb.send(channel);
     }
+
+    public String ExtractMessage(int index) {
+        StringBuilder sb = new StringBuilder();
+        for(int i = index; i < args.length; i++){
+            sb.append(args[i]).append(" ");
+        }
+        return sb.toString();
+    }
 }

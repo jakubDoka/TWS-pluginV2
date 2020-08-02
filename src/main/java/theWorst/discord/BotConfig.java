@@ -11,8 +11,8 @@ import java.util.Optional;
 import static theWorst.Bot.api;
 import static theWorst.Bot.dir;
 import static java.lang.System.out;
-import static theWorst.Tools.Json.loadJson;
-import static theWorst.Tools.Json.saveJson;
+import static theWorst.tools.Json.loadJson;
+import static theWorst.tools.Json.saveJson;
 
 public class BotConfig {
     public String prefix = "%";

@@ -1,20 +1,20 @@
 package theWorst.helpers;
 
 import mindustry.entities.type.Player;
-import org.json.simple.JSONArray;
 import theWorst.Global;
 import theWorst.database.Database;
-import theWorst.database.PlayerD;
-import theWorst.database.Rank;
+import theWorst.database.PD;
+import theWorst.database.Ranks;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 
-import static theWorst.Tools.Json.*;
-import static theWorst.Tools.Players.sendErrMessage;
-import static theWorst.Tools.Players.sendMessage;
+import static theWorst.tools.Json.loadSimpleHashmap;
+import static theWorst.tools.Json.saveJson;
+import static theWorst.tools.Players.sendErrMessage;
+import static theWorst.tools.Players.sendMessage;
+import static theWorst.database.Database.getData;
 
 public class Tester {
     private static final String testFile = Global.configDir + "test.json";
@@ -56,7 +56,7 @@ public class Tester {
         HashMap<String, String[]> questions;
 
         public Test(Player player){
-            PlayerD pd = Database.getData(player);
+            PD pd = getData(player);
             questions = loadQuestions(pd.bundle.getLocale());
             if(questions.isEmpty()){
                 sendErrMessage(player, "test-no-questions");
@@ -70,11 +70,11 @@ public class Tester {
             int size = questions.size();
             if(progress >= size){
                 if(points==size){
-                    sendMessage(player,"test-success",Rank.verified.getName());
-                    Database.setRank(Database.getData(player), Rank.verified, player);
+                    sendMessage(player,"test-success", Ranks.verified.getSuffix());
+                    Database.setRank(getData(player).id, Ranks.verified);
                 } else {
                     sendErrMessage(player,"test-fail","" + points,"" + size);
-                    recent.add(player);
+                    recent.add(player.uuid);
                 }
                 tests.remove(player.uuid);
                 return;
