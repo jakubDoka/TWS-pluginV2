@@ -16,7 +16,7 @@ import static theWorst.tools.Bundle.*;
 import static theWorst.tools.Formatting.*;
 
 public class Players {
-    private static final String prefix = "[coral][[[scarlet]Server[]]:[#cbcbcb]";
+    private static final String prefix = "[coral][[[scarlet]Server[]]:[#cbcbcb] ";
 
     public static String getPlayerList(){
         StringBuilder builder = new StringBuilder();

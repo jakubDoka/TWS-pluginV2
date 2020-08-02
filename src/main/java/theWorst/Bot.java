@@ -145,15 +145,17 @@ public class Bot {
 
     public static void connectUser(PD pd, Doc doc) {
 
-        if (Bot.api == null || Bot.config.serverId == null || pd.isGriefer()) {
+        Runnable conMess = () ->{
             sendMessage("player-connected",pd.player.name,String.valueOf(pd.id));
+            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) has connected.", pd.name, pd.id));
+        };
+
+        if (Bot.api == null || Bot.config.serverId == null || pd.isGriefer()) {
+            conMess.run();
             return;
         }
 
-        Runnable conMess = () ->{
-            sendMessage("player-connected",pd.player.name,String.valueOf(pd.id));
-            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes connected.", cleanColors(pd.player.name), pd.id));
-        };
+
 
         if (Bot.pendingLinks.containsKey(pd.id)){
             sendMessage(pd.player,"discord-pending-link",Bot.pendingLinks.get(pd.id).name);

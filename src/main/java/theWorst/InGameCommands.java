@@ -92,7 +92,7 @@ public class InGameCommands {
     }
 
     private boolean handleHammer(Vote vote, Doc doc, Player player) {
-        if(vote.voting && vote.voteData.target instanceof PD && ((PD) vote.voteData.target).player.uuid.equals(doc.getUuid())){
+        if(vote.voting && vote.voteData.target instanceof Doc && ((Doc) vote.voteData.target).getUuid().equals(doc.getUuid())){
             vote.addVote(player, "y");
             return true;
         }
