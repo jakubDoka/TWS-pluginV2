@@ -279,7 +279,7 @@ public class Database {
             if (pd.isGriefer()) {
                 pd.perms.clear();
             }
-            pd.addRank(current);
+            pd.addRank(rank);
             pd.updateName();
             pd.player.isAdmin = rank.isAdmin;
         }
