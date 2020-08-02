@@ -97,7 +97,7 @@ public class Administration implements Displayable{
                         sendErrMessage(player, "griefer-too-match-messages");
                         return null;
                     }
-                    color = "pink";
+                    color = Ranks.griefer.color;
 
                 }
                 //handle users with color combo permission

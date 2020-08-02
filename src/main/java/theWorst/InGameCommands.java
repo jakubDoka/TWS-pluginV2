@@ -270,7 +270,7 @@ public class InGameCommands {
         });
 
         Command mkgfCommand = (args,player)-> {
-            Doc doc = Database.findData(args[0]);
+            Doc doc = Database.findData(cleanName(args[0]));
 
             if (doc == null) {
                 sendErrMessage(player, "player-not-found");

@@ -36,8 +36,7 @@ public class Players {
             return  playerGroup.find(p -> getData(p).id == id);
         }
         for(Player p:playerGroup){
-            String pName = cleanName(p.name);
-            if(pName.equalsIgnoreCase(arg)){
+            if(getData(p).name.equalsIgnoreCase(arg)){
                 return p;
             }
         }
