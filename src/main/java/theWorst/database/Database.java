@@ -29,6 +29,7 @@ import theWorst.Global;
 import theWorst.tools.Bundle;
 import theWorst.tools.Millis;
 
+import java.awt.*;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -111,6 +112,13 @@ public class Database {
                 }
                 data.incOne(id, Stat.gamesPlayed);
             }
+
+        });
+
+        Events.on(EventType.WorldLoadEvent.class, e ->{
+            synchronized (placedTurrets){
+                placedTurrets.clear();
+            }
         });
 
         //build and destruct permissions handling
@@ -146,14 +154,11 @@ public class Database {
             if(e.unit instanceof Player){
                 data.incOne(getData((Player) e.unit).id, Stat.deaths);
             }else if(e.unit.getTeam() != Team.sharded){
-                Call.sendMessage("kill");
                 killCounter.queue.add(()->{
-                    Call.sendMessage("calculating");
                     HashSet<Long> seen = new HashSet<>();
                     for(TileEntity t : new HashSet<>(placedTurrets.keySet())){
                         Turret tur = (Turret)t.block;
                         if(tur == null ) continue;
-
                         Turret.TurretEntity ent = (Turret.TurretEntity)t;
                         if(new Vec2(t.x, t.y).sub(new Vec2(e.unit.x, e.unit.y)).len() < tur.range) continue;
                         if(ent.totalAmmo == 0 || (ent.power != null && ent.power.status == 0)) continue;
@@ -177,20 +182,22 @@ public class Database {
         //count buildings and destroys
         Events.on(EventType.BlockBuildEndEvent.class, e->{
             if(e.player == null) return;
-            if(!e.breaking && e.tile.block().buildCost/60<1) return;
             long id = getData(e.player).id;
             if(e.breaking){
-                data.incOne(id, Stat.buildingsBroken);
                 removeTurret(e.tile);
+            } else if(e.tile.ent() != null && e.tile.block().flags.contains(BlockFlag.turret)) {
+                synchronized (placedTurrets) {
+                    placedTurrets.put(e.tile.ent(), id);
+                }
+            }
+            if(!e.breaking && e.tile.block().buildCost/60<1) return;
+
+            if(e.breaking){
+                data.incOne(id, Stat.buildingsBroken);
+
             }else {
                 data.incOne(id, Stat.buildingsBuilt);
-                Call.sendMessage(e.tile.block().flags.toString());
-                if(e.tile.ent() != null && e.tile.block().flags.contains(BlockFlag.turret)){
-                    Call.sendMessage("Tile added");
-                    synchronized (placedTurrets) {
-                        placedTurrets.put(e.tile.ent(), id);
-                    }
-                }
+
             }
         });
 
