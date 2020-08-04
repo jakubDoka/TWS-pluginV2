@@ -2,7 +2,6 @@ package theWorst.helpers;
 
 import arc.Events;
 import arc.math.Mathf;
-
 import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
@@ -11,8 +10,8 @@ import mindustry.world.StaticTree;
 import mindustry.world.Tile;
 import theWorst.Bot;
 import theWorst.Global;
-import theWorst.tools.Millis;
 import theWorst.database.*;
+import theWorst.tools.Millis;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -105,10 +104,16 @@ public class Administration implements Displayable{
                     String[] colors = pd.textColor.split("/");
                     if (pd.hasThisPerm(Perm.colorCombo) && colors.length > 1) {
                         StringBuilder indentedMassage = new StringBuilder();
-                        int lineLength = 54;
+                        int lineLength = 44;
+                        int extraChars = 4; // brackets around the name
                         for(int i = 0; i < message.length(); i++) {
                             indentedMassage.append(message.charAt(i));
-                            if (i % lineLength == 0 && i != 0) {
+                            if (i % lineLength == 0 && i != 0 || (i + pd.name.length() + extraChars == lineLength)) {
+                                if(i < message.length() - 1) {
+                                    if(message.charAt(i+1) != ' '){
+                                        indentedMassage.append("-");
+                                    }
+                                }
                                 indentedMassage.append("\n");
                             }
                         }

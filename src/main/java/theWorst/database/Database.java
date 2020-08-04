@@ -2,6 +2,7 @@ package theWorst.database;
 
 import arc.Events;
 import arc.math.geom.Vec2;
+import arc.util.Log;
 import arc.util.Strings;
 
 import arc.util.Timer;
@@ -145,13 +146,19 @@ public class Database {
             if(e.unit instanceof Player){
                 data.incOne(getData((Player) e.unit).id, Stat.deaths);
             }else if(e.unit.getTeam() != Team.sharded){
+                Call.sendMessage("kill");
                 killCounter.queue.add(()->{
+                    Call.sendMessage("calculating");
                     HashSet<Long> seen = new HashSet<>();
                     for(TileEntity t : new HashSet<>(placedTurrets.keySet())){
                         Turret tur = (Turret)t.block;
-                        if(new Vec2(t.x, t.y).sub(new Vec2(e.unit.x, e.unit.y)).len() < tur.range && ((Turret.TurretEntity)t).totalAmmo != 0) {
-                            seen.add(placedTurrets.get(t));
-                        }
+                        if(tur == null ) continue;
+
+                        Turret.TurretEntity ent = (Turret.TurretEntity)t;
+                        if(new Vec2(t.x, t.y).sub(new Vec2(e.unit.x, e.unit.y)).len() < tur.range) continue;
+                        if(ent.totalAmmo == 0 || (ent.power != null && ent.power.status == 0)) continue;
+                        seen.add(placedTurrets.get(t));
+
                     }
                     for( Long id : seen) {
                         data.incOne(id, Stat.enemiesKilled);
@@ -177,7 +184,9 @@ public class Database {
                 removeTurret(e.tile);
             }else {
                 data.incOne(id, Stat.buildingsBuilt);
+                Call.sendMessage(e.tile.block().flags.toString());
                 if(e.tile.ent() != null && e.tile.block().flags.contains(BlockFlag.turret)){
+                    Call.sendMessage("Tile added");
                     synchronized (placedTurrets) {
                         placedTurrets.put(e.tile.ent(), id);
                     }
