@@ -1,6 +1,7 @@
 package theWorst.database;
 
 import arc.Events;
+import arc.math.geom.Vec2;
 import arc.util.Strings;
 
 import arc.util.Timer;
@@ -8,12 +9,17 @@ import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
 import mindustry.entities.traits.BuilderTrait;
 import mindustry.entities.type.Player;
+import mindustry.entities.type.TileEntity;
 import mindustry.game.EventType;
 import mindustry.game.Team;
 import mindustry.gen.Call;
 import mindustry.net.Administration;
 import mindustry.type.ItemStack;
+import mindustry.ui.fragments.Fragment;
+import mindustry.world.Tile;
+import mindustry.world.blocks.defense.turrets.Turret;
 import mindustry.world.blocks.storage.CoreBlock;
+import mindustry.world.meta.BlockFlag;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
 import org.bson.Document;
@@ -22,10 +28,7 @@ import theWorst.Global;
 import theWorst.tools.Bundle;
 import theWorst.tools.Millis;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 import java.util.regex.Pattern;
 
 import static mindustry.Vars.*;
@@ -52,6 +55,10 @@ public class Database {
     static HashSet<String> subnet = new HashSet<>();
 
     static PD defaultPd = new PD(player);
+
+    static final HashMap<TileEntity, Long> placedTurrets = new HashMap<>();
+
+    static final KillCountResolver killCounter = new KillCountResolver();
 
     public static void init(){
         loadSubnet();
@@ -138,9 +145,18 @@ public class Database {
             if(e.unit instanceof Player){
                 data.incOne(getData((Player) e.unit).id, Stat.deaths);
             }else if(e.unit.getTeam() != Team.sharded){
-                for(Player p:playerGroup){
-                    data.incOne(getData(p).id, Stat.enemiesKilled);
-                }
+                killCounter.queue.add(()->{
+                    HashSet<Long> seen = new HashSet<>();
+                    for(TileEntity t : new HashSet<>(placedTurrets.keySet())){
+                        Turret tur = (Turret)t.block;
+                        if(new Vec2(t.x, t.y).sub(new Vec2(e.unit.x, e.unit.y)).len() < tur.range && ((Turret.TurretEntity)t).totalAmmo != 0) {
+                            seen.add(placedTurrets.get(t));
+                        }
+                    }
+                    for( Long id : seen) {
+                        data.incOne(id, Stat.enemiesKilled);
+                    }
+                });
             }
         });
 
@@ -158,10 +174,18 @@ public class Database {
             long id = getData(e.player).id;
             if(e.breaking){
                 data.incOne(id, Stat.buildingsBroken);
+                removeTurret(e.tile);
             }else {
                 data.incOne(id, Stat.buildingsBuilt);
+                if(e.tile.ent() != null && e.tile.block().flags.contains(BlockFlag.turret)){
+                    synchronized (placedTurrets) {
+                        placedTurrets.put(e.tile.ent(), id);
+                    }
+                }
             }
         });
+
+        Events.on(EventType.BlockDestroyEvent.class, e-> removeTurret(e.tile));
 
         Events.on(EventType.WithdrawEvent.class, e-> data.inc(getData(e.player).id, Stat.itemsTransported, e.amount));
 
@@ -199,6 +223,21 @@ public class Database {
                 pd.updateName();
             }
         }).start();
+    }
+
+    public static void removeTurret(Tile tile) {
+        if(!tile.block().flags.contains(BlockFlag.turret)) return;
+        synchronized (placedTurrets) {
+            if (tile.ent() == null) {
+                for (TileEntity t : placedTurrets.keySet()) {
+                    if (t.tile.pos() == tile.pos()) {
+                        placedTurrets.remove(t);
+                    }
+                }
+                return;
+            }
+            placedTurrets.remove(tile.ent());
+        }
     }
 
 
@@ -342,7 +381,7 @@ public class Database {
         }
 
         for(Document d : res) {
-            result.add(docToString(d));
+            result.add(docToString(d) + (args[0].equals("sort") ? " = " + d.get(args[1]) : ""));
         }
         return result;
     }
@@ -396,6 +435,22 @@ public class Database {
                     ex.printStackTrace();
                 }
             }, 0, updateRate);
+        }
+    }
+
+    private static class KillCountResolver {
+        final ArrayList<Runnable> queue = new ArrayList<>();
+        Timer.Task thread;
+
+        KillCountResolver() {
+            thread = Timer.schedule(()->{
+                while (true){
+                    synchronized (queue){
+                        if(queue.isEmpty()) return;
+                        queue.remove(0).run();
+                    }
+                }
+            }, .1f, .1f);
         }
     }
 }
