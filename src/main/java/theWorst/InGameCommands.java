@@ -851,6 +851,10 @@ public class InGameCommands {
                     return;
                 }
                 int amount = Integer.parseInt(args[1]);
+                if (amount == 0) {
+                    sendErrMessage(player, "redundant");
+                    return;
+                }
                 Item item = Loadout.getItemByName(args[2]);
                 ItemStack stack = null;
                 String arg;
@@ -998,6 +1002,10 @@ public class InGameCommands {
                     return;
                 }
                 int amount = Integer.parseInt(args[1]);
+                if (amount == 0) {
+                    sendErrMessage(player, "redundant");
+                    return;
+                }
                 UnitType unit = Factory.getUnitByName(args[2]);
                 if(unit == null || !Factory.config.prices.containsKey(unit)){
                     sendErrMessage(player, "factory-does-not-have-this", args[2]);
