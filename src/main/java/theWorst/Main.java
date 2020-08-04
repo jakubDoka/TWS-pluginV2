@@ -17,7 +17,7 @@ import theWorst.database.*;
 import theWorst.helpers.Destroyable;
 import theWorst.helpers.Administration;
 import theWorst.helpers.Hud;
-import theWorst.helpers.MapManager;
+import theWorst.helpers.maps.MapManager;
 import theWorst.helpers.gameChangers.Factory;
 import theWorst.helpers.gameChangers.Loadout;
 import theWorst.helpers.gameChangers.ShootingBooster;

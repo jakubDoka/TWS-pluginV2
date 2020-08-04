@@ -1,11 +1,15 @@
 package theWorst;
 
 import arc.Events;
+import arc.files.Fi;
 import arc.util.Timer;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
+import mindustry.io.MapIO;
+import mindustry.maps.Map;
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.channel.TextChannel;
+import org.javacord.api.entity.message.Message;
 import org.javacord.api.entity.message.MessageAttachment;
 import org.javacord.api.entity.message.embed.EmbedBuilder;
 import org.javacord.api.entity.permission.Role;
@@ -16,22 +20,25 @@ import theWorst.discord.BotConfig;
 import theWorst.discord.Command;
 import theWorst.discord.CommandContext;
 import theWorst.discord.DiscordCommands;
+import theWorst.helpers.maps.MapManager;
 
 import java.awt.Color;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static mindustry.Vars.playerGroup;
-import static mindustry.Vars.world;
+import static mindustry.Vars.*;
 import static theWorst.tools.Commands.isCommandRelated;
 import static theWorst.tools.Formatting.*;
 import static theWorst.tools.Json.loadSimpleHashmap;
 import static theWorst.tools.Json.saveSimple;
-import static theWorst.tools.Maps.hasMapAttached;
+import static theWorst.tools.Maps.*;
 import static theWorst.tools.Players.sendMessage;
 
 public class Bot {
@@ -238,4 +245,58 @@ public class Bot {
         eb.setDescription("reported: **" + target.getName() + "(id:" + targetId + ")" + "**\nreason: " + reason);
         channel.sendMessage(eb);
     }
+    static Map addMap(CommandContext ctx, boolean update) {
+        Message message = ctx.event.getMessage();
+        MessageAttachment a = message.getAttachments().get(0);
+        try {
+            String path = "config/maps/" + a.getFileName();
+            Files.copy(a.downloadAsInputStream(), Paths.get(path), StandardCopyOption.REPLACE_EXISTING);
+            Fi mapFile = new Fi(path);
+            Map added = MapIO.createMap(mapFile, true);
+
+            EmbedBuilder eb = formMapEmbed(added, "new map", ctx);
+
+            if (update) {
+                if (config.channels.containsKey("maps")) {
+                    config.channels.get("maps").sendMessage(eb, mapFile.file());
+                    ctx.reply("Map added.");
+                } else {
+                    ctx.channel.sendMessage(eb, mapFile.file());
+                }
+                MapManager.onMapAddition(added);
+            }
+
+            maps.reload();
+            return added;
+        } catch (IOException ex) {
+            ctx.reply("I em unable to upload map.");
+            ex.printStackTrace();
+            return null;
+        }
+    }
+
+    static Map removeMap(CommandContext ctx, boolean update) {
+        Map removed = findMap(ctx.args[0]);
+
+        if (removed == null) {
+            ctx.reply("Map not found.");
+            return null;
+        }
+
+        EmbedBuilder eb = formMapEmbed(removed, "removed map", ctx);
+        if(update) {
+            if (config.channels.containsKey("maps")) {
+                config.channels.get("maps").sendMessage(eb, removed.file.file());
+                ctx.reply("Map removed.");
+            } else {
+                ctx.channel.sendMessage(eb, removed.file.file());
+            }
+            MapManager.onMapRemoval(removed);
+        }
+
+        maps.removeMap(removed);
+        maps.reload();
+        return removed;
+    }
+
 }

@@ -42,7 +42,7 @@ public class General {
         return res;
     }*/
 
-    public static long Hash(String password) {
+    public static long hash(String password) {
         password += Global.config.salt;
         long res = 0;
         for(int i = 0; i < password.length(); i++) {

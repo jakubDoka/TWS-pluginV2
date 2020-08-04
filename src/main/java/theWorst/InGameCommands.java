@@ -25,6 +25,8 @@ import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
 import org.bson.Document;
+import theWorst.helpers.maps.MDoc;
+import theWorst.helpers.maps.MapManager;
 import theWorst.tools.Formatting;
 import theWorst.database.*;
 import theWorst.helpers.*;
@@ -138,7 +140,7 @@ public class InGameCommands {
             Long password = doc.getPassword();
             if(!player.con.address.equals(doc.getIp()) && !player.uuid.equals(doc.getUuid()) && password == null) {
                 sendErrMessage(player, "login-invalid");
-            } else if(password == null || password == Hash(args[1])){
+            } else if(password == null || password == hash(args[1])){
                 Database.disconnectAccount(pd);
                 Database.reLogPlayer(player, id);
             } else {
@@ -149,7 +151,7 @@ public class InGameCommands {
         handler.<Player>register("protect", "<password>", "Protect your account with password",(args, player)-> {
             PD pd = getData(player);
             String password = passwordConfirm.get(pd.id);
-            Long hashed = Hash(args[0]);
+            Long hashed = hash(args[0]);
             if (password != null) {
                 if (password.equals(args[0])) {
                     sendMessage(player, "protect");
@@ -565,13 +567,13 @@ public class InGameCommands {
             String what = "map-restart";
             PD pd = getData(player);
             Map map = world.getMap();
-            MapD md = MapManager.played;
+            MDoc md = MapManager.played;
             Perm spec = Perm.restart;
             if(args.length>1){
                 if(!args[1].equalsIgnoreCase("this")) {
                     map = findMap(args[1]);
                     if(map != null){
-                        md = MapManager.getData(map);
+                        md = new MDoc(map);
                     }
                 }
             }
@@ -601,6 +603,7 @@ public class InGameCommands {
                         @Override
                         public void run() {
                             loadout.launchAll();
+                            MapManager.endGame(false);
                             Array<Player> players = new Array<>();
                             for(Player player : playerGroup.all()) {
                                 players.add(player);
@@ -673,9 +676,8 @@ public class InGameCommands {
                         return;
                     }
                     byte rating = (byte) Mathf.clamp(Byte.parseByte(args[2]),1,10);
-                    md.ratings.put(player.uuid, rating);
-                    md.save();
-                    sendMessage(player,"map-rate",md.name,
+                    md.addRating(player.uuid, rating);
+                    sendMessage(player,"map-rate",md.map.name(),
                             "["+(rating<6 ? rating<3 ? "scarlet":"yellow":"green") + "]" + rating + "[]");
                     return;
                 default:
@@ -1262,7 +1264,7 @@ public class InGameCommands {
         });
 
         //todo test
-        handler.<Player>register("buiidcore", "<small/normal/big>", "Builds core on your coordinates.", (args, player)-> {
+        handler.<Player>register("buildcore", "<small/normal/big>", "Builds core on your coordinates.", (args, player)-> {
             Block core = Blocks.coreShard;
             TileEntity existingCore = player.getClosestCore();
             if (existingCore == null) {
@@ -1271,6 +1273,10 @@ public class InGameCommands {
             }
             float priceRatio = .2f;
             Tile tile = player.tileOn();
+            if(tile.solid()){
+                sendErrMessage(player, "buildcore-cannot-build");
+                return;
+            }
             switch (args[0]) {
                 case "normal":
                     core = Blocks.coreFoundation;

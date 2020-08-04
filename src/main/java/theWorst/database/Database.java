@@ -43,7 +43,7 @@ public class Database {
     static final String subnetFile = Global.saveDir + "subnetBuns.json";
 
     public static MongoClient client = MongoClients.create(Global.config.dbAddress);
-    static MongoDatabase database = client.getDatabase(Global.config.dbName);
+    public static MongoDatabase database = client.getDatabase(Global.config.dbName);
     static MongoCollection<Document> rawData = database.getCollection(playerCollection);
     public static DataHandler data = new DataHandler(rawData, database.getCollection(counter));
 

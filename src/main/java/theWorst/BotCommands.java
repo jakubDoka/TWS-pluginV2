@@ -3,7 +3,6 @@ package theWorst;
 import arc.files.Fi;
 import arc.math.Mathf;
 import arc.util.Strings;
-import arc.util.Timer;
 import mindustry.core.GameState;
 import mindustry.entities.type.Player;
 import mindustry.game.Team;
@@ -20,7 +19,11 @@ import theWorst.database.*;
 import theWorst.discord.Command;
 import theWorst.discord.CommandContext;
 import theWorst.discord.DiscordCommands;
-import theWorst.helpers.MapManager;
+import theWorst.helpers.maps.MDoc;
+import theWorst.helpers.maps.MapManager;
+
+import org.bson.Document;
+import theWorst.helpers.maps.Stat;
 
 import java.awt.*;
 import java.io.IOException;
@@ -215,7 +218,7 @@ public class BotCommands {
                 StringBuilder b = new StringBuilder();
                 int i = 0;
                 for (Map map : maps.customMaps()) {
-                    double rating = MapManager.getData(map).getRating();
+                    double rating = new MDoc(map).getRating();
                     b.append(i).append(" | ").append(map.name()).append(" | ").append(String.format("%.2f/10", rating)).append("\n");
                     i++;
                 }
@@ -296,28 +299,7 @@ public class BotCommands {
 
             @Override
             public void run(CommandContext ctx) {
-                Message message = ctx.event.getMessage();
-                MessageAttachment a = message.getAttachments().get(0);
-                try {
-                    String path = "config/maps/" + a.getFileName();
-                    Files.copy(a.downloadAsInputStream(), Paths.get(path), StandardCopyOption.REPLACE_EXISTING);
-                    Fi mapFile = new Fi(path);
-                    Map added = MapIO.createMap(mapFile, true);
-
-                    EmbedBuilder eb = formMapEmbed(added, "new map", ctx);
-
-                    if (config.channels.containsKey("maps")) {
-                        config.channels.get("maps").sendMessage(eb, mapFile.file());
-                        ctx.reply("Map added.");
-                    } else {
-                        ctx.channel.sendMessage(eb, mapFile.file());
-                    }
-                    MapManager.onMapAddition(added);
-                } catch (IOException ex) {
-                    ctx.reply("I em unable to upload map.");
-                    ex.printStackTrace();
-                }
-
+                Bot.addMap(ctx, true);
             }
         });
 
@@ -329,30 +311,27 @@ public class BotCommands {
 
             @Override
             public void run(CommandContext ctx) {
-                Map removed = findMap(ctx.args[0]);
+                Bot.removeMap(ctx, true);
+            }
+        });
 
-                if (removed == null) {
-                    ctx.reply("Map not found.");
-                    return;
-                }
-
-                EmbedBuilder eb = formMapEmbed(removed, "removed map", ctx);
-                CompletableFuture<Message> mess;
-                if (config.channels.containsKey("maps")) {
-                    mess = config.channels.get("maps").sendMessage(eb, removed.file.file());
-                    ctx.reply("Map removed.");
-                } else {
-                    mess = ctx.channel.sendMessage(eb, removed.file.file());
-                }
-                Timer.schedule(new Timer.Task() {
-                    @Override
-                    public void run() {
-                        if (mess.isDone()) {
-                            MapManager.onMapRemoval(removed);
-                            this.cancel();
-                        }
-                    }
-                }, 0, 1);
+        //todo test
+        handler.registerCommand(new Command("updatemap", "<id> |.msav|") {
+            {
+                description = "Updates map version without restarting its data.";
+                role = defaultRole;
+            }
+            @Override
+            public void run(CommandContext ctx) {
+                Map removed = Bot.removeMap(ctx, false);
+                if(removed == null) return;
+                Document doc = new MDoc(removed).data;
+                MapManager.onMapRemoval(removed);
+                Map added = Bot.addMap(ctx, false);
+                if(added == null) return;
+                doc.append("_id", MDoc.getID(added));
+                doc.append(Stat.firstAirWave.name(), MDoc.getFirstAyrWave(added));
+                MapManager.data.insertOne(doc);
             }
         });
 
