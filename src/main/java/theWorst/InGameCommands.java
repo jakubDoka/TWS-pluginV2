@@ -126,7 +126,7 @@ public class InGameCommands {
                 Database.data.MakeNewAccount(player);
                 Database.disconnectAccount(pd);
                 online.put(player.uuid,Database.data.LoadData(player));
-                sendErrMessage(player, "login-new");
+                sendMessage(player, "login-new");
                 return;
             } else if(args.length == 1) {
                 wrongArgAmount(player, args, 2);
