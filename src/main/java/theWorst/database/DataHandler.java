@@ -240,9 +240,19 @@ public class DataHandler {
     }
 
     private long getNewId() {
-        counter.updateOne(find(0), Updates.inc("id", 1));
-        return (long) Objects.requireNonNull(counter.find(find(0)).first()).get("id");
+        if(counter.updateOne(find(0), Updates.inc("id", 1)).getModifiedCount() == 0){
+            long id = 0;
+            Document latest = data.find().sort(new Document("_id", -1)).first();
+            if(latest != null) {
+                id = (long)latest.get("_id");
+            }
+            counter.insertOne(new Document("_id", 0).append("id",id));
+        }
+        Document counter = this.counter.find().first();
+        if(counter == null){
+            throw new IllegalStateException("You have to have mongodb installed.");
+        }
+        return (long) counter.get("id");
     }
-
 }
 

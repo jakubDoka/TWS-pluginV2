@@ -112,10 +112,15 @@ public class InGameCommands {
                 sendErrMessage(player, "griefer-no-perm");
                 return;
             }
+            boolean abandon = args[0].equals("abandon");
             if (args.length == 0) {
                 sendInfoPopup(player, "login-help", Database.data.getSuggestions(player.uuid, player.con.address));
                 return;
-            }else if (args[0].equals("new")){
+            }else if (args[0].equals("new") || abandon){
+                if(!abandon && (!pd.paralyzed && !pd.getDoc().isProtected())){
+                    sendErrMessage(player, "login-abandon");
+                    return;
+                }
                 Database.data.MakeNewAccount(player);
                 Database.disconnectAccount(pd);
                 online.put(player.uuid,Database.data.LoadData(player));
@@ -150,6 +155,9 @@ public class InGameCommands {
 
         handler.<Player>register("protect", "<password>", "Protect your account with password",(args, player)-> {
             PD pd = getData(player);
+            if(pd.isGriefer()){
+                sendErrMessage(player, "griefer-no-perm");
+            }
             String password = passwordConfirm.get(pd.id);
             Long hashed = hash(args[0]);
             if (password != null) {
@@ -1180,7 +1188,7 @@ public class InGameCommands {
         });
 
         handler.<Player>register("suicide","Kill your self.",(arg, player) -> {
-            if(getData(player).hasThisPerm(Perm.suicide)){
+            if(!getData(player).hasThisPerm(Perm.suicide)){
                 sendErrMessage(player, "suicide-no-perm");
                 return;
             }

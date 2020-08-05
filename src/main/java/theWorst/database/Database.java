@@ -83,7 +83,7 @@ public class Database {
             Doc doc = data.getDoc(pd.id);
             online.put(player.uuid, pd);
             //marked subnet so mark player aromatically
-            if (subnet.contains(getSubnet(player.con.address)) && pd.hasPermLevel(Perm.normal)) {
+            if (subnet.contains(getSubnet(player.con.address)) && !pd.hasPermLevel(Perm.high)) {
                 Bot.onRankChange(pd.name, pd.id, pd.rank.name, Ranks.griefer.name, "Server", "Subnet ban.");
                 setRank(pd.id, Ranks.griefer);
             }
@@ -123,30 +123,34 @@ public class Database {
 
         //build and destruct permissions handling
         Events.on(EventType.BuildSelectEvent.class, e-> {
-            if (!(e.builder instanceof Player)) return;
-            Player player = (Player) e.builder;
-            PD pd = online.get(player.uuid);
-            CoreBlock.CoreEntity core = getCore();
-            if (core == null) return;
-            BuilderTrait.BuildRequest request = player.buildRequest();
-            if (request == null) return;
-            if (pd.hasThisPerm(Perm.destruct) && request.breaking) {
-                for (ItemStack s : request.block.requirements) {
-                    core.items.add(s.item, s.amount / 2);
-                }
-                Call.onDeconstructFinish(request.tile(), request.block, ((Player) e.builder).id);
-            } else if (pd.hasThisPerm(Perm.build) && !request.breaking && request.block.buildCost > 30) {
-                if (core.items.has(multiplyReq(request.block.requirements, Global.limits.builderMinMaterialReq))) {
+            try {
+                if (!(e.builder instanceof Player)) return;
+                Player player = (Player) e.builder;
+                PD pd = getData(player);
+                CoreBlock.CoreEntity core = getCore();
+                if (core == null) return;
+                BuilderTrait.BuildRequest request = player.buildRequest();
+                if (request == null) return;
+                if (pd.hasThisPerm(Perm.destruct) && request.breaking) {
                     for (ItemStack s : request.block.requirements) {
-                        core.items.remove(s);
+                        core.items.add(s.item, s.amount / 2);
                     }
-                    Call.onConstructFinish(e.tile, request.block, ((Player) e.builder).id,
-                            (byte) request.rotation, player.getTeam(), false);
-                    e.tile.configureAny(request.config);
-                }
-            } else return;
-            //necessary because instant build or break do not trigger event
-            Events.fire(new EventType.BlockBuildEndEvent(e.tile, player, e.team, e.breaking));
+                    Call.onDeconstructFinish(request.tile(), request.block, ((Player) e.builder).id);
+                } else if (pd.hasThisPerm(Perm.build) && !request.breaking && request.block.buildCost > 30) {
+                    if (core.items.has(multiplyReq(request.block.requirements, Global.limits.builderMinMaterialReq))) {
+                        for (ItemStack s : request.block.requirements) {
+                            core.items.remove(s);
+                        }
+                        Call.onConstructFinish(e.tile, request.block, ((Player) e.builder).id,
+                                (byte) request.rotation, player.getTeam(), false);
+                        e.tile.configureAny(request.config);
+                    }
+                } else return;
+                //necessary because instant build or break do not trigger event
+                Events.fire(new EventType.BlockBuildEndEvent(e.tile, player, e.team, e.breaking));
+            } catch (Exception ex){
+                ex.printStackTrace();
+            }
         });
 
         //count units killed and deaths
@@ -263,6 +267,9 @@ public class Database {
     }
 
     public static PD getData(Player player) {
+        if(!online.containsKey(player.uuid)){
+            Log.info("Error missing data of player " + player.name + " with uuid " + player.uuid);
+        }
         return online.getOrDefault(player.uuid, defaultPd);
     }
 
@@ -308,7 +315,7 @@ public class Database {
     public static void setRank(long id, Rank rank){
         Doc doc = data.getDoc(id);
         Rank current = doc.getRank(RankType.rank);
-        boolean wosGrifer= current == Ranks.griefer;
+        boolean wosGrifer = current == Ranks.griefer;
         data.setRank(id, rank, RankType.rank);
         String uuid = doc.getUuid();
         if(uuid == null) return;
@@ -432,7 +439,7 @@ public class Database {
             Timer.schedule(()->{
                 try {
                     for (Player p : playerGroup) {
-                        PD pd = online.get(p.uuid);
+                        PD pd = getData(p);
                         synchronized (pd) {
                             if (pd.afk && Millis.since(pd.lastAction) < requiredTime) {
                                 pd.afk = false;
