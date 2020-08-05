@@ -34,6 +34,14 @@ public class Json {
         }
     }
 
+    public static JSONObject Parse(String string) {
+        try{
+            return (JSONObject) new JSONParser().parse(string);
+        } catch (ParseException e) {
+            return null;
+        }
+    }
+
     public static void saveJson(String filename, String whatFor, String save){
         makeFullPath(filename);
         try (FileWriter file = new FileWriter(filename)) {

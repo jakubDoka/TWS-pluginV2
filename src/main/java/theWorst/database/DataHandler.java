@@ -1,6 +1,7 @@
 package theWorst.database;
 
 
+import arc.Core;
 import arc.util.Log;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
@@ -10,11 +11,14 @@ import com.mongodb.client.model.Updates;
 import mindustry.entities.type.Player;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import theWorst.Bot;
 import theWorst.tools.Millis;
+import theWorst.tools.VPNDetection;
 
 import java.util.Objects;
 
 import static com.mongodb.client.model.Filters.and;
+import static theWorst.tools.Formatting.getSubnet;
 import static theWorst.tools.Players.*;
 import static theWorst.database.Database.*;
 
@@ -234,8 +238,19 @@ public class DataHandler {
             addToSet(id, "settings", s.name());
         }
         bind(player, id);
-        setRank(id, Ranks.newcomer, RankType.rank);
+        String sub = getSubnet(player.con.address);
+        if(vpn.contains(sub) || !VPNDetection.isVpnUser(player.con.address)) {
+            sendErrMessage(player,"database-vpn-detected");
+            Bot.onRankChange(player.name, id, Ranks.newcomer.name, Ranks.griefer.name, "Server", "VPN detected.");
+            setRank(id, Ranks.griefer, RankType.rank);
+            vpn.add(sub);
+            Database.saveVpn();
+        } else {
+            setRank(id, Ranks.newcomer, RankType.rank);
+        }
+
         set(id, "age", Millis.now());
+
         return getDoc(id);
     }
 

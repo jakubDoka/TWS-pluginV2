@@ -37,6 +37,9 @@ public class Global {
         public HashMap<String, String > welcomeMessage;
         public int consideredPassive = 10;
 
+        public int vpnTimeout;
+        public String vpnApi;
+
         public Config() {}
 
         @JsonCreator public Config(
@@ -45,13 +48,17 @@ public class Global {
                 @JsonProperty("alertPrefix") String alertPrefix,
                 @JsonProperty("dbName") String dbName,
                 @JsonProperty("rules") HashMap<String, String > rules,
-                @JsonProperty("welcomeMessage") HashMap<String, String > welcomeMessage){
+                @JsonProperty("welcomeMessage") HashMap<String, String > welcomeMessage,
+                @JsonProperty("vpnApi") String vpnApi,
+                @JsonProperty("vpnTimeout") int vpnTimeout){
             if(dbAddress != null) this.dbAddress = dbAddress;
             if(alertPrefix != null) this.alertPrefix = alertPrefix;
             if(dbName != null) this.dbName = dbName;
             this.consideredPassive = consideredPassive;
             this.rules = rules;
             this.welcomeMessage = welcomeMessage;
+            this.vpnApi = vpnApi;
+            this.vpnTimeout = vpnTimeout;
         }
     }
 
@@ -67,6 +74,7 @@ public class Global {
         public long minVotePlayTimeReq = 1000 * 60 * 30;
         public int builderMinMaterialReq = 10;
         public long reportPenalty = 1000 * 60 * 30;
+        public float builderBoost = .001f;
 
         public RateLimits() {}
 
@@ -81,7 +89,8 @@ public class Global {
                 @JsonProperty("minVotePlayTimeReq") long minVotePlayTimeReq,
                 @JsonProperty("countedActionsPerTile") int countedActionsPerTile,
                 @JsonProperty("builderMinMaterialReq") int builderMinMaterialReq,
-                @JsonProperty("reportPenalty") long reportPenalty) {
+                @JsonProperty("reportPenalty") long reportPenalty,
+                @JsonProperty("builderBoost") float builderBoost) {
 
             if (grieferAntiSpamTime != 0) this.grieferAntiSpamTime = grieferAntiSpamTime;
             if (countedActionsPerTile != 0) this.countedActionsPerTile = countedActionsPerTile;
@@ -94,6 +103,7 @@ public class Global {
             if (withdrawPenalty != 0) this.withdrawPenalty = withdrawPenalty;
             if (builderMinMaterialReq != 0) this.builderMinMaterialReq = builderMinMaterialReq;
             if (reportPenalty != 0) this.reportPenalty = reportPenalty;
+            if(builderBoost != 0) this.builderBoost = builderBoost;
         }
     }
 

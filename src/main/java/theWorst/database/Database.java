@@ -1,5 +1,6 @@
 package theWorst.database;
 
+import arc.Core;
 import arc.Events;
 import arc.math.geom.Vec2;
 import arc.util.Log;
@@ -18,6 +19,7 @@ import mindustry.net.Administration;
 import mindustry.type.ItemStack;
 import mindustry.ui.fragments.Fragment;
 import mindustry.world.Tile;
+import mindustry.world.blocks.BuildBlock;
 import mindustry.world.blocks.defense.turrets.Turret;
 import mindustry.world.blocks.storage.CoreBlock;
 import mindustry.world.meta.BlockFlag;
@@ -28,6 +30,7 @@ import theWorst.Bot;
 import theWorst.Global;
 import theWorst.tools.Bundle;
 import theWorst.tools.Millis;
+import theWorst.tools.VPNDetection;
 
 import java.awt.*;
 import java.util.*;
@@ -46,6 +49,7 @@ public class Database {
     public static final String AFK = "[gray]<AFK>[]";
     public static final String counter = "counter";
     static final String subnetFile = Global.saveDir + "subnetBuns.json";
+    static final String cpnFile = Global.saveDir + "detectedVpn.json";
 
     public static MongoClient client = MongoClients.create(Global.config.dbAddress);
     public static MongoDatabase database = client.getDatabase(Global.config.dbName);
@@ -54,7 +58,7 @@ public class Database {
 
     public static HashMap<String,PD> online = new HashMap<>();
 
-    static HashSet<String> subnet = new HashSet<>();
+    public static HashSet<String> subnet = new HashSet<>(), vpn = new HashSet<>();
 
     static PD defaultPd = new PD(player);
 
@@ -62,8 +66,11 @@ public class Database {
 
     static final KillCountResolver killCounter = new KillCountResolver();
 
+    static final HashSet<Long> buildBoostIds = new HashSet<>();
+
     public static void init(){
-        loadSubnet();
+        loadSubnet(subnet);
+        loadSubnet(vpn);
         new AfkMaker();
 
         Events.on(EventType.PlayerJoin.class,e-> {
@@ -83,10 +90,15 @@ public class Database {
             Doc doc = data.getDoc(pd.id);
             online.put(player.uuid, pd);
             //marked subnet so mark player aromatically
-            if (subnet.contains(getSubnet(player.con.address)) && !pd.hasPermLevel(Perm.high)) {
-                Bot.onRankChange(pd.name, pd.id, pd.rank.name, Ranks.griefer.name, "Server", "Subnet ban.");
-                setRank(pd.id, Ranks.griefer);
+            if(!pd.hasPermLevel(Perm.high) && !pd.paralyzed){
+                if (subnet.contains(getSubnet(player.con.address))) {
+                    Bot.onRankChange(pd.name, pd.id, pd.rank.name, Ranks.griefer.name, "Server", "Subnet ban.");
+                    setRank(pd.id, Ranks.griefer);
+                }
+
+
             }
+
             //resolving special rank
             pd.updateName();
             checkAchievements(pd, doc);
@@ -127,6 +139,10 @@ public class Database {
                 if (!(e.builder instanceof Player)) return;
                 Player player = (Player) e.builder;
                 PD pd = getData(player);
+                if(!buildBoostIds.contains(pd.id)){
+                    buildBoostIds.add(pd.id);
+                    return;
+                }
                 CoreBlock.CoreEntity core = getCore();
                 if (core == null) return;
                 BuilderTrait.BuildRequest request = player.buildRequest();
@@ -136,16 +152,18 @@ public class Database {
                         core.items.add(s.item, s.amount / 2);
                     }
                     Call.onDeconstructFinish(request.tile(), request.block, ((Player) e.builder).id);
-                } else if (pd.hasThisPerm(Perm.build) && !request.breaking && request.block.buildCost > 30) {
-                    if (core.items.has(multiplyReq(request.block.requirements, Global.limits.builderMinMaterialReq))) {
+
+                } else if (pd.hasThisPerm(Perm.build) && !request.breaking) {
+                    if (core.items.has(multiplyReq(request.block.requirements, Global.limits.builderMinMaterialReq)) && request.progress > Global.limits.builderBoost) {
                         for (ItemStack s : request.block.requirements) {
                             core.items.remove(s);
                         }
-                        Call.onConstructFinish(e.tile, request.block, ((Player) e.builder).id,
-                                (byte) request.rotation, player.getTeam(), false);
-                        e.tile.configureAny(request.config);
+                        BuildBlock.constructed(e.tile, request.block, ((Player) e.builder).id, (byte) request.rotation, player.getTeam(), request.hasConfig);
+                        if (request.hasConfig) Call.onTileConfig(null, e.tile, request.config);
                     }
                 } else return;
+
+                buildBoostIds.remove(pd.id);
                 //necessary because instant build or break do not trigger event
                 Events.fire(new EventType.BlockBuildEndEvent(e.tile, player, e.team, e.breaking));
             } catch (Exception ex){
@@ -347,14 +365,20 @@ public class Database {
         }
     }
 
-    private static void saveSubnet() {
+    static void saveSubnet() {
         saveSimple(subnetFile, subnet, null);
     }
 
-    public static void loadSubnet(){
+    static void saveVpn() {
+        saveSimple(cpnFile, vpn, null);
+    }
+
+    public static void loadSubnet(HashSet<String> dest){
+
         String[] subnet = loadSimpleCollection(subnetFile, Database::saveSubnet);
         if(subnet == null) return;
-        Database.subnet.addAll(Arrays.asList(subnet));
+        dest.clear();
+        dest.addAll(Arrays.asList(subnet));
     }
 
     public static int getDatabaseSize(){

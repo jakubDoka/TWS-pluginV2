@@ -200,7 +200,10 @@ public class Main extends Plugin {
                     InGameCommands.factory.loadUnits();
                     return;
                 case "subnet":
-                    Database.loadSubnet();
+                    Database.loadSubnet(Database.subnet);
+                    return;
+                case "vpn":
+                    Database.loadSubnet(Database.vpn);
                     return;
                 case "loadout":
                     InGameCommands.loadout.loadRes();
