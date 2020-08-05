@@ -112,11 +112,13 @@ public class InGameCommands {
                 sendErrMessage(player, "griefer-no-perm");
                 return;
             }
-            boolean abandon = args[0].equals("abandon");
+
             if (args.length == 0) {
                 sendInfoPopup(player, "login-help", Database.data.getSuggestions(player.uuid, player.con.address));
                 return;
-            }else if (args[0].equals("new") || abandon){
+            }
+            boolean abandon = args[0].equals("abandon");
+            if (args[0].equals("new") || abandon){
                 if(!abandon && (!pd.paralyzed && !pd.getDoc().isProtected())){
                     sendErrMessage(player, "login-abandon");
                     return;
