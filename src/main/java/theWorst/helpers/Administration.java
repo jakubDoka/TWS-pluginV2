@@ -103,7 +103,7 @@ public class Administration implements Displayable{
                         int extraChars = 4; // brackets around the name
                         for(int i = 0; i < message.length(); i++) {
                             indentedMassage.append(message.charAt(i));
-                            if (i % lineLength == 0 && i != 0 || (i + pd.name.length() + extraChars == lineLength)) {
+                            if (i % lineLength == 0 && i > lineLength || (i + pd.name.length() + extraChars == lineLength)) {
                                 if(i < message.length() - 1) {
                                     if(message.charAt(i+1) != ' '){
                                         indentedMassage.append("-");
