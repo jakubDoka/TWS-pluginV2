@@ -154,6 +154,7 @@ public class Vote implements Displayable, Destroyable {
         resolve();
         notifyPlayers();
         passivePlayers.remove(player.uuid);
+        saveSimple(passiveFile, passivePlayers, null);
     }
 
     public void resolve(){

@@ -58,11 +58,6 @@ public class Administration implements Displayable{
             Action.buildBreaks.clear();
         });
 
-        //displaying of inspect messages
-        Events.on(EventType.TapConfigEvent.class, e-> {
-            if(e.player == null) return;
-            handleInspect(e.player, e.tile);
-        });
         Events.on(EventType.TapEvent.class, e ->{
             if(e.player == null) return;
             handleInspect(e.player, e.tile);
