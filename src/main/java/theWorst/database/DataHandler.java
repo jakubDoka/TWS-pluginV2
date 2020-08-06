@@ -239,7 +239,7 @@ public class DataHandler {
         }
         bind(player, id);
         String sub = getSubnet(player.con.address);
-        if(vpn.contains(sub) || !VPNDetection.isVpnUser(player.con.address)) {
+        if(vpn.contains(sub) || VPNDetection.isVpnUser(player.con.address)) {
             sendErrMessage(player,"database-vpn-detected");
             Bot.onRankChange(player.name, id, Ranks.newcomer.name, Ranks.griefer.name, "Server", "VPN detected.");
             setRank(id, Ranks.griefer, RankType.rank);
