@@ -45,6 +45,6 @@ public class VPNDetection {
         Long block = (Long) data.get("block");
         if(block == null) return false;
 
-        return block == 0;
+        return block != 0;
     }
 }
