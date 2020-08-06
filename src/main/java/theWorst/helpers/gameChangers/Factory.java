@@ -11,6 +11,7 @@ import mindustry.content.Fx;
 import mindustry.entities.type.Player;
 import mindustry.game.EventType;
 import mindustry.gen.Call;
+import mindustry.net.Administration;
 import mindustry.type.UnitType;
 import theWorst.Global;
 import theWorst.Main;
@@ -40,6 +41,7 @@ public class Factory implements Destroyable, Displayable {
         Events.on(EventType.ServerLoadEvent.class, e-> Vars.netServer.admins.addActionFilter(act-> {
             Player player = act.player;
             if (player == null) return true;
+            if(act.type == Administration.ActionType.breakBlock) return true;
             for (Thread t : threads) {
                 if (t.building) continue;
                 if (new Vec2(t.pos).sub(new Vec2(act.tile.getX(), act.tile.getY())).len() < config.dropZoneRadius) {

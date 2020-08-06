@@ -39,8 +39,8 @@ public class Doc {
         return data.get("paralyzed") != null;
     }
 
-    public Long getPassword() {
-        return (Long) data.get("password");
+    public Object getPassword() {
+        return data.get("password");
     }
 
     public String getLink(){

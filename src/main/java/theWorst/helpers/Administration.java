@@ -99,7 +99,7 @@ public class Administration implements Displayable{
                     String[] colors = pd.textColor.split("/");
                     if (pd.hasThisPerm(Perm.colorCombo) && colors.length > 1) {
                         StringBuilder indentedMassage = new StringBuilder();
-                        int lineLength = 44;
+                        int lineLength = 40;
                         int extraChars = 4; // brackets around the name
                         for(int i = 0; i < message.length(); i++) {
                             indentedMassage.append(message.charAt(i));

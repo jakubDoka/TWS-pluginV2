@@ -111,7 +111,7 @@ public class Database {
             if(pd == null) return;
 
             sendMessage("player-disconnected",e.player.name,String.valueOf(pd.id));
-            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) hes disconnected.", cleanColors(e.player.name), pd.id));
+            Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) has disconnected.", cleanColors(e.player.name), pd.id));
             data.free(pd);
         });
 
@@ -424,7 +424,7 @@ public class Database {
             }
         } else {
             Pattern pattern = Pattern.compile("^"+Pattern.quote(args[0]), Pattern.CASE_INSENSITIVE);
-            res = rawData.find(Filters.regex("originalName", pattern)).limit(limit);
+            res = rawData.find(Filters.regex("name", pattern)).limit(limit);
         }
 
         for(Document d : res) {

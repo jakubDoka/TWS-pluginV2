@@ -144,10 +144,10 @@ public class InGameCommands {
                 return;
             }
 
-            Long password = doc.getPassword();
+            Object password = doc.getPassword();
             if(!player.con.address.equals(doc.getIp()) && !player.uuid.equals(doc.getUuid()) && password == null) {
                 sendErrMessage(player, "login-invalid");
-            } else if(password == null || password == hash(args[1])){
+            } else if(password == null || password.equals(hash(args[1])) || password.equals(hash2(args[1]))){
                 Database.disconnectAccount(pd);
                 Database.reLogPlayer(player, id);
             } else {
@@ -161,7 +161,7 @@ public class InGameCommands {
                 sendErrMessage(player, "griefer-no-perm");
             }
             String password = passwordConfirm.get(pd.id);
-            Long hashed = hash(args[0]);
+            String hashed = hash2(args[0]);
             if (password != null) {
                 if (password.equals(args[0])) {
                     sendMessage(player, "protect");
@@ -174,9 +174,9 @@ public class InGameCommands {
                 passwordConfirm.remove(pd.id);
                 return;
             }
-            Long current = pd.getDoc().getPassword();
+            Object current = pd.getDoc().getPassword();
             if(current != null) {
-                if(hashed.equals(current)) {
+                if(current.equals(hashed) || current.equals(hash(args[0]))) {
                     Database.data.remove(pd.id, "password");
                     sendMessage(player, "protect-protection-deleted");
                     return;
@@ -352,6 +352,10 @@ public class InGameCommands {
         handler.<Player>register("info","<s/n> [id]","Displays players profile.",(args, player)->{
             String data;
             PD pd = getData(player);
+            if(!args[0].equals("s") && !args[0].equals("n")){
+                sendErrMessage(player, "invalid-mode");
+                return;
+            }
             if(args.length == 1){
                 Doc doc = pd.getDoc();
                 data = args[0].equals("s") ?  doc.statsToString(pd) : doc.toString(pd);

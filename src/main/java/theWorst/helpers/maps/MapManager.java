@@ -117,6 +117,6 @@ public class MapManager {
         if(played.getStat(Stat.shortest) > playtime) played.set(Stat.shortest.name(), playtime);
         played.inc(Stat.played, 1);
         if(won) played.inc(Stat.won, 1);
-        if(state.wave > played.getStat(Stat.record)) played.set(Stat.record.name(), playtime);
+        if(state.wave > played.getStat(Stat.record)) played.set(Stat.record.name(), state.wave);
     }
 }

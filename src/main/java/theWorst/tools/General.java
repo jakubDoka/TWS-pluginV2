@@ -3,6 +3,7 @@ package theWorst.tools;
 import mindustry.entities.type.Player;
 import mindustry.game.Team;
 import mindustry.world.blocks.storage.CoreBlock;
+import org.apache.commons.codec.digest.DigestUtils;
 import theWorst.Global;
 
 import java.lang.reflect.Field;
@@ -49,6 +50,10 @@ public class General {
             res = res + (long)Math.pow(password.charAt(i), 2);
         }
         return res;
+    }
+
+    public static String hash2(String password) {
+        return DigestUtils.sha256Hex(password + Global.config.salt);
     }
 
     public static boolean isAdminOnline() {

@@ -44,17 +44,19 @@ public class Formatting {
     }
 
     public static String cleanName(String name){
-        name=cleanColors(name);
-        name=cleanEmotes(name);
+        name = cleanColors(name);
+        name = cleanEmotes(name);
         return name.replace(" ","_");
     }
 
-    public static String format(String string, String ... args){
+    public static String format(String string, String ... args) {
         int idx = 0;
-        while (string.contains("{") && idx<args.length){
-            int first=string.indexOf("{"),last=string.indexOf("}");
-            if(first==-1 || last==-1) break;
-            string=string.substring(0,first)+args[idx]+string.substring(last+1);
+        int completed = 0;
+        while (string.contains("{") && idx < args.length) {
+            int first = string.indexOf("{", completed), last = string.indexOf("}", completed);
+            if (first == -1 || last == -1) break;
+            completed = last + 1;
+            string = string.substring(0, first) + args[idx] + string.substring(completed);
             idx++;
         }
         return string;
@@ -74,7 +76,8 @@ public class Formatting {
             stepAmount[i] = amount;
             total+=amount;
         }
-        if(total<length){
+        while(total<length){
+            total ++;
             stepAmount[0]+=1;
         }
         StringBuilder res = new StringBuilder();
