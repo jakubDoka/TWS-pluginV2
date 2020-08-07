@@ -295,7 +295,7 @@ public class Administration implements Displayable{
         } else {
             msg.append(ti.lock == 1 ? Ranks.verified.getSuffix() + "\n" : "");
             for (String s : ti.data.keySet()) {
-                msg.append("[orange]").append(s).append(":[gray] ");
+                msg.append("[orange]").append(s).append(":[white] ");
                 for (PD pd : ti.data.get(s)){
                     msg.append(pd.id).append(" = ").append(pd.name).append(" | ");
                 }
