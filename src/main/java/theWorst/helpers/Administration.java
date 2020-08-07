@@ -146,7 +146,7 @@ public class Administration implements Displayable{
 
                 //this is against Ag client messing up game
                 //if there is emergency
-                if(emergency.isActive() && pd.hasThisPerm(Perm.high)) {
+                if(emergency.isActive() && pd.hasThisPerm(Perm.normal)) {
                     sendErrMessage(player,"at-least-verified", Ranks.verified.getSuffix());
                     return false;
                 }
