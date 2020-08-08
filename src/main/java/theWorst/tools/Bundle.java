@@ -11,9 +11,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
@@ -33,15 +35,20 @@ public class Bundle {
         return null;
     }
 
-    public static Locale getLocale(JSONObject data){
-        if(data==null) return locale;
-        String languages = (String) data.get("languages");
-        if(languages==null) return locale;
-        String[] resolvedL = languages.split(",");
-        if(resolvedL.length==0) return locale;
-        String[] resResolvedL = resolvedL[0].split("-");
+    public static Locale getLocale(String locString){
+        String[] resResolvedL = locString.split("-");
         if(resResolvedL.length==0) return locale;
         return new Locale(resResolvedL[0],resResolvedL[1]);
+    }
+
+    public static String getBundleString(JSONObject data) {
+        String def = "en_US";
+        if(data==null) return def;
+        String languages = (String) data.get("languages");
+        if(languages==null) return def;
+        String[] resolvedL = languages.split(",");
+        if(resolvedL.length==0) return def;
+        return resolvedL[0];
     }
 
     public static void findBundleAndCountry(PD pd) {
@@ -50,14 +57,18 @@ public class Bundle {
             if(data != null){
                 Database.data.set(pd.id, "country", data.getOrDefault("country_name", "unknown"));
             }
+            String locStr = getBundleString(data);
             synchronized (pd){
-                pd.bundle = ResourceBundle.getBundle(bundlePath, getLocale(data));
+                pd.locString = locStr;
+                pd.bundle = ResourceBundle.getBundle(bundlePath, getLocale(locStr), new UTF8Control());
             }
         }).start();
 
     }
 
     public static class UTF8Control extends ResourceBundle.Control {
+
+
         public ResourceBundle newBundle
                 (String baseName, Locale locale, String format, ClassLoader loader, boolean reload)
                 throws IllegalAccessException, InstantiationException, IOException
