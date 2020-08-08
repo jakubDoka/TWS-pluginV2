@@ -195,7 +195,7 @@ public class Vote implements Displayable, Destroyable {
         String md = getTranslation(pd,mode);
         String fMessage = format(getTranslation(pd,message),args);
         String req = getTranslation(pd,"vote-req");
-        return String.format("[%s]%s %s %02ds [green]%d[] : [scarlet]%d[] [gray]%s %d[][]",
+        return String.format("[%s]%s\n%s %02ds [green]%d[] : [scarlet]%d[] [gray]%s %d[][]",
                 color,fMessage,md,time,yes,no,req,getRequired());
     }
 
