@@ -11,9 +11,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
@@ -51,13 +53,15 @@ public class Bundle {
                 Database.data.set(pd.id, "country", data.getOrDefault("country_name", "unknown"));
             }
             synchronized (pd){
-                pd.bundle = ResourceBundle.getBundle(bundlePath, getLocale(data));
+                pd.bundle = ResourceBundle.getBundle(bundlePath, getLocale(data), new UTF8Control());
             }
         }).start();
 
     }
 
     public static class UTF8Control extends ResourceBundle.Control {
+
+
         public ResourceBundle newBundle
                 (String baseName, Locale locale, String format, ClassLoader loader, boolean reload)
                 throws IllegalAccessException, InstantiationException, IOException
