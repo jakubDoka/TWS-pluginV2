@@ -18,7 +18,7 @@ import static theWorst.tools.Players.sendMessage;
 import static theWorst.database.Database.getData;
 
 public class Tester {
-    private static final String testFile = Global.configDir + "test.json";
+    private static final String testFile = Global.configDir + "test";
     public static HashMap<String,Test> tests = new HashMap<>();
     public static Administration.RecentMap recent = new Administration.RecentMap("test-can-egan"){
         @Override
@@ -28,10 +28,10 @@ public class Tester {
     };
 
     public static HashMap<String, String[]> loadQuestions(String locStr){
-        String bundle = testFile + "_" + locStr;
+        String bundle = testFile + "_" + locStr.replace("-", "_") + ".json";
         Call.sendMessage(bundle);
         File fi = new File(bundle);
-        if(!fi.exists() || fi.isDirectory()) bundle = testFile;
+        if(!fi.exists() || fi.isDirectory()) bundle = testFile + ".json";
         return loadSimpleHashmap(bundle, String[].class, Tester::createExample);
     }
 
