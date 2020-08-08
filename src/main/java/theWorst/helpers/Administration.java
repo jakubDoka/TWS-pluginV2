@@ -146,6 +146,7 @@ public class Administration implements Displayable{
 
                 //this is against Ag client messing up game
                 //if there is emergency
+
                 if(emergency.isActive() && !pd.hasThisPerm(Perm.high)) {
                     sendErrMessage(player,"at-least-verified", Ranks.verified.getSuffix());
                     return false;
@@ -295,9 +296,9 @@ public class Administration implements Displayable{
         } else {
             msg.append(ti.lock == 1 ? Ranks.verified.getSuffix() + "\n" : "");
             for (String s : ti.data.keySet()) {
-                msg.append("[orange]").append(s).append(":[gray]");
+                msg.append("[orange]").append(s).append(":[white] ");
                 for (PD pd : ti.data.get(s)){
-                    msg.append(pd.id).append("=").append(pd.name).append("|");
+                    msg.append(pd.id).append(" = ").append(pd.name).append(" | ");
                 }
                 msg.delete(msg.length() - 1, msg.length());
                 msg.append("\n");
