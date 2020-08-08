@@ -1,6 +1,7 @@
 package theWorst.helpers;
 
 import mindustry.entities.type.Player;
+import mindustry.gen.Call;
 import theWorst.Global;
 import theWorst.database.Database;
 import theWorst.database.PD;
@@ -26,8 +27,9 @@ public class Tester {
         }
     };
 
-    public static HashMap<String, String[]> loadQuestions(Locale loc){
-        String bundle = testFile + "_" + loc.getLanguage() + "_" + loc.getCountry();
+    public static HashMap<String, String[]> loadQuestions(String locStr){
+        String bundle = testFile + "_" + locStr;
+        Call.sendMessage(bundle);
         File fi = new File(bundle);
         if(!fi.exists() || fi.isDirectory()) bundle = testFile;
         return loadSimpleHashmap(bundle, String[].class, Tester::createExample);
@@ -57,7 +59,7 @@ public class Tester {
 
         public Test(Player player){
             PD pd = getData(player);
-            questions = loadQuestions(pd.bundle.getLocale());
+            questions = loadQuestions(pd.locString);
             if(questions.isEmpty()){
                 sendErrMessage(player, "test-no-questions");
                 tests.remove(player.uuid);

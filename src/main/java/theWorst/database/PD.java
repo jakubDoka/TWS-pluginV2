@@ -35,6 +35,7 @@ public class PD{
     public long joined = lastAction = lastMessage = Millis.now();
 
     public ResourceBundle bundle = Bundle.defaultBundle;
+    public String locString = "en_US";
 
     public PD() {}
 
