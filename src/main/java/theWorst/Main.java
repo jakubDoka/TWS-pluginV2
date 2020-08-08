@@ -3,14 +3,19 @@ package theWorst;
 import arc.Core;
 import arc.Events;
 
+import arc.graphics.Color;
+import arc.graphics.g2d.BitmapFont;
+import arc.graphics.g2d.GlyphLayout;
 import arc.util.CommandHandler;
 import arc.util.Log;
 import arc.util.Strings;
 import arc.util.Timer;
+import mindustry.Vars;
 import mindustry.core.GameState;
 import mindustry.game.EventType;
 import mindustry.net.Administration.Config;
 import mindustry.plugin.Plugin;
+import mindustry.ui.Fonts;
 import mindustry.world.blocks.logic.MessageBlock;
 import theWorst.tools.Millis;
 import theWorst.database.*;
@@ -32,6 +37,7 @@ import static theWorst.tools.Commands.*;
 public class Main extends Plugin {
     static ArrayList<Destroyable> destroyable = new ArrayList<>();
     static InGameCommands inGameCommands = new InGameCommands();
+    static GlyphLayout layout = new GlyphLayout();
 
     public Main() {
         new Administration();
@@ -79,6 +85,9 @@ public class Main extends Plugin {
 
     @Override
     public void registerServerCommands(CommandHandler handler) {
+        handler.register("test", "<text...>", "", args ->{
+
+        });
         handler.register("dbdrop","Do not touch this if you don't want to erase database.",args->{
             if(state.is(GameState.State.playing)){
                 logInfo("dbdrop-refuse-because-playing");

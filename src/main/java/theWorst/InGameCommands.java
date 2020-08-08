@@ -392,7 +392,7 @@ public class InGameCommands {
             }
             if(args.length == 1){
                 if (args[0].equals("help")) {
-                    sendInfoPopup(player, "set-help", Formatting.smoothColors("Colors go brrrrr!", "ffff00", "00ffff"));
+                    sendInfoPopup(player, "set-help", Ranks.verified.name ,Formatting.smoothColors("Colors go brrrrr!", "ffff00", "00ffff"));
                     return;
                 }
                 wrongArgAmount(player,args,2);
@@ -496,6 +496,7 @@ public class InGameCommands {
                     break;
                 default:
                     sendErrMessage(player,"no-such-option",args[1],"on/off");
+                    return;
             }
             sendMessage(player,"set-toggled",args[0],args[1]);
         });
