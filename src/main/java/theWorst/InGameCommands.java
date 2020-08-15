@@ -280,6 +280,21 @@ public class InGameCommands {
 
             Call.onInfoMessage(player.con,"[orange]==RULES==[]\n\n"+rules);
         });
+		
+		handler.<Player>register("guide","If you are not confident in passing the test, take a look at this guide.",(args,player)->{
+            String guide = null;
+            if(Global.config.guide != null){
+                String dm = Global.config.guide.get("default");
+                guide = Global.config.guide.getOrDefault(getCountryCode(getData(player).bundle.getLocale()),dm);
+            }
+
+            if(guide == null){
+                sendErrMessage(player, "no-guide");
+                return;
+            }
+
+            Call.onInfoMessage(player.con,"[orange]==GUIDE==[]\n\n"+guide);
+        });
 
         Command mkgfCommand = (args,player)-> {
             Doc doc = Database.findData(cleanName(args[0]));
