@@ -29,7 +29,6 @@ public class Tester {
 
     public static HashMap<String, String[]> loadQuestions(String locStr){
         String bundle = testFile + "_" + locStr.replace("-", "_") + ".json";
-        Call.sendMessage(bundle);
         File fi = new File(bundle);
         if(!fi.exists() || fi.isDirectory()) bundle = testFile + ".json";
         return loadSimpleHashmap(bundle, String[].class, Tester::createExample);

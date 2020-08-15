@@ -196,7 +196,7 @@ public class Factory implements Destroyable, Displayable {
             int have = loadout.getAmount(i.item);
             int price = i.amount * stack.amount;
             sb.append(have < price ? "[scarlet]":"[green]");
-            sb.append(have).append("/").append(new ItemStack(i.item, price).toString());
+            sb.append(have).append("[]/").append(new ItemStack(i.item, price).toString());
             sb.append("[]\n");
         }
         int buildTime = (int)(stack.amount * pd.buildTime);

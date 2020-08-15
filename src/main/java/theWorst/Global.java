@@ -34,6 +34,7 @@ public class Global {
         public String dbAddress = "mongodb://127.0.0.1:27017";
         public String salt = "TWS";
         public HashMap<String, String > rules;
+		public HashMap<String, String > guide;
         public HashMap<String, String > welcomeMessage;
         public int consideredPassive = 10;
 
@@ -48,6 +49,7 @@ public class Global {
                 @JsonProperty("alertPrefix") String alertPrefix,
                 @JsonProperty("dbName") String dbName,
                 @JsonProperty("rules") HashMap<String, String > rules,
+				@JsonProperty("guide") HashMap<String, String > guide,
                 @JsonProperty("welcomeMessage") HashMap<String, String > welcomeMessage,
                 @JsonProperty("vpnApi") String vpnApi,
                 @JsonProperty("vpnTimeout") int vpnTimeout){
@@ -56,6 +58,7 @@ public class Global {
             if(dbName != null) this.dbName = dbName;
             this.consideredPassive = consideredPassive;
             this.rules = rules;
+			this.guide = guide;
             this.welcomeMessage = welcomeMessage;
             this.vpnApi = vpnApi;
             this.vpnTimeout = vpnTimeout;
