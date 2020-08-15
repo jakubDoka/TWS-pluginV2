@@ -161,7 +161,7 @@ public class Administration implements Displayable{
                     }
                     return false;
                 }
-                if(pd.hasPermLevel(Perm.higher) && !(act.tile.block() instanceof StaticTree)){
+                if(!pd.hasPermLevel(Perm.higher) && !(act.tile.block() instanceof StaticTree)){
                     ArrayList<Action> acts = undo.computeIfAbsent(player.uuid, k -> new ArrayList<>());
                     long now = Millis.now();
                     switch (act.type) {
