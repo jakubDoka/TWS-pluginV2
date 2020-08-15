@@ -181,7 +181,11 @@ public class DataHandler {
         set(id, "textColor", pd.textColor);
         inc(id, Stat.playTime, Millis.since(pd.joined));
         set(id, "lastActive", Millis.now());
-        set(id, "level", getDoc(pd.id).getLevel());
+        Doc doc = getDoc(pd.id);
+        if (doc == null) {
+            return;
+        }
+        set(id, "level", doc.getLevel());
 
         if (pd.dRank != null) set(id, RankType.donationRank.name(), pd.dRank.name);
         else remove(id, RankType.donationRank.name());
