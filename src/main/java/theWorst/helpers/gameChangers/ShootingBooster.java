@@ -13,6 +13,8 @@ import theWorst.database.PD;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import static mindustry.Vars.playerGroup;
 import static theWorst.tools.Commands.logInfo;
@@ -39,8 +41,14 @@ public class ShootingBooster {
                 sd.ammo = 0;
             }
         });
+        Set<Player> uniquePlayers = new HashSet<Player>();
+        Events.on(EventType.Trigger.update,() -> {
+          uniquePlayers.clear();
+          playerGroup.all().forEach(player -> {
+            uniquePlayers.add(player);
+          });
 
-        Events.on(EventType.Trigger.update,() -> playerGroup.all().forEach(player -> {
+          uniquePlayers.forEach(player -> {
             PD pd = Database.getData(player);
             if (pd == null) return;
             if (!pd.pets.isEmpty()) {
@@ -81,7 +89,8 @@ public class ShootingBooster {
             sd.loaded = false;
             sd.ammo--;
             weapon.playerShoot(player);
-        }));
+          });
+        });
 
         loadWeapons();
         loadPets();
