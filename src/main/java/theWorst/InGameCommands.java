@@ -6,6 +6,7 @@ import arc.math.Mathf;
 import arc.math.geom.Vec2;
 import arc.struct.Array;
 import arc.util.CommandHandler;
+import arc.util.Log;
 import arc.util.Strings;
 import com.mongodb.client.model.Filters;
 import mindustry.Vars;
@@ -743,7 +744,7 @@ public class InGameCommands {
             }
         });
 
-        handler.<Player>register("search","<searchKey/sort/rank/specialrank/donationlevel> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
+        handler.<Player>register("search","<searchKey/sort/rank/specialrank/donationlevel/online> [sortType/rankName] [reverse]","Shows first 40 results of search.",(args,player)->{
             if(args[0].equals("help")) {
                 sendInfoPopup(player, "search-help", Arrays.toString(Stat.values()));
             }
@@ -1052,6 +1053,10 @@ public class InGameCommands {
                         return;
                     case "build":
                         UnitStack affordable = factory.canAfford(unitStack.unit);
+                        if(Factory.config.shipCount - factory.threads.size() == 0) {
+                            sendErrMessage(player, "factory-busy");
+                            return;
+                        }
                         if (affordable.amount == 0) {
                             sendErrMessage(player, "factory-cannot-afford");
                             return;

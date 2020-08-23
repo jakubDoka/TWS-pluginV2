@@ -118,6 +118,7 @@ public class MDoc {
                 String.format("%.2f",rules.unitHealthMultiplier),
                 String.format("%.2f",rules.playerDamageMultiplier),
                 String.format("%.2f",rules.playerHealthMultiplier),
-                String.format("%.2f",rules.solarPowerMultiplier));
+                String.format("%.2f",rules.solarPowerMultiplier),
+                String.format("%.2f",rules.deconstructRefundMultiplier));
     }
 }

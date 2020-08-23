@@ -227,7 +227,7 @@ public class BotCommands {
             }
         });
 
-        handler.registerCommand(new Command("search", "<searchKey/sort/rank/specialrank/donationlevel> [sortType/rankName] [reverse]") {
+        handler.registerCommand(new Command("search", "<searchKey/sort/rank/specialrank/donationlevel/online> [sortType/rankName] [reverse]") {
             {
                 description = "Shows first 20 results of search.";
             }

@@ -37,7 +37,7 @@ public class Bundle {
 
     public static Locale getLocale(String locString){
         String[] resResolvedL = locString.split("-");
-        if(resResolvedL.length==0) return locale;
+        if(resResolvedL.length < 2) return locale;
         return new Locale(resResolvedL[0],resResolvedL[1]);
     }
 

@@ -107,12 +107,14 @@ public class Database {
         });
 
         Events.on(EventType.PlayerLeave.class,e->{
-            PD pd = online.remove(e.player.uuid);
+            PD pd = online.get(e.player.uuid);
             if(pd == null) return;
 
             sendMessage("player-disconnected",e.player.name,String.valueOf(pd.id));
             Bot.sendToLinkedChat(String.format("**%s** (ID:**%d**) has disconnected.", cleanColors(e.player.name), pd.id));
+            online.remove(e.player.uuid);
             data.free(pd);
+
         });
 
         //games played and games won counter
@@ -286,7 +288,8 @@ public class Database {
 
     public static PD getData(Player player) {
         if(!online.containsKey(player.uuid)){
-            Log.info("Error missing data of player " + player.name + " with uuid " + player.uuid);
+            //throw new RuntimeException("Error missing data of player " + player.name + " with uuid " + player.uuid);
+            Log.info("ono");
         }
         return online.getOrDefault(player.uuid, defaultPd);
     }
@@ -418,6 +421,11 @@ public class Database {
                         res = rawData.find(Filters.eq(RankType.specialRank.name(), args[1])).limit(limit);
                     }
                     break;
+                case "online": // todo Test
+                    for( Player p : playerGroup) {
+                        result.add(docToString(getData(p).getDoc().data));
+                    }
+                    return result;
                 default:
                     result.add(getTranslation(pd, "invalid-mode"));
                     return result;

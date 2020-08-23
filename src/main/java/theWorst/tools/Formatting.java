@@ -57,6 +57,7 @@ public class Formatting {
             if (first == -1 || last == -1) break;
             completed = last + 1;
             string = string.substring(0, first) + args[idx] + string.substring(completed);
+            completed += args[idx].length();
             idx++;
         }
         return string;
