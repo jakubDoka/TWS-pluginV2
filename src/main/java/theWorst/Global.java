@@ -29,6 +29,7 @@ public class Global {
 
 
     public static class Config {
+        public String symbol = "[green]<Survival>[]";
         public String alertPrefix = "!!";
         public String dbName = "mindustryServer";
         public String dbAddress = "mongodb://127.0.0.1:27017";
@@ -45,6 +46,7 @@ public class Global {
 
         @JsonCreator public Config(
                 @JsonProperty("consideredPassive") int consideredPassive,
+                @JsonProperty("symbol") String symbol,
                 @JsonProperty("dbAddress") String dbAddress,
                 @JsonProperty("alertPrefix") String alertPrefix,
                 @JsonProperty("dbName") String dbName,
@@ -53,6 +55,7 @@ public class Global {
                 @JsonProperty("welcomeMessage") HashMap<String, String > welcomeMessage,
                 @JsonProperty("vpnApi") String vpnApi,
                 @JsonProperty("vpnTimeout") int vpnTimeout){
+            if(symbol != null) this.symbol = symbol;
             if(dbAddress != null) this.dbAddress = dbAddress;
             if(alertPrefix != null) this.alertPrefix = alertPrefix;
             if(dbName != null) this.dbName = dbName;

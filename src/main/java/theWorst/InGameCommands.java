@@ -26,6 +26,7 @@ import mindustry.world.Block;
 import mindustry.world.Tile;
 import mindustry.world.blocks.storage.CoreBlock;
 import org.bson.Document;
+import org.javacord.api.entity.user.User;
 import theWorst.helpers.maps.MDoc;
 import theWorst.helpers.maps.MapManager;
 import theWorst.tools.Formatting;
@@ -314,9 +315,14 @@ public class InGameCommands {
                 sendErrMessage(player, "mkgf-self");
                 return null;
             }
+
             if (doc.isAdmin()) {
                 sendErrMessage(player, "mkgf-target-admin");
                 return null;
+            }
+
+            if (doc.isGriefer() && !getData(player).hasThisPerm(Perm.antiGrief)){
+                sendErrMessage(player, "mkgf-not-permitted");
             }
             Rank prev = doc.getRank(RankType.rank);
             boolean isGriefer = prev == Ranks.griefer;
@@ -888,7 +894,14 @@ public class InGameCommands {
                     sendErrMessage(player, "redundant");
                     return;
                 }
-                Item item = Loadout.getItemByName(args[2]);
+                ArrayList<Item> items = Loadout.getItemByName(args[2]);//todo test
+                Item item = null;
+                if(items.size() > 1 ){
+                    sendErrMessage(player, "loadout-ambiguous-key", items.toString());
+                } else if(!items.isEmpty()) {
+                    item = items.get(0);
+                }
+
                 ItemStack stack = null;
                 String arg;
                 switch (args[0]) {
@@ -1039,11 +1052,16 @@ public class InGameCommands {
                     sendErrMessage(player, "redundant");
                     return;
                 }
-                UnitType unit = Factory.getUnitByName(args[2]);
-                if(unit == null || !Factory.config.prices.containsKey(unit)){
+                ArrayList<UnitType> units = Factory.getUnitByName(args[2]);//todo test
+                if(units.size() > 1) {
+                    sendErrMessage(player, "factory-ambiguous-key", units.toString());
+                    return;
+                }
+                if(units.isEmpty() || !Factory.config.prices.containsKey(units.get(0))){
                     sendErrMessage(player, "factory-does-not-have-this", args[2]);
                     return;
                 }
+                UnitType unit = units.get(0);
                 UnitStack unitStack = new UnitStack(unit, amount);
                 String arg;
                 String arg2 = "";
@@ -1375,5 +1393,14 @@ public class InGameCommands {
             Players.sendMessageToAdmins(player, "blank", args[0]);
             player.sendMessage(formatMessage(player, MessageMode.direct) + args[0]);
         });
+
+        /*handler.<Player>register("o", "<server-name> <text...>", "Sends message just to admins.", (args, player)->{
+
+            User bot = Bot.config.bots.get(args[0]);
+            if(bot == null) {
+                player.sendMessage("no bot with that name found. Options: " + Bot.config.bots.keySet().toString());
+            }
+            bot.sendMessage(Global.config.symbol +formatMessage(player, MessageMode.remote) + args[1]);
+        });*/
     }
 }

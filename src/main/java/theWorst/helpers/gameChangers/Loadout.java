@@ -111,11 +111,15 @@ public class Loadout implements Displayable, Destroyable {
 
     }
 
-    public static Item getItemByName(String name){
-        for(Item i : Vars.content.items()){
-            if (i.name.equals(name)) return i;
+    public static ArrayList<Item> getItemByName(String name){
+        ArrayList<Item> items = new ArrayList<>();
+        if (name == null) {
+            return  items;
         }
-        return null;
+        for(Item i : Vars.content.items()){
+            if (i.name.startsWith(name)) items.add(i);
+        }
+        return items;
     }
 
     public void loadRes(){

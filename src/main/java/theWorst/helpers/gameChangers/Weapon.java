@@ -52,7 +52,12 @@ public class Weapon {
         if(this.bullet == null){
             throw new IOException("Invalid bullet type in weapon with name " + name + ".");
         }
-        this.item = Loadout.getItemByName(item);
+        if(!Loadout.getItemByName(item).isEmpty()) {
+            this.item = Loadout.getItemByName(item).get(0);
+        } else {
+            this.item = null;
+        }
+
         this.name = name;
         this.velMul = velMul;
         this.liveMul = liveMul;

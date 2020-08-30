@@ -98,6 +98,8 @@ public class Vote implements Displayable, Destroyable {
             time = voteDuration/2;
             special = true;
             Hud.addAd("vote-special", 10, player.name, "!white", "!gray");
+        } else {
+            Hud.addAd("vote-proposed-by", 10, player.name, "" + pd.id);
         }
         passivePlayers.remove(player.uuid);
         addVote(player, "y");

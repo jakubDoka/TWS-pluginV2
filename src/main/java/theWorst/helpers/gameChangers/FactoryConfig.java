@@ -39,7 +39,8 @@ public class FactoryConfig {
         this.dropZoneRadius = dropZoneRadius;
         this.prices.clear();
         for(String p : prices.keySet()){
-            this.prices.put(Factory.getUnitByName(p), prices.get(p));
+            if(Factory.getUnitByName(p).isEmpty()) continue;
+            this.prices.put(Factory.getUnitByName(p).get(0), prices.get(p));
         }
     }
 
@@ -64,7 +65,8 @@ public class FactoryConfig {
             this.size = size;
             this.buildTime = buildTime;
             for(String s : items.keySet()){
-                this.items.add(new ItemStack(Loadout.getItemByName(s), items.get(s)));
+                if(Loadout.getItemByName(s).isEmpty()) continue;
+                this.items.add(new ItemStack(Loadout.getItemByName(s).get(0), items.get(s)));
             }
         }
 

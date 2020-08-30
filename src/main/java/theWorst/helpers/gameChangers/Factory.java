@@ -71,11 +71,15 @@ public class Factory implements Destroyable, Displayable {
         Main.addDestroyable(this);
     }
 
-    public static UnitType getUnitByName(String name) {
+    public static ArrayList<UnitType> getUnitByName(String name) {
+        ArrayList<UnitType> units = new ArrayList<>();
+        if(name == null) return units;
         for(UnitType u : Vars.content.units()){
-            if(u.name.equals(name)) return u;
+            if(u.name.startsWith(name)) {
+                units.add(u);
+            };
         }
-        return null;
+        return units;
     }
 
     @Override

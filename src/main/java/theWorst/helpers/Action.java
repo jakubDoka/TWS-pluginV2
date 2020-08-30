@@ -51,6 +51,14 @@ public abstract class Action {
         Events.on(EventType.BlockBuildEndEvent.class, e ->{
             int pos = e.tile.pos();
             for(Break b : buildQueue){
+                if (b == null) {
+                    buildQueue.remove(null);
+                    continue;
+                }
+                if (b.tile == null) {
+                    buildQueue.remove(b);
+                    continue;
+                }
                 if(pos != b.tile.pos()) continue;
                 b.drone.kill();
                 b.tile.configureAny(b.config);

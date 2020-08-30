@@ -124,7 +124,8 @@ public class Formatting {
     public enum MessageMode {
         normal("[[","]", "coral"),
         admin("||", "||", "blue"),
-        direct("<", ">", "#ffdfba");
+        direct("<", ">", "#ffdfba"),
+        remote(">>", ">>","yellow");
 
         String start, end, color;
         MessageMode(String start, String end, String color) {

@@ -365,6 +365,11 @@ public class Database {
             pd.addRank(rank);
             pd.updateName();
             pd.player.isAdmin = rank.isAdmin;
+        } else {
+            Player player = playerGroup.find(p -> p.uuid.equals(uuid));
+            if (player != null) {
+                reLogPlayer(player, id);
+            }
         }
     }
 
@@ -421,16 +426,17 @@ public class Database {
                         res = rawData.find(Filters.eq(RankType.specialRank.name(), args[1])).limit(limit);
                     }
                     break;
-                case "online": // todo Test
-                    for( Player p : playerGroup) {
-                        result.add(docToString(getData(p).getDoc().data));
-                    }
-                    return result;
                 default:
                     result.add(getTranslation(pd, "invalid-mode"));
                     return result;
             }
         } else {
+            if( args[0].equals("online")) {
+                for( Player p : playerGroup) {
+                    result.add(docToString(getData(p).getDoc().data));
+                }
+                return result;
+            }
             Pattern pattern = Pattern.compile("^"+Pattern.quote(args[0]), Pattern.CASE_INSENSITIVE);
             res = rawData.find(Filters.regex("name", pattern)).limit(limit);
         }

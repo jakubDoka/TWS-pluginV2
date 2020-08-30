@@ -1,5 +1,6 @@
 package theWorst.discord;
 
+import mindustry.gen.Call;
 import org.javacord.api.entity.channel.Channel;
 import org.javacord.api.entity.channel.ServerChannel;
 import org.javacord.api.entity.message.Message;
@@ -30,7 +31,13 @@ public class DiscordCommands implements MessageCreateListener {
     @Override
     public void onMessageCreate(MessageCreateEvent event) {
         String message = event.getMessageContent();
-        if(event.getMessageAuthor().isBotUser()) return;
+
+        if(event.getMessageAuthor().isBotUser()) {
+            if(event.isPrivateMessage()) {
+                Call.sendMessage(event.getMessageContent());
+            }
+            return;
+        }
         if(!message.startsWith(config.prefix)) return;
         Channel chan = config.channels.get("commands");
         if(chan != null && chan.getId() != event.getChannel().getId()){

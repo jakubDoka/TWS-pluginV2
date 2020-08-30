@@ -15,7 +15,7 @@ public class ItemStack {
     public int amount;
 
     @JsonCreator public ItemStack(@JsonProperty("item") String item,@JsonProperty("amount") int amount){
-        this.item = Loadout.getItemByName(item);
+        this.item = Loadout.getItemByName(item).get(0);
         this.amount = amount;
     }
 

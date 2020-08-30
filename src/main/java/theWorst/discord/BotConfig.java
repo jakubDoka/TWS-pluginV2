@@ -1,12 +1,17 @@
 package theWorst.discord;
 
+import arc.util.Timer;
 import org.javacord.api.DiscordApiBuilder;
 import org.javacord.api.entity.channel.TextChannel;
 import org.javacord.api.entity.permission.Role;
+import org.javacord.api.entity.server.Server;
+import org.javacord.api.entity.user.User;
 import org.json.simple.JSONObject;
 
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import static theWorst.Bot.api;
 import static theWorst.Bot.dir;
@@ -20,6 +25,7 @@ public class BotConfig {
 
     public final HashMap<String,TextChannel> channels = new HashMap<>();
     public final HashMap<String,Role> roles = new HashMap<>();
+    public final HashMap<String, User> bots = new HashMap<>();
     public Long serverId = null;
 
     private final static String datafile = dir + "config.json";
@@ -66,6 +72,33 @@ public class BotConfig {
                     }
                 }
 
+                if(data.containsKey("bots")){
+                    JSONObject bots_ = (JSONObject) data.get("bots");
+                    for (Object o : roles.keySet()) {
+                        String key = (String) o;
+                        CompletableFuture<User> user = api.getUserById((String)bots_.get(o));
+                        Timer.schedule(new Timer.Task() {
+                            @Override
+                            public void run() {
+                                if (!user.isDone()) {
+                                    return;
+                                }
+                                this.cancel();
+                                User found;
+                                try {
+                                    found = user.get();
+                                } catch (InterruptedException | ExecutionException e) {
+                                    e.printStackTrace();
+                                    return;
+                                }
+                                synchronized (bots) {
+                                    bots.put(key, found);
+                                }
+                            }
+                        }, 0, .1f);
+
+                    }
+                }
             },this::defaultConfig);
     }
 
